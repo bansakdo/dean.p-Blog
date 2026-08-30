@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/site :: head(${pageTitle})}"></head>
+<body>
+<header th:replace="~{fragments/site :: header}"></header>
+<main>
+  <section class="hero shell">
+    <p class="eyebrow">DEVELOPMENT · SYSTEMS · NOTES</p>
+    <h1>안녕하세요.<br>만들면서 <em>배운 것</em>을 기록합니다.</h1>
+    <p class="hero-copy">dean.p는 개발, 작은 시스템, 오래 남는 기록에 관한 개인 블로그입니다.</p>
+    <a class="text-link" th:href="@{/posts}">모든 글 보기 <span aria-hidden="true">→</span></a>
+  </section>
+
+  <section class="featured shell" aria-labelledby="featured-title">
+    <div class="section-heading">
+      <p class="eyebrow">FEATURED</p>
+      <h2 id="featured-title">최근 생각</h2>
+    </div>
+    <a class="feature-card" th:href="@{/posts/{slug}(slug=${featuredPost.slug})}">
+      <div>
+        <p class="post-meta"><time th:text="${featuredPost.publishedAt}"></time> · <span th:text="|${featuredPost.readingMinutes}분|">5분</span></p>
+        <h3 th:text="${featuredPost.title}">글 제목</h3>
+        <p th:text="${featuredPost.summary}">요약</p>
+      </div>
+      <span class="feature-arrow" aria-hidden="true">↗</span>
+    </a>
+  </section>
+
+  <section class="latest shell" aria-labelledby="latest-title">
+    <div class="section-heading inline">
+      <div><p class="eyebrow">LATEST</p><h2 id="latest-title">새로운 글</h2></div>
+      <a class="text-link" th:href="@{/posts}">전체 보기 →</a>
+    </div>
+    <div class="post-grid">
+      <article class="post-card" th:each="post : ${recentPosts}">
+        <p class="post-meta"><time th:text="${post.publishedAt}"></time> · <span th:text="|${post.readingMinutes}분|">4분</span></p>
+        <h3><a th:href="@{/posts/{slug}(slug=${post.slug})}" th:text="${post.title}">글 제목</a></h3>
+        <p th:text="${post.summary}">요약</p>
+        <ul class="tag-list" aria-label="태그"><li th:each="tag : ${post.tags}" th:text="${tag}">태그</li></ul>
+      </article>
+    </div>
+  </section>
+</main>
+<footer th:replace="~{fragments/site :: footer}"></footer>
+</body>
+</html>

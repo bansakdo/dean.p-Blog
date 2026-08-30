@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: dean-p-blog
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+  thymeleaf:
+    cache: false

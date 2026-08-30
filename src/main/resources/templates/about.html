@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/site :: head(${pageTitle})}"></head>
+<body>
+<header th:replace="~{fragments/site :: header}"></header>
+<main class="shell page-space">
+  <section class="about-layout">
+    <div><p class="eyebrow">ABOUT</p><h1>dean.p</h1></div>
+    <div class="about-copy">
+      <p>직접 만들고 운영하며 알게 된 것을 기록합니다.</p>
+      <p>완벽한 답보다 실제로 작동하는 작은 시스템과, 시간이 지나도 다시 꺼내볼 수 있는 글을 좋아합니다.</p>
+      <a class="text-link" th:href="@{/posts}">글 읽기 →</a>
+    </div>
+  </section>
+</main>
+<footer th:replace="~{fragments/site :: footer}"></footer>
+</body>
+</html>

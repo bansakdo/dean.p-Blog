@@ -1,0 +1,17 @@
+server:
+  port: ${WAS_PORT}
+
+spring:
+  config:
+    import: "optional:file:./.env.dev[.properties]"
+  autoconfigure:
+    exclude: []
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+  flyway:
+    enabled: true

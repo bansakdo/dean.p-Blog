@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title th:text="${title}">dean.p</title>
+  <script>
+    (() => {
+      const saved = localStorage.getItem('deanp-theme');
+      const theme = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+  <link rel="stylesheet" th:href="@{/css/site.css}">
+  <script defer th:src="@{/js/theme.js}"></script>
+</head>
+<body>
+<header class="site-header" th:fragment="header">
+  <a class="brand" th:href="@{/}" aria-label="dean.p 홈">dean<span>.</span>p</a>
+  <nav aria-label="주요 메뉴">
+    <a th:href="@{/posts}">글</a>
+    <a th:href="@{/about}">소개</a>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="다크 모드로 전환">
+      <span aria-hidden="true" data-theme-icon>◐</span>
+    </button>
+  </nav>
+</header>
+<footer class="site-footer" th:fragment="footer">
+  <p>생각하고, 만들고, 기록합니다.</p>
+  <p>© 2026 dean.p</p>
+</footer>
+</body>
+</html>

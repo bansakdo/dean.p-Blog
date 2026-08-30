@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/site :: head(${pageTitle})}"></head>
+<body>
+<header th:replace="~{fragments/site :: header}"></header>
+<main>
+  <article class="article">
+    <header class="article-header">
+      <a class="back-link" th:href="@{/posts}">← 모든 글</a>
+      <ul class="tag-list"><li th:each="tag : ${post.tags}" th:text="${tag}">태그</li></ul>
+      <h1 th:text="${post.title}">글 제목</h1>
+      <p class="article-summary" th:text="${post.summary}">요약</p>
+      <div class="post-meta"><time th:text="${post.publishedAt}"></time><span th:text="|${post.readingMinutes}분 읽기|">5분 읽기</span></div>
+    </header>
+    <div class="article-body">
+      <p th:each="paragraph : ${post.paragraphs}" th:text="${paragraph}">본문</p>
+    </div>
+  </article>
+</main>
+<footer th:replace="~{fragments/site :: footer}"></footer>
+</body>
+</html>
