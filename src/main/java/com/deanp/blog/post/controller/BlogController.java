@@ -1,7 +1,8 @@
-package com.deanp.blog.web;
+package com.deanp.blog.post.controller;
 
 import com.deanp.blog.post.PostView;
-import com.deanp.blog.post.SamplePostRepository;
+import com.deanp.blog.post.service.PostService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,17 +13,14 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 @Controller
+@RequiredArgsConstructor
 public class BlogController {
 
-    private final SamplePostRepository posts;
-
-    public BlogController(SamplePostRepository posts) {
-        this.posts = posts;
-    }
+    private final PostService postService;
 
     @GetMapping("/")
     public String home(Model model) {
-        List<PostView> allPosts = posts.findAll();
+        List<PostView> allPosts = postService.findAll();
         model.addAttribute("featuredPost", allPosts.getFirst());
         model.addAttribute("recentPosts", allPosts.stream().skip(1).toList());
         model.addAttribute("pageTitle", "dean.p — 개발과 기록");
@@ -31,14 +29,14 @@ public class BlogController {
 
     @GetMapping("/posts")
     public String posts(Model model) {
-        model.addAttribute("posts", posts.findAll());
+        model.addAttribute("posts", postService.findAll());
         model.addAttribute("pageTitle", "글 — dean.p");
         return "posts";
     }
 
     @GetMapping("/posts/{slug}")
     public String post(@PathVariable String slug, Model model) {
-        PostView post = posts.findBySlug(slug)
+        PostView post = postService.findBySlug(slug)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         model.addAttribute("post", post);
         model.addAttribute("pageTitle", post.title() + " — dean.p");

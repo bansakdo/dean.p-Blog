@@ -13,5 +13,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate:
+        default_schema: blog
   flyway:
     enabled: true
+    default-schema: blog
+    schemas: blog
+    baseline-on-migrate: true

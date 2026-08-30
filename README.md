@@ -15,15 +15,17 @@ Spring Boot 서버 렌더링 방식으로 만드는 개인 블로그입니다.
 ## 실행
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home ./gradlew bootRun
+./gradlew bootRun
 ```
+
+Gradle toolchain이 Java 25를 사용하므로, 시스템 기본 Java가 Java 25이거나 Gradle이 Java 25 toolchain을 찾을 수 있어야 합니다. 확인하려면 `java -version`을 실행합니다.
 
 브라우저에서 `http://localhost:8080`을 엽니다.
 
 ## 테스트
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home ./gradlew test
+./gradlew test
 ```
 
 ## DB 프로필 실행
