@@ -2,9 +2,9 @@
 
 ## Status
 
-- 문서 상태: 초안
-- 마지막 갱신: 2026-08-30
-- 현재 단계: 공개 화면 템플릿 검증
+- 문서 상태: 진행 중
+- 마지막 갱신: 2026-08-31
+- 현재 단계: MVC·JPA Entity·Repository 구조 구성
 
 ## System Shape
 
@@ -14,9 +14,10 @@
 Browser
   ↓ HTTP
 Spring Boot
-  ├── Spring MVC Controller
-  ├── Application/Domain logic
-  ├── Persistence boundary
+  ├── Feature Controller
+  ├── Feature Service
+  ├── Persistence Entity / Repository
+  ├── Querydsl 또는 필요한 Native SQL 조회
   └── Thymeleaf templates + static assets
        ↓
 External PostgreSQL
@@ -26,14 +27,49 @@ External PostgreSQL
 - Spring Boot가 HTML, CSS, JavaScript와 향후 API를 함께 제공합니다.
 - Java 25, Spring Boot 4.1.1, Gradle을 사용합니다.
 
+## Default MVC Pattern
+
+기본 애플리케이션 구조는 Spring MVC의 다음 책임 분리를 따릅니다.
+
+```text
+Controller → Service → Repository
+```
+
+- `Controller`: HTTP 요청, 입력 검증 경계, 화면 모델 준비, 응답 선택
+- `Service`: 유스케이스 조합과 여러 경계에 걸친 업무 로직
+- `Repository`: PostgreSQL 조회와 저장 등 영속성 접근
+- 단순한 전달 역할만 하는 Service는 만들지 않습니다.
+
+기능별 기본 패키지는 다음과 같습니다.
+
+```text
+com.deanp.blog.<feature>
+├── controller
+├── service
+└── persistence
+    ├── entity
+    ├── repository
+    └── query
+```
+
+- `controller`: 해당 기능의 HTTP 요청과 화면/API 응답
+- `service`: 해당 기능의 유스케이스와 업무 흐름
+- `persistence.entity`: PostgreSQL 테이블 Entity와 FK 연관관계
+- `persistence.repository`: 단순 CRUD용 Spring Data Repository
+- `persistence.query`: Querydsl 기본 조회와 필요한 Native SQL 조회
+
+일반적인 복합 조회는 Querydsl을 사용합니다. `WITH`, `WITH RECURSIVE`, 윈도우 함수, PostgreSQL 전용 기능처럼 Querydsl JPA로 표현하기 어렵거나 SQL이 더 명확한 경우에는 같은 Custom Query Repository 경계에서 parameterized Native SQL을 사용합니다.
+
 ## Current Implementation
 
-- `BlogController`: 홈, 글 목록, 글 본문, 소개 라우팅
+- `post.controller.BlogController`: 홈, 글 목록, 글 본문, 소개 라우팅
+- `post.service.PostService`: 게시글 화면용 유스케이스 위임
 - `PostView`: 화면 표시용 게시글 데이터
 - `SamplePostRepository`: 화면 검증용 메모리 샘플 데이터
+- 기능별 JPA Entity 20개와 Spring Data Repository 20개
 - Thymeleaf: 서버 렌더링 HTML
 - Vanilla JavaScript: 라이트/다크 테마 전환
-- PostgreSQL: 연결 프로필과 환경변수 설정만 준비됨
+- PostgreSQL: Flyway `blog` 스키마와 JPA 매핑 연결
 
 현재 게시글 화면은 실제 PostgreSQL이 아니라 샘플 저장소를 사용합니다.
 
@@ -47,13 +83,14 @@ External PostgreSQL
 ## Planned Boundaries
 
 - `post`: 게시글, 태그, 시리즈, 발행
-- `web`: HTTP 요청과 Thymeleaf 화면 연결
-- `persistence`: PostgreSQL 매핑과 조회
+- 각 기능의 `controller`: HTTP 요청과 Thymeleaf 화면/API 연결
+- 각 기능의 `service`: 유스케이스와 업무 흐름
+- 각 기능의 `persistence`: PostgreSQL 매핑과 CRUD·복합 조회
 - `publishing`: Markdown/Git 기반 발행 파이프라인
 - `media`: 애플리케이션 외부 저장소의 이미지·첨부파일
 - `search`: 초기에는 PostgreSQL 검색 우선
 
-위 경계는 구현 진행에 따라 조정하며, 필요하지 않은 계층이나 추상화는 추가하지 않습니다.
+최상위 `web` 패키지는 전역 예외 처리나 공통 MVC 설정처럼 기능에 속하지 않는 웹 인프라가 필요할 때만 사용합니다. 위 경계는 구현 진행에 따라 조정하며, 필요하지 않은 계층이나 추상화는 추가하지 않습니다.
 
 ## Decisions Pending
 

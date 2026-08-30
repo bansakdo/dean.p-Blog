@@ -12,7 +12,13 @@
       document.documentElement.dataset.theme = theme;
     })();
   </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
   <link rel="stylesheet" th:href="@{/css/site.css}">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+  <script defer src="https://unpkg.com/lucide@0.468.0"></script>
+  <script defer th:src="@{/js/site.js}"></script>
   <script defer th:src="@{/js/theme.js}"></script>
 </head>
 <body>
@@ -22,7 +28,7 @@
     <a th:href="@{/posts}">글</a>
     <a th:href="@{/about}">소개</a>
     <button class="theme-toggle" type="button" data-theme-toggle aria-label="다크 모드로 전환">
-      <span aria-hidden="true" data-theme-icon>◐</span>
+      <i data-lucide="sun-moon" aria-hidden="true"></i>
     </button>
   </nav>
 </header>
