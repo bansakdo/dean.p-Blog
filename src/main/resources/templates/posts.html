@@ -9,7 +9,7 @@
     <h1>글</h1>
     <p>개발과 기록, 작은 시스템을 운영하며 배운 내용을 정리합니다.</p>
   </header>
-  <div class="post-list">
+  <div class="post-list" th:if="${!posts.isEmpty()}">
     <article th:each="post : ${posts}">
       <div class="post-meta"><time th:text="${post.publishedAt}"></time><span th:text="|${post.readingMinutes}분 읽기|">5분 읽기</span></div>
       <div>
@@ -19,6 +19,7 @@
       </div>
     </article>
   </div>
+  <p class="empty-state" th:if="${posts.isEmpty()}">아직 공개된 글이 없습니다.</p>
 </main>
 <footer th:replace="~{fragments/site :: footer}"></footer>
 </body>

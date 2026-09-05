@@ -12,7 +12,7 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         default_schema: blog
@@ -21,3 +21,8 @@ spring:
     default-schema: blog
     schemas: blog
     baseline-on-migrate: true
+
+app:
+  visitor:
+    cookie-secure: true
+    trusted-proxies: ${VISITOR_TRUSTED_PROXIES:}

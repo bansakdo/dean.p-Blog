@@ -2,7 +2,7 @@ package com.deanp.blog.publishing.persistence.entity;
 
 import jakarta.persistence.Column;
 import com.deanp.blog.auth.persistence.entity.AppUser;
-import com.deanp.blog.post.persistence.entity.BoardDetail;
+import com.deanp.blog.post.persistence.entity.PostDetail;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -15,18 +15,21 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 게시글 변경 시점의 본문 스냅샷을 blog.post_revision 테이블에 매핑한다.
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "board_revision", schema = "blog")
-public class BoardRevision {
+@Table(name = "post_revision", schema = "blog")
+public class PostRevision {
 
     @Id
     @Column(name = "id")
     private UUID id;
 
-    @Column(name = "board_detail_id")
-    private UUID boardDetailId;
+    @Column(name = "post_detail_id")
+    private UUID postDetailId;
 
     @Column(name = "revision_no")
     private Integer revisionNo;
@@ -53,8 +56,8 @@ public class BoardRevision {
     private Instant createdAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_detail_id", insertable = false, updatable = false)
-    private BoardDetail boardDetail;
+    @JoinColumn(name = "post_detail_id", insertable = false, updatable = false)
+    private PostDetail postDetail;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "changed_by", insertable = false, updatable = false)

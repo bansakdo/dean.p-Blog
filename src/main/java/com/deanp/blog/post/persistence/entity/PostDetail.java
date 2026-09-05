@@ -14,18 +14,21 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 공개 글 본문과 게시 상태를 blog.post_detail 테이블에 매핑한다.
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "board_detail", schema = "blog")
-public class BoardDetail {
+@Table(name = "post_detail", schema = "blog")
+public class PostDetail {
 
     @Id
     @Column(name = "id")
     private UUID id;
 
-    @Column(name = "board_id")
-    private UUID boardId;
+    @Column(name = "post_id")
+    private UUID postId;
 
     @Column(name = "category_id")
     private UUID categoryId;
@@ -61,12 +64,12 @@ public class BoardDetail {
     private Instant updatedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_id", insertable = false, updatable = false)
-    private Board board;
+    @JoinColumn(name = "post_id", insertable = false, updatable = false)
+    private Post post;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", insertable = false, updatable = false)
-    private BoardCategory category;
+    private PostCategory category;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id", insertable = false, updatable = false)

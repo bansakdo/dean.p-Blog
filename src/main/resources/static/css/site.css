@@ -122,3 +122,12 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
 }
+.empty-state { color: var(--muted); margin: 0; padding: 28px 0; }
+.article-body h2, .article-body h3 { font-family: Inter, Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.25; letter-spacing: -.03em; }
+.article-body h2 { margin: 2.2em 0 .8em; font-size: 1.7rem; }
+.article-body h3 { margin: 1.8em 0 .7em; font-size: 1.35rem; }
+.article-body ul, .article-body ol { padding-left: 1.4em; margin: 0 0 1.75em; }
+.article-body blockquote { margin: 0 0 1.75em; padding-left: 1.2em; border-left: 3px solid var(--line); color: var(--muted); }
+.article-body code { font-family: "SFMono-Regular", Consolas, monospace; font-size: .9em; }
+.article-body pre { overflow-x: auto; padding: 1rem; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+.article-body a { color: var(--accent); border-bottom: 1px solid currentColor; }

@@ -10,18 +10,21 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 게시글 묶음 정보를 blog.post 테이블에 매핑한다.
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "board", schema = "blog")
-public class Board {
+@Table(name = "post", schema = "blog")
+public class Post {
 
     @Id
     @Column(name = "id")
     private UUID id;
 
-    @Column(name = "board_code")
-    private String boardCode;
+    @Column(name = "post_code")
+    private String postCode;
 
     @Column(name = "name")
     private String name;

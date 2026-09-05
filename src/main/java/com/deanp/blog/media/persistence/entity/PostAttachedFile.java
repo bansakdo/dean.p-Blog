@@ -1,7 +1,7 @@
 package com.deanp.blog.media.persistence.entity;
 
 import jakarta.persistence.Column;
-import com.deanp.blog.post.persistence.entity.BoardDetail;
+import com.deanp.blog.post.persistence.entity.PostDetail;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -13,21 +13,24 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.Instant;
 
+/**
+ * 게시글과 첨부 파일의 연결을 blog.post_attached_file 테이블에 매핑한다.
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "board_attached_file", schema = "blog")
-public class BoardAttachedFile {
+@Table(name = "post_attached_file", schema = "blog")
+public class PostAttachedFile {
 
     @EmbeddedId
-    private BoardAttachedFileId id;
+    private PostAttachedFileId id;
 
     @Column(name = "sort_order")
     private Integer sortOrder;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_detail_id", insertable = false, updatable = false)
-    private BoardDetail boardDetail;
+    @JoinColumn(name = "post_detail_id", insertable = false, updatable = false)
+    private PostDetail postDetail;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "attached_file_id", insertable = false, updatable = false)

@@ -9,4 +9,5 @@ build/
 .env
 .env.*
 docs/db/
+TODO.md
 AGENTS.md

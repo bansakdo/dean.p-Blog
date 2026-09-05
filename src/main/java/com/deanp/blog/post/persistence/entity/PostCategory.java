@@ -13,18 +13,21 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 게시글 분류 정보를 blog.post_category 테이블에 매핑한다.
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "board_category", schema = "blog")
-public class BoardCategory {
+@Table(name = "post_category", schema = "blog")
+public class PostCategory {
 
     @Id
     @Column(name = "id")
     private UUID id;
 
-    @Column(name = "board_id")
-    private UUID boardId;
+    @Column(name = "post_id")
+    private UUID postId;
 
     @Column(name = "parent_id")
     private UUID parentId;
@@ -48,10 +51,10 @@ public class BoardCategory {
     private Instant updatedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_id", insertable = false, updatable = false)
-    private Board board;
+    @JoinColumn(name = "post_id", insertable = false, updatable = false)
+    private Post post;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id", insertable = false, updatable = false)
-    private BoardCategory parent;
+    private PostCategory parent;
 }

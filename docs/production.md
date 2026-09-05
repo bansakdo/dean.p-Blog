@@ -3,7 +3,7 @@
 ## Status
 
 - 문서 상태: 초안
-- 마지막 갱신: 2026-08-30
+- 마지막 갱신: 2026-08-31
 - 현재 배포 상태: 실제 운영 배포 전
 
 ## Runtime
@@ -19,7 +19,7 @@
 - `dev`: 개발용 외부 PostgreSQL 연결
 - `prod`: 운영용 외부 PostgreSQL 연결
 
-현재 `dev`와 `prod`의 `ddl-auto`는 명시적 임시 결정에 따라 `update`입니다. 운영 배포 전에는 자동 스키마 변경 위험을 검토하고 `validate` 또는 확정된 migration 방식으로 전환해야 합니다.
+`dev`와 `prod`의 Hibernate `ddl-auto`는 `validate`입니다. Flyway가 `src/main/resources/db/migration`의 SQL migration으로 스키마 생성을 소유하고, Hibernate는 애플리케이션 시작 시 Entity 매핑과 실제 스키마의 호환성만 검증합니다.
 
 실행 예시:
 
@@ -65,7 +65,20 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 - 애플리케이션 스키마: `blog`
 - PostgreSQL 기본 `public` 스키마는 별도로 존재할 수 있습니다.
 
-게시글 테이블과 마이그레이션 전략은 아직 확정되지 않았습니다.
+스키마 evolution은 Flyway migration으로만 수행합니다. 운영과 개발 프로필 모두 Hibernate 자동 DDL 변경을 사용하지 않습니다.
+
+- Flyway 적용 전 `visitor_daily_summary`에서 동일 `summary_date`·`post_detail_id` 중복 행을 점검하고 백업합니다.
+- V5는 중복 데이터가 있으면 unique index 생성에 실패하므로 원인과 보존 절차를 확인한 뒤 별도로 정리해야 합니다.
+- V6는 기존 `visitor_event`의 `POST_VIEW` 원본을 UTC 날짜와 게시글별로 집계해 `landing_count`, `view_count`, `unique_visitor_count`를 보정하고, summary 행이 없는 그룹은 새로 생성합니다.
+- V6 적용 후 원본 이벤트 수와 summary를 대조하고, Flyway history와 Hibernate validate 결과를 확인합니다.
+
+## Visitor Tracking
+
+- `prod`에서는 `app.visitor.cookie-secure=true`로 HTTPS 쿠키를 사용합니다.
+- `X-Forwarded-For`는 `VISITOR_TRUSTED_PROXIES`에 설정한 reverse proxy 주소/CIDR에서 온 요청에만 신뢰하며, 오른쪽부터 확인한 첫 번째 비신뢰 주소를 클라이언트로 사용합니다. 잘못된 체인은 remote address로 대체하고, 기본값은 빈 값입니다.
+- reverse proxy는 외부 요청의 기존 `X-Forwarded-For` 값을 제거·재작성해야 합니다.
+- 예: `VISITOR_TRUSTED_PROXIES=10.0.0.0/8,192.0.2.10/32`
+- 실제 프록시 네트워크가 확정되지 않은 상태에서 해당 환경변수를 설정하지 않습니다.
 
 ## Deployment Checklist
 
@@ -73,6 +86,7 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 - [ ] `prod` 프로필 확인
 - [ ] `DB_URL`, `DB_USER`, `DB_PASSWORD`를 안전하게 주입
 - [ ] 외부 PostgreSQL 연결 및 권한 확인
+- [ ] Flyway migration 적용 및 Hibernate validate 시작 확인
 - [ ] 애플리케이션 기동 확인
 - [ ] HTTPS 인증서와 리버스 프록시 설정
 - [ ] 로그 위치와 보존 정책 확인
@@ -84,8 +98,8 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 ## Not Yet Verified
 
 - 실제 운영 서버 배포
-- 외부 PostgreSQL 접속
-- 스키마 및 마이그레이션 적용
+- 실제 운영 서버의 외부 PostgreSQL 접속
+- 실제 운영 서버의 Flyway migration 적용
 - HTTPS
 - 백업·복구
 - 모니터링과 알림

@@ -1,7 +1,7 @@
 package com.deanp.blog.visitor.persistence.entity;
 
 import jakarta.persistence.Column;
-import com.deanp.blog.post.persistence.entity.BoardDetail;
+import com.deanp.blog.post.persistence.entity.PostDetail;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -14,7 +14,12 @@ import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
+/**
+ * 방문 이벤트를 일자와 글 단위로 집계한 결과를 blog.visitor_daily_summary 테이블에 매핑한다.
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -28,10 +33,11 @@ public class VisitorDailySummary {
     @Column(name = "summary_date")
     private LocalDate summaryDate;
 
-    @Column(name = "board_detail_id")
-    private UUID boardDetailId;
+    @Column(name = "post_detail_id")
+    private UUID postDetailId;
 
-    @Column(name = "country_code")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "country_code", length = 2, columnDefinition = "char(2)")
     private String countryCode;
 
     @Column(name = "search_engine")
@@ -50,6 +56,6 @@ public class VisitorDailySummary {
     private Instant createdAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_detail_id", insertable = false, updatable = false)
-    private BoardDetail boardDetail;
+    @JoinColumn(name = "post_detail_id", insertable = false, updatable = false)
+    private PostDetail postDetail;
 }
