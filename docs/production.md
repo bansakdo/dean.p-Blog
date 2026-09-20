@@ -71,6 +71,8 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 - V5는 중복 데이터가 있으면 unique index 생성에 실패하므로 원인과 보존 절차를 확인한 뒤 별도로 정리해야 합니다.
 - V6는 기존 `visitor_event`의 `POST_VIEW` 원본을 UTC 날짜와 게시글별로 집계해 `landing_count`, `view_count`, `unique_visitor_count`를 보정하고, summary 행이 없는 그룹은 새로 생성합니다.
 - V6 적용 후 원본 이벤트 수와 summary를 대조하고, Flyway history와 Hibernate validate 결과를 확인합니다.
+- V9는 과거 개발 스키마에서 문자 컬럼이 일괄 `varchar(255)`로 생성된 드리프트만 V1-V8 migration의 명시 타입으로 복구합니다. 축소되는 컬럼은 `char_length` 최대값을 먼저 검사하며, 실패 오류에는 테이블·컬럼·최대 길이만 포함하고 실제 값은 노출하지 않습니다.
+- V9 적용 전 운영 백업을 확보하고 Flyway validation을 통과시켜야 합니다. V6 checksum repair는 별도 운영 절차이며 애플리케이션이나 migration에서 validation을 자동 우회하지 않습니다.
 
 ## Visitor Tracking
 

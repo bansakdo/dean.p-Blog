@@ -21,6 +21,7 @@ public interface VisitorDailySummaryRepository extends JpaRepository<VisitorDail
      * @param summaryId 새 요약 행이 필요할 때 사용할 식별자
      * @param summaryDate 집계 기준 UTC 날짜
      * @param postDetailId 조회된 게시글 상세 식별자
+     * @param uniqueVisitorDelta 고유 방문자 수 증분
      * @param occurredAt 새 요약 행의 생성 시각
      */
     @Modifying(flushAutomatically = true, clearAutomatically = false)
@@ -40,15 +41,7 @@ public interface VisitorDailySummaryRepository extends JpaRepository<VisitorDail
                 :postDetailId,
                 1,
                 1,
-                (
-                    SELECT count(DISTINCT event.visitor_id)
-                    FROM blog.visitor_event event
-                    WHERE event.event_type = 'POST_VIEW'
-                      AND event.post_detail_id = :postDetailId
-                      AND event.visitor_id IS NOT NULL
-                      AND event.occurred_at >= (CAST(:summaryDate AS date) AT TIME ZONE 'UTC')
-                      AND event.occurred_at < ((CAST(:summaryDate AS date) + 1) AT TIME ZONE 'UTC')
-                ),
+                :uniqueVisitorDelta,
                 :occurredAt
             )
             ON CONFLICT (summary_date, post_detail_id)
@@ -56,20 +49,15 @@ public interface VisitorDailySummaryRepository extends JpaRepository<VisitorDail
             DO UPDATE SET
                 landing_count = visitor_daily_summary.landing_count + 1,
                 view_count = visitor_daily_summary.view_count + 1,
-                unique_visitor_count = (
-                    SELECT count(DISTINCT event.visitor_id)
-                    FROM blog.visitor_event event
-                    WHERE event.event_type = 'POST_VIEW'
-                      AND event.post_detail_id = :postDetailId
-                      AND event.visitor_id IS NOT NULL
-                      AND event.occurred_at >= (CAST(:summaryDate AS date) AT TIME ZONE 'UTC')
-                      AND event.occurred_at < ((CAST(:summaryDate AS date) + 1) AT TIME ZONE 'UTC')
-                )
+                unique_visitor_count = visitor_daily_summary.unique_visitor_count + :uniqueVisitorDelta
             """, nativeQuery = true)
     void upsertPostViewSummary(
             @Param("summaryId") UUID summaryId,
             @Param("summaryDate") LocalDate summaryDate,
             @Param("postDetailId") UUID postDetailId,
+            @Param("uniqueVisitorDelta") long uniqueVisitorDelta,
             @Param("occurredAt") Instant occurredAt
     );
+
 }
+

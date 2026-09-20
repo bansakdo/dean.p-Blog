@@ -16,30 +16,36 @@
       <p class="eyebrow">FEATURED</p>
       <h2 id="featured-title">최근 생각</h2>
     </div>
-    <a class="feature-card" th:if="${hasPublishedPosts}" th:href="@{/posts/{slug}(slug=${featuredPost.slug})}">
+    <div class="featured-grid" th:if="${hasPublishedPosts}">
+    <a class="feature-card" th:each="featuredPost : ${featuredPosts}" th:href="@{/posts/{slug}(slug=${featuredPost.slug})}">
       <div>
+        <img class="post-thumbnail" th:if="${featuredPost.representativeImageUrl != null}" th:src="${featuredPost.representativeImageUrl}" th:alt="${featuredPost.title}" loading="lazy">
         <p class="post-meta"><time th:text="${featuredPost.publishedAt}"></time> · <span th:text="|${featuredPost.readingMinutes}분|">5분</span></p>
         <h3 th:text="${featuredPost.title}">글 제목</h3>
         <p th:text="${featuredPost.summary}">요약</p>
       </div>
-      <span class="feature-arrow" aria-hidden="true">↗</span>
+
     </a>
+    </div>
+    <div class="home-more"><a class="text-link" th:href="@{/posts}" aria-label="최근 생각 더 보기">더 보기 <span aria-hidden="true">→</span></a></div>
     <p class="empty-state" th:unless="${hasPublishedPosts}">아직 공개된 글이 없습니다.</p>
   </section>
 
   <section class="latest shell" aria-labelledby="latest-title">
     <div class="section-heading inline">
       <div><p class="eyebrow">LATEST</p><h2 id="latest-title">새로운 글</h2></div>
-      <a class="text-link" th:href="@{/posts}">전체 보기 →</a>
+      <a class="text-link latest-mobile-more" th:href="@{/posts}">전체 보기 →</a>
     </div>
     <div class="post-grid" th:if="${hasPublishedPosts}">
       <article class="post-card" th:each="post : ${recentPosts}">
         <p class="post-meta"><time th:text="${post.publishedAt}"></time> · <span th:text="|${post.readingMinutes}분|">4분</span></p>
+        <img class="post-thumbnail" th:if="${post.representativeImageUrl != null}" th:src="${post.representativeImageUrl}" th:alt="${post.title}" loading="lazy">
         <h3><a th:href="@{/posts/{slug}(slug=${post.slug})}" th:text="${post.title}">글 제목</a></h3>
         <p th:text="${post.summary}">요약</p>
         <ul class="tag-list" aria-label="태그"><li th:each="tag : ${post.tags}" th:text="${tag}">태그</li></ul>
       </article>
     </div>
+    <div class="home-more"><a class="text-link" th:href="@{/posts}" aria-label="새로운 글 더 보기">더 보기 <span aria-hidden="true">→</span></a></div>
     <p class="empty-state" th:unless="${hasPublishedPosts}">곧 새로운 글을 공개할 예정입니다.</p>
   </section>
 </main>

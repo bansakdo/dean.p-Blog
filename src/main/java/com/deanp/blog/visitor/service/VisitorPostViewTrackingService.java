@@ -83,7 +83,9 @@ public class VisitorPostViewTrackingService {
 
         // lock 순서는 모든 요청에서 visitor -> summary로 고정해 deadlock 가능성을 줄인다.
         trackingLocks.lockVisitor(anonymousKey);
-        Visitor visitor = visitors.findByAnonymousKey(anonymousKey)
+        var existingVisitor = visitors.findByAnonymousKey(anonymousKey);
+        boolean newVisitor = existingVisitor.isEmpty();
+        Visitor visitor = existingVisitor
                 .map(existing -> {
                     existing.markSeen(occurredAt);
                     return existing;
@@ -92,14 +94,16 @@ public class VisitorPostViewTrackingService {
 
         trackingLocks.lockDailySummary(summaryDate, postDetailId);
 
-        // 원본 이벤트를 먼저 저장한 뒤 같은 트랜잭션에서 일별 요약 집계가 참조할 수 있도록 flush한다.
-        events.saveAndFlush(VisitorEvent.postView(visitor.getId(), postDetailId, occurredAt, metadata));
+        VisitorEvent event = VisitorEvent.postView(visitor.getId(), postDetailId, occurredAt, metadata);
+        events.saveAndFlush(event);
 
         // 현재 집계 범위는 UTC 날짜와 게시글 상세 식별자이며 landing_count는 상세 진입 이벤트 수와 동일하게 증가한다.
+        long uniqueVisitorDelta = newVisitor ? 1L : 0L;
         dailySummaries.upsertPostViewSummary(
                 UUID.randomUUID(),
                 summaryDate,
                 postDetailId,
+                uniqueVisitorDelta,
                 occurredAt
         );
     }

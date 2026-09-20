@@ -15,6 +15,11 @@ import java.util.UUID;
  * @param readingMinutes 예상 읽기 시간(분)
  * @param tags 게시글 태그 목록
  * @param htmlContent Markdown을 HTML로 변환한 본문
+ * @param representativeImageUrl 대표 이미지 주소
+ * @param categoryName 카테고리 표시명
+ * @param seriesSlug 공개 시리즈 URL 값
+ * @param seriesName 공개 시리즈 표시명
+ * @param seriesOrder 저장된 연재 순서 (필터 결과의 행 번호가 아님)
  */
 public record PostView(
         UUID id,
@@ -24,6 +29,17 @@ public record PostView(
         LocalDate publishedAt,
         int readingMinutes,
         List<String> tags,
-        String htmlContent
+        String htmlContent,
+        String representativeImageUrl,
+        String categoryName, String seriesSlug, String seriesName, Integer seriesOrder
 ) {
+    public PostView(UUID id, String slug, String title, String summary, LocalDate publishedAt,
+                    int readingMinutes, List<String> tags, String htmlContent, String representativeImageUrl) {
+        this(id, slug, title, summary, publishedAt, readingMinutes, tags, htmlContent,
+                representativeImageUrl, null, null, null, null);
+    }
+    public PostView(UUID id, String slug, String title, String summary, LocalDate publishedAt,
+                    int readingMinutes, List<String> tags, String htmlContent) {
+        this(id, slug, title, summary, publishedAt, readingMinutes, tags, htmlContent, null);
+    }
 }

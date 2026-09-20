@@ -41,6 +41,7 @@ class BlogSchemaVerificationTest {
             "common_code_detail",
             "post",
             "post_category",
+            "post_series",
             "tag",
             "post_detail",
             "attached_files",
@@ -64,6 +65,12 @@ class BlogSchemaVerificationTest {
             Map.entry("fk_post_detail_post", new ForeignKeyExpectation("post_detail", List.of("post_id"), "post", List.of("id"))),
             Map.entry("fk_post_detail_category", new ForeignKeyExpectation("post_detail", List.of("category_id"), "post_category", List.of("id"))),
             Map.entry("fk_post_detail_author", new ForeignKeyExpectation("post_detail", List.of("author_id"), "app_user", List.of("id"))),
+            Map.entry("fk_post_representative_image", new ForeignKeyExpectation("post_detail", List.of("id", "representative_image_id"), "post_attached_file", List.of("post_detail_id", "attached_file_id"))),
+            Map.entry("fk_post_series_post", new ForeignKeyExpectation("post_series", List.of("post_id"), "post", List.of("id"))),
+            Map.entry("fk_post_series_category", new ForeignKeyExpectation("post_series", List.of("category_id"), "post_category", List.of("id"))),
+            Map.entry("fk_post_series_post_category", new ForeignKeyExpectation("post_series", List.of("post_id", "category_id"), "post_category", List.of("post_id", "id"))),
+            Map.entry("fk_post_detail_series", new ForeignKeyExpectation("post_detail", List.of("series_id"), "post_series", List.of("id"))),
+            Map.entry("fk_post_detail_post_series", new ForeignKeyExpectation("post_detail", List.of("post_id", "series_id"), "post_series", List.of("post_id", "id"))),
             Map.entry("fk_user_group_user", new ForeignKeyExpectation("user_group", List.of("user_id"), "app_user", List.of("id"))),
             Map.entry("fk_user_group_group", new ForeignKeyExpectation("user_group", List.of("group_id"), "auth_group", List.of("id"))),
             Map.entry("fk_group_menu_group", new ForeignKeyExpectation("group_menu", List.of("group_id"), "auth_group", List.of("id"))),
@@ -85,6 +92,11 @@ class BlogSchemaVerificationTest {
             Map.entry("idx_post_detail_post_status", new IndexExpectation("post_detail", List.of("post_id", "status", "published_at"))),
             Map.entry("idx_post_detail_category", new IndexExpectation("post_detail", List.of("category_id", "published_at"))),
             Map.entry("idx_post_detail_author", new IndexExpectation("post_detail", List.of("author_id"))),
+            Map.entry("idx_post_series_category", new IndexExpectation("post_series", List.of("category_id", "sort_order", "name"))),
+            Map.entry("idx_post_detail_series", new IndexExpectation("post_detail", List.of("series_id", "series_order"))),
+            Map.entry("ux_post_category_post_id_id", new IndexExpectation("post_category", List.of("post_id", "id"))),
+            Map.entry("ux_post_series_post_id_id", new IndexExpectation("post_series", List.of("post_id", "id"))),
+            Map.entry("ux_post_detail_series_order", new IndexExpectation("post_detail", List.of("series_id", "series_order"))),
             Map.entry("idx_post_tag_tag", new IndexExpectation("post_tag", List.of("tag_id", "post_detail_id"))),
             Map.entry("idx_post_revision_detail_created", new IndexExpectation("post_revision", List.of("post_detail_id", "created_at"))),
             Map.entry("idx_publish_history_commit", new IndexExpectation("publish_history", List.of("commit_hash", "file_path"))),
@@ -135,7 +147,7 @@ class BlogSchemaVerificationTest {
         Map<String, String> appliedMigrations = jdbcTemplate.query("""
                 SELECT version, script
                 FROM blog.flyway_schema_history
-                WHERE version IN ('1', '2', '3', '4', '5', '6')
+                WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9')
                   AND success
                 """, rs -> {
                     Map<String, String> migrations = new java.util.HashMap<>();
@@ -151,7 +163,10 @@ class BlogSchemaVerificationTest {
                 "3", "V3__align_network_and_country_column_types.sql",
                 "4", "V4__rename_board_tables_to_post.sql",
                 "5", "V5__add_visitor_daily_summary_unique_post_day.sql",
-                "6", "V6__reconcile_visitor_daily_summary_counts.sql"
+                "6", "V6__reconcile_visitor_daily_summary_counts.sql",
+                "7", "V7__add_representative_image.sql",
+                "8", "V8__add_post_series.sql",
+                "9", "V9__align_varchar255_schema_drift.sql"
         ), appliedMigrations);
     }
 

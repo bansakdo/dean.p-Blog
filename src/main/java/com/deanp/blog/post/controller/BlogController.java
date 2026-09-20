@@ -49,7 +49,7 @@ public class BlogController {
         List<PostView> allPosts = postService.findAll();
 
         // 홈 템플릿이 필요한 대표 글, 최근 글, 상태 플래그, 제목을 모델에 담는다.
-        model.addAttribute("featuredPost", allPosts.isEmpty() ? null : allPosts.getFirst());
+        model.addAttribute("featuredPosts", allPosts.stream().limit(6).toList());
         model.addAttribute("recentPosts", allPosts.stream().skip(1).toList());
         model.addAttribute("hasPublishedPosts", !allPosts.isEmpty());
         model.addAttribute("pageTitle", "dean.p — 개발과 기록");
@@ -61,17 +61,56 @@ public class BlogController {
      * 공개 글 목록 화면을 선택된 카테고리 조건으로 렌더링한다.
      *
      * @param category 선택된 카테고리 슬러그, 없으면 전체 글
+     * @param series 선택된 시리즈 슬러그, 없으면 시리즈 조건 생략
+     * @param search 검색어, 없으면 검색 조건 생략
+     * @param tag 선택된 태그 슬러그, 없으면 태그 조건 생략
      * @param model Thymeleaf 렌더링에 사용할 모델
      * @return 글 목록 템플릿 이름
      */
     @GetMapping("/posts")
-    public String posts(@RequestParam(required = false) String category, Model model) {
+    public String posts(@RequestParam(required = false) String category,
+                        @RequestParam(required = false) String series,
+                        @RequestParam(required = false, name = "q") String search,
+                        @RequestParam(required = false) String tag, Model model) {
         // 선택된 카테고리 조건과 조회 결과를 목록 템플릿 모델에 담는다.
-        model.addAttribute("posts", postService.findAll(category));
+        category = normalize(category);
+        series = normalize(series);
+        tag = normalize(tag);
+        search = normalize(search);
+        model.addAttribute("posts", postService.findAll(category, series, tag, search));
+        var categories = postService.findCategories();
+        var tags = postService.findTags();
+        model.addAttribute("categories", categories);
+        model.addAttribute("totalPosts", postService.countPublishedPosts());
+        model.addAttribute("selectedCategoryName", filterName(categories, category));
+        model.addAttribute("selectedTagName", filterName(tags, tag));
+        model.addAttribute("seriesOptions", postService.findSeries(category));
+        model.addAttribute("selectedSeriesInfo", postService.findSeries(category, series).orElse(null));
+        model.addAttribute("tags", tags);
         model.addAttribute("selectedCategory", category);
+        model.addAttribute("selectedSeries", series);
+        model.addAttribute("selectedTag", tag);
+        model.addAttribute("search", search);
+        model.addAttribute("hasFilters", category != null || series != null || tag != null || search != null);
         model.addAttribute("pageTitle", "글 — dean.p");
 
         return "posts";
+    }
+
+    /** 선택한 필터는 slug 대신 표시 이름을 사용하며, 알 수 없는 값은 그대로 보존한다. */
+    private String filterName(List<com.deanp.blog.post.PostFilterOption> options, String slug) {
+        return options.stream().filter(option -> option.slug().equals(slug))
+                .map(com.deanp.blog.post.PostFilterOption::name).findFirst().orElse(slug);
+    }
+
+    /**
+     * 요청 파라미터의 공백 값을 제거하고 빈 값은 null로 통일한다.
+     *
+     * @param value 요청 파라미터 값
+     * @return 정규화된 값 또는 null
+     */
+    private String normalize(String value) {
+        return value == null || value.isBlank() ? null : value.strip();
     }
 
     /**

@@ -16,6 +16,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -137,11 +138,26 @@ class VisitorDailySummaryRepositoryTest {
      * @param occurredAt 조회 발생 시각
      */
     private void recordAndSummarize(Visitor visitor, UUID postDetailId, Instant occurredAt) {
-        events.saveAndFlush(VisitorEvent.postView(visitor.getId(), postDetailId, occurredAt, VisitorRequestMetadata.empty()));
+        LocalDate summaryDate = occurredAt.atZone(ZoneOffset.UTC).toLocalDate();
+        boolean newVisitorForSummary = jdbcTemplate.queryForObject("""
+                SELECT count(*) = 0
+                FROM blog.visitor_event
+                WHERE visitor_id = ?
+                  AND post_detail_id = ?
+                  AND event_type = 'POST_VIEW'
+                  AND occurred_at >= ?
+                  AND occurred_at < ?
+                """, Boolean.class, visitor.getId(), postDetailId,
+                Timestamp.from(summaryDate.atStartOfDay().toInstant(ZoneOffset.UTC)),
+                Timestamp.from(summaryDate.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC)));
+        long uniqueVisitorDelta = newVisitorForSummary ? 1L : 0L;
+        VisitorEvent event = VisitorEvent.postView(visitor.getId(), postDetailId, occurredAt, VisitorRequestMetadata.empty());
+        events.saveAndFlush(event);
         summaries.upsertPostViewSummary(
                 UUID.randomUUID(),
-                occurredAt.atZone(ZoneOffset.UTC).toLocalDate(),
+                summaryDate,
                 postDetailId,
+                uniqueVisitorDelta,
                 occurredAt
         );
     }

@@ -1,6 +1,8 @@
 package com.deanp.blog.post.service;
 
 import com.deanp.blog.post.PostView;
+import com.deanp.blog.post.PostFilterOption;
+import com.deanp.blog.post.PostSeriesOption;
 import com.deanp.blog.post.persistence.query.PublicPostRow;
 import com.deanp.blog.post.persistence.repository.PostDetailRepository;
 import com.vladsch.flexmark.html.HtmlRenderer;
@@ -68,6 +70,65 @@ public class PostService {
     }
 
     /**
+     * 카테고리와 태그 조건에 맞는 공개 글을 조회한다.
+     * @param categorySlug 선택 카테고리
+     * @param tagSlug 선택 태그
+     * @return 두 조건에 일치하는 공개 글
+     */
+    public List<PostView> findAll(String categorySlug, String tagSlug) {
+        return toPostViews(posts.findPublishedRowsNewestFirst(categorySlug, tagSlug));
+    }
+
+    /**
+     * 공개 글을 카테고리, 시리즈, 태그, 검색어 조건으로 조회한다.
+     *
+     * @param categorySlug 선택 카테고리
+     * @param seriesSlug 선택 시리즈
+     * @param tagSlug 선택 태그
+     * @param search 검색어
+     * @return 조건에 맞는 공개 글
+     */
+    public List<PostView> findAll(String categorySlug, String seriesSlug, String tagSlug, String search) {
+        return toPostViews(posts.findPublishedRows(categorySlug, seriesSlug, tagSlug, search));
+    }
+
+    /** @return 미분류 글을 포함한 전체 공개 글 수 */
+    public long countPublishedPosts() {
+        return posts.countPublishedPosts();
+    }
+
+    /** @return 공개 글 카테고리 선택지 */
+    public List<PostFilterOption> findCategories() {
+        return posts.findPublishedCategories();
+    }
+
+    /** @return 공개 글 태그 선택지 */
+    public List<PostFilterOption> findTags() {
+        return posts.findPublishedTags();
+    }
+
+    /**
+     * 선택 카테고리 안에서 공개 글이 있는 시리즈를 조회한다.
+     *
+     * @param categorySlug 선택 카테고리
+     * @return 시리즈 선택지
+     */
+    public List<PostSeriesOption> findSeries(String categorySlug) {
+        return posts.findPublishedSeries(categorySlug);
+    }
+
+    /**
+     * 공개 글이 있는 선택 시리즈 소개 정보를 조회한다.
+     *
+     * @param categorySlug 선택 카테고리
+     * @param seriesSlug 선택 시리즈
+     * @return 시리즈 소개 정보
+     */
+    public Optional<PostSeriesOption> findSeries(String categorySlug, String seriesSlug) {
+        return posts.findPublishedSeries(categorySlug, seriesSlug);
+    }
+
+    /**
      * 슬러그에 해당하는 공개 글을 화면 표시 모델로 조회한다.
      *
      * @param slug 게시글 슬러그
@@ -115,7 +176,10 @@ public class PostService {
                 LocalDate.ofInstant(row.publishedAt(), DISPLAY_ZONE),
                 readingMinutes(content),
                 List.copyOf(tags),
-                htmlRenderer.render(markdownParser.parse(content))
+                htmlRenderer.render(markdownParser.parse(content)),
+                row.representativeImageName() == null ? null
+                        : "/media/posts/" + row.id() + "/" + row.representativeImageName(),
+                row.categoryName(), row.seriesSlug(), row.seriesName(), row.seriesOrder()
         );
     }
 

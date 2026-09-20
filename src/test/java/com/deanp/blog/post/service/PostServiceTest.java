@@ -68,6 +68,38 @@ class PostServiceTest {
         verify(repository).findPublishedRowsNewestFirst("spring");
     }
 
+    @Test
+    void passesCombinedBrowseFiltersToPublishedRowsQuery() {
+        UUID postId = UUID.randomUUID();
+        when(repository.findPublishedRows("spring", "boot", "java", "query")).thenReturn(List.of(
+                row(postId, "spring-post", "Spring Post", "요약", "본문", Instant.parse("2026-08-31T00:00:00Z"), null)
+        ));
+
+        List<PostView> posts = service.findAll("spring", "boot", "java", "query");
+
+        assertThat(posts).extracting(PostView::slug).containsExactly("spring-post");
+        verify(repository).findPublishedRows("spring", "boot", "java", "query");
+    }
+
+    /** 태그 병합 후에도 실제 시리즈명과 저장된 연재 번호가 화면에 전달된다. */
+    @Test
+    void preservesSeriesMetadataWhenMergingTagRows() {
+        UUID id = UUID.randomUUID();
+        when(repository.findPublishedRows("dev", "spring-blog", "java", null)).thenReturn(List.of(
+                new PublicPostRow(id, "third", "세 번째 글", "요약", "본문", Instant.parse("2026-01-01T00:00:00Z"),
+                        "Java", 3, null, "개발", "spring-blog", "Spring 블로그"),
+                new PublicPostRow(id, "third", "세 번째 글", "요약", "본문", Instant.parse("2026-01-01T00:00:00Z"),
+                        "Spring", 3, null, "개발", "spring-blog", "Spring 블로그")));
+        var views = service.findAll("dev", "spring-blog", "java", null);
+        assertThat(views).hasSize(1);
+        var view = views.getFirst();
+        assertThat(view.categoryName()).isEqualTo("개발");
+        assertThat(view.seriesSlug()).isEqualTo("spring-blog");
+        assertThat(view.seriesName()).isEqualTo("Spring 블로그");
+        assertThat(view.seriesOrder()).isEqualTo(3);
+        assertThat(view.tags()).containsExactly("Java", "Spring");
+    }
+
     private PublicPostRow row(UUID id, String slug, String title, String summary, String content, Instant publishedAt, String tagName) {
         return new PublicPostRow(id, slug, title, summary, content, publishedAt, tagName);
     }

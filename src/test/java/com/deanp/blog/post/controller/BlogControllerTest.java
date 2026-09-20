@@ -1,6 +1,7 @@
 package com.deanp.blog.post.controller;
 
 import com.deanp.blog.post.PostView;
+import com.deanp.blog.post.PostSeriesOption;
 import com.deanp.blog.post.service.PostService;
 import com.deanp.blog.visitor.controller.VisitorCookieIdentifier;
 import com.deanp.blog.visitor.service.VisitorPostViewTrackingService;
@@ -9,6 +10,7 @@ import com.deanp.blog.visitor.service.VisitorRequestMetadataFactory;
 import com.deanp.blog.visitor.service.TrustedProxyMatcher;
 import com.deanp.blog.visitor.service.VisitorTrackingRequestPolicy;
 import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -18,7 +20,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
+import java.util.stream.IntStream;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,6 +42,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 @WebMvcTest(BlogController.class)
@@ -52,6 +59,66 @@ class BlogControllerTest {
     @MockitoBean
     private VisitorPostViewTrackingService visitorPostViewTrackingService;
 
+    /** 목록 템플릿이 필터 목록을 반복할 수 있도록 기본 빈 선택지를 제공한다. */
+    @BeforeEach
+    void defaultFilterOptions() {
+        when(postService.findAll(any(), any(), any(), any())).thenReturn(List.of());
+        when(postService.findCategories()).thenReturn(List.of());
+        when(postService.findSeries(null)).thenReturn(List.of());
+        when(postService.findSeries(null, null)).thenReturn(Optional.empty());
+        when(postService.findTags()).thenReturn(List.of());
+    }
+
+    /** 실제 템플릿으로 시안의 목록·선택 표시·편수·원본 연재 번호를 검증한다. */
+    @Test
+    void rendersArchiveDesignAndWritesBrowserFixtures() throws Exception {
+        var selected = new PostSeriesOption("spring-blog", "Spring으로 블로그 만들기",
+                "프로젝트 준비부터 배포까지, 작은 블로그를 완성하는 과정입니다.", "dev", 3, "ACTIVE");
+        when(postService.countPublishedPosts()).thenReturn(12L);
+        when(postService.findCategories()).thenReturn(List.of(
+                new com.deanp.blog.post.PostFilterOption("dev", "개발", 8),
+                new com.deanp.blog.post.PostFilterOption("project", "프로젝트", 2),
+                new com.deanp.blog.post.PostFilterOption("life", "일상", 2)));
+        when(postService.findTags()).thenReturn(List.of(
+                new com.deanp.blog.post.PostFilterOption("java", "Java"),
+                new com.deanp.blog.post.PostFilterOption("spring", "Spring"),
+                new com.deanp.blog.post.PostFilterOption("postgres", "PostgreSQL")));
+        var series = List.of(selected, new PostSeriesOption("database", "처음 배우는 데이터베이스",
+                "데이터베이스를 차근차근 배웁니다.", "dev", 4, "COMPLETED"));
+        when(postService.findSeries("dev")).thenReturn(series);
+        when(postService.findSeries("dev", "spring-blog")).thenReturn(Optional.of(selected));
+        var titles = List.of("Spring Boot로 나만의 블로그 시작하기", "카테고리와 태그, 단순하지만 유연하게", "글 목록과 상세 화면 만들기");
+        var summaries = List.of("작게 시작해서 오래 운영할 수 있는 블로그. 첫 번째로 프로젝트의 구조와 기본 설정을 정리했습니다.",
+                "글을 쉽게 찾을 수 있도록 분류를 설계합니다. 복잡한 계층 대신 단순한 관계부터 시작합니다.",
+                "설계한 데이터를 화면으로 연결합니다. 글 목록과 상세 페이지를 차근차근 만들어 봅니다.");
+        var posts = IntStream.range(0, 3).mapToObj(i -> new PostView(new UUID(0, i + 100),
+                "preview-" + i, titles.get(i), summaries.get(i), LocalDate.of(2026, 9, 18).minusDays(i),
+                6, List.of("Java", i == 0 ? "Spring" : "PostgreSQL"), "", "/media/should-not-render.png",
+                "개발", "spring-blog", selected.name(), i * 2 + 1)).toList();
+        when(postService.findAll("dev", "spring-blog", null, null)).thenReturn(posts);
+        var result = mockMvc.perform(get("/posts").param("category", "dev").param("series", "spring-blog"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("전체 3편 · 연재 중")))
+                .andExpect(content().string(containsString("4편 · 완결")))
+                .andExpect(content().string(containsString("03. ")))
+                .andExpect(content().string(containsString("05. ")))
+                .andExpect(content().string(not(containsString("02. "))))
+                .andExpect(content().string(containsString("aria-current=\"true\"")))
+                .andExpect(content().string(containsString("개발 ×")))
+                .andExpect(content().string(containsString("Spring으로 블로그 만들기 · 3편 →")))
+                .andExpect(content().string(not(containsString("should-not-render.png"))))
+                .andReturn();
+        Path output = Path.of("build/reports/ui-preview/selected.html");
+        Files.createDirectories(output.getParent());
+        Files.writeString(output, result.getResponse().getContentAsString(StandardCharsets.UTF_8));
+        var empty = mockMvc.perform(get("/posts").param("q", "<script>alert(1)</script>"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("선택한 조건에 맞는 글이 없습니다.")))
+                .andExpect(content().string(not(containsString("<script>alert(1)</script>"))))
+                .andReturn();
+        Files.writeString(output.resolveSibling("empty.html"), empty.getResponse().getContentAsString(StandardCharsets.UTF_8));
+    }
+
     @Test
     void rendersPublicPagesFromPostService() throws Exception {
         PostView post = new PostView(
@@ -65,7 +132,7 @@ class BlogControllerTest {
                 "<p><strong>Markdown</strong> 본문</p>\n"
         );
         when(postService.findAll()).thenReturn(List.of(post));
-        when(postService.findAll(null)).thenReturn(List.of(post));
+        when(postService.findAll(null, null, null, null)).thenReturn(List.of(post));
         when(postService.findBySlug("real-post")).thenReturn(Optional.of(post));
 
         mockMvc.perform(get("/"))
@@ -86,6 +153,45 @@ class BlogControllerTest {
         mockMvc.perform(get("/about"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("about"));
+    }
+
+    /**
+     * 글 수별 홈 모델, 카드 순서, 전체 목록 링크를 검증하고 브라우저 확인용 HTML을 저장한다.
+     *
+     * @throws Exception MVC 요청 또는 검증용 HTML 저장에 실패한 경우
+     */
+    @Test
+    void rendersHomePreviewForZeroOneAndManyPosts() throws Exception {
+        for (int count : List.of(0, 1, 10)) {
+            List<PostView> posts = IntStream.rangeClosed(1, count)
+                    .mapToObj(index -> new PostView(
+                            new UUID(0, index), "layout-post-" + index, "레이아웃 검증 글 " + index,
+                            "PC에서는 두 열로, 모바일에서는 기존 구성으로 표시되는지 확인합니다.",
+                            LocalDate.of(2026, 9, 18).minusDays(index), index,
+                            List.of("레이아웃"), "<p>검증 본문</p>"))
+                    .toList();
+            when(postService.findAll()).thenReturn(posts);
+
+            var result = mockMvc.perform(get("/"))
+                    .andExpect(status().isOk())
+                    .andExpect(model()
+                            .attribute("featuredPosts", posts.stream().limit(6).toList()))
+                    .andExpect(model()
+                            .attribute("recentPosts", posts.stream().skip(1).toList()))
+                    .andExpect(content().string(containsString("href=\"/posts\" aria-label=\"최근 생각 더 보기\"")))
+                    .andExpect(content().string(containsString("href=\"/posts\" aria-label=\"새로운 글 더 보기\"")))
+                    .andReturn();
+            String html = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+            org.junit.jupiter.api.Assertions.assertEquals(Math.min(count, 6),
+                    java.util.regex.Pattern.compile("class=\"feature-card\"").matcher(html).results().count());
+            org.junit.jupiter.api.Assertions.assertEquals(Math.max(0, count - 1),
+                    java.util.regex.Pattern.compile("class=\"post-card\"").matcher(html).results().count());
+
+            // 실제 Thymeleaf 렌더링 결과를 브라우저의 반응형 배치 검증에 사용한다.
+            Path output = Path.of("build/reports/home-layout", count + ".html");
+            Files.createDirectories(output.getParent());
+            Files.writeString(output, result.getResponse().getContentAsString(StandardCharsets.UTF_8));
+        }
     }
 
     @Test
@@ -113,7 +219,7 @@ class BlogControllerTest {
     @Test
     void rendersEmptyPublishedPostState() throws Exception {
         when(postService.findAll()).thenReturn(List.of());
-        when(postService.findAll(null)).thenReturn(List.of());
+        when(postService.findAll(null, null, null, null)).thenReturn(List.of());
 
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
@@ -124,6 +230,51 @@ class BlogControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("posts"))
                 .andExpect(content().string(containsString("아직 공개된 글이 없습니다.")));
+    }
+
+    /**
+     * 카테고리와 태그 선택 상태, GET 폼, 빈 결과 및 URL 값 정규화를 검증한다.
+     * @throws Exception 화면 요청 실패
+     */
+    @Test
+    void rendersCombinedFiltersAndEmptyResults() throws Exception {
+        when(postService.findCategories()).thenReturn(List.of(
+                new com.deanp.blog.post.PostFilterOption("dev", "개발"),
+                new com.deanp.blog.post.PostFilterOption("life", "일상")));
+        when(postService.findTags()).thenReturn(List.of(
+                new com.deanp.blog.post.PostFilterOption("java", "Java"),
+                new com.deanp.blog.post.PostFilterOption("spring", "Spring")));
+        when(postService.findSeries("dev")).thenReturn(List.of(
+                new PostSeriesOption("boot-camp", "부트 캠프", "소개", "dev")));
+        when(postService.findAll("dev", "boot-camp", "java", "검색어")).thenReturn(List.of(postView()));
+        when(postService.findSeries("dev", "boot-camp")).thenReturn(Optional.of(
+                new PostSeriesOption("boot-camp", "부트 캠프", "소개", "dev")));
+        var result = mockMvc.perform(get("/posts")
+                        .param("category", " dev ")
+                        .param("series", " boot-camp ")
+                        .param("tag", " java ")
+                        .param("q", " 검색어 "))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("selectedCategory", "dev"))
+                .andExpect(model().attribute("selectedSeries", "boot-camp"))
+                .andExpect(model().attribute("selectedTag", "java"))
+                .andExpect(model().attribute("search", "검색어"))
+                .andExpect(content().string(containsString("부트 캠프")))
+                .andExpect(content().string(containsString("name=\"tag\"")))
+                .andExpect(content().string(containsString("method=\"get\"")))
+                .andReturn();
+        Path output = Path.of("build/reports/series/selected.html");
+        Files.createDirectories(output.getParent());
+        Files.writeString(output, result.getResponse().getContentAsString(StandardCharsets.UTF_8));
+        verify(postService).findAll("dev", "boot-camp", "java", "검색어");
+
+        mockMvc.perform(get("/posts").param("tag", "missing"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("선택한 조건에 맞는 글이 없습니다.")))
+                .andExpect(model().attribute("selectedTag", "missing"));
+        mockMvc.perform(get("/posts").param("category", " ").param("tag", ""))
+                .andExpect(status().isOk()).andExpect(model().attribute("hasFilters", false));
+        verify(postService).findAll(null, null, null, null);
     }
 
     @Test
@@ -138,14 +289,15 @@ class BlogControllerTest {
                 List.of(),
                 "<p>본문</p>\n"
         );
-        when(postService.findAll("spring")).thenReturn(List.of(post));
+        when(postService.findAll("spring", null, null, null)).thenReturn(List.of(post));
+        when(postService.findSeries("spring")).thenReturn(List.of());
 
         mockMvc.perform(get("/posts").param("category", "spring"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("posts"))
                 .andExpect(content().string(containsString("Spring 카테고리 글")));
 
-        verify(postService).findAll("spring");
+        verify(postService).findAll("spring", null, null, null);
     }
 
     /**

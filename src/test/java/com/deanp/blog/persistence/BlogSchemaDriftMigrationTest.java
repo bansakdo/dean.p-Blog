@@ -14,7 +14,9 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Comparator;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -26,6 +28,70 @@ class BlogSchemaDriftMigrationTest {
 
     @Container
     private static final PostgreSQLContainer POSTGRESQL = new PostgreSQLContainer("postgres:16-alpine");
+
+    private static final Map<String, ColumnExpectation> V9_CANONICAL_TEXT_COLUMNS = Map.ofEntries(
+            Map.entry("app_user.login_id", new ColumnExpectation("character varying", 100)),
+            Map.entry("app_user.name", new ColumnExpectation("character varying", 100)),
+            Map.entry("app_user.status", new ColumnExpectation("character varying", 30)),
+            Map.entry("auth_group.name", new ColumnExpectation("character varying", 100)),
+            Map.entry("auth_group.description", new ColumnExpectation("text", null)),
+            Map.entry("auth_group.status", new ColumnExpectation("character varying", 30)),
+            Map.entry("menu.name", new ColumnExpectation("character varying", 100)),
+            Map.entry("menu.path", new ColumnExpectation("character varying", 500)),
+            Map.entry("menu.status", new ColumnExpectation("character varying", 30)),
+            Map.entry("common_code.code_group", new ColumnExpectation("character varying", 100)),
+            Map.entry("common_code.name", new ColumnExpectation("character varying", 100)),
+            Map.entry("common_code.description", new ColumnExpectation("text", null)),
+            Map.entry("common_code.status", new ColumnExpectation("character varying", 30)),
+            Map.entry("common_code_detail.code", new ColumnExpectation("character varying", 100)),
+            Map.entry("common_code_detail.name", new ColumnExpectation("character varying", 100)),
+            Map.entry("common_code_detail.status", new ColumnExpectation("character varying", 30)),
+            Map.entry("post.post_code", new ColumnExpectation("character varying", 100)),
+            Map.entry("post.name", new ColumnExpectation("character varying", 100)),
+            Map.entry("post.description", new ColumnExpectation("text", null)),
+            Map.entry("post.status", new ColumnExpectation("character varying", 30)),
+            Map.entry("post_category.name", new ColumnExpectation("character varying", 100)),
+            Map.entry("post_category.slug", new ColumnExpectation("character varying", 150)),
+            Map.entry("post_category.status", new ColumnExpectation("character varying", 30)),
+            Map.entry("tag.name", new ColumnExpectation("character varying", 100)),
+            Map.entry("tag.slug", new ColumnExpectation("character varying", 150)),
+            Map.entry("post_detail.slug", new ColumnExpectation("character varying", 200)),
+            Map.entry("post_detail.title", new ColumnExpectation("character varying", 300)),
+            Map.entry("post_detail.summary", new ColumnExpectation("text", null)),
+            Map.entry("post_detail.content", new ColumnExpectation("text", null)),
+            Map.entry("post_detail.content_format", new ColumnExpectation("character varying", 30)),
+            Map.entry("post_detail.status", new ColumnExpectation("character varying", 30)),
+            Map.entry("attached_files.original_name", new ColumnExpectation("character varying", 500)),
+            Map.entry("attached_files.stored_name", new ColumnExpectation("character varying", 500)),
+            Map.entry("attached_files.storage_path", new ColumnExpectation("text", null)),
+            Map.entry("attached_files.content_type", new ColumnExpectation("character varying", 200)),
+            Map.entry("group_menu.permission_code", new ColumnExpectation("character varying", 30)),
+            Map.entry("post_revision.title", new ColumnExpectation("character varying", 300)),
+            Map.entry("post_revision.summary", new ColumnExpectation("text", null)),
+            Map.entry("post_revision.content", new ColumnExpectation("text", null)),
+            Map.entry("post_revision.content_format", new ColumnExpectation("character varying", 30)),
+            Map.entry("post_revision.change_type", new ColumnExpectation("character varying", 30)),
+            Map.entry("publish_history.commit_hash", new ColumnExpectation("character varying", 64)),
+            Map.entry("publish_history.file_path", new ColumnExpectation("text", null)),
+            Map.entry("publish_history.event_type", new ColumnExpectation("character varying", 30)),
+            Map.entry("publish_history.status", new ColumnExpectation("character varying", 30)),
+            Map.entry("publish_history.error_message", new ColumnExpectation("text", null)),
+            Map.entry("audit_log.action", new ColumnExpectation("character varying", 100)),
+            Map.entry("audit_log.target_type", new ColumnExpectation("character varying", 100)),
+            Map.entry("audit_log.target_id", new ColumnExpectation("character varying", 100)),
+            Map.entry("audit_log.request_id", new ColumnExpectation("character varying", 100)),
+            Map.entry("visitor.anonymous_key", new ColumnExpectation("character varying", 128)),
+            Map.entry("visitor_event.event_type", new ColumnExpectation("character varying", 30)),
+            Map.entry("visitor_event.search_engine", new ColumnExpectation("character varying", 50)),
+            Map.entry("visitor_event.search_query", new ColumnExpectation("text", null)),
+            Map.entry("visitor_event.user_agent", new ColumnExpectation("text", null)),
+            Map.entry("visitor_event.request_id", new ColumnExpectation("character varying", 100)),
+            Map.entry("visitor_daily_summary.search_engine", new ColumnExpectation("character varying", 50)),
+            Map.entry("post_series.slug", new ColumnExpectation("character varying", 150)),
+            Map.entry("post_series.name", new ColumnExpectation("character varying", 150)),
+            Map.entry("post_series.description", new ColumnExpectation("text", null)),
+            Map.entry("post_series.status", new ColumnExpectation("character varying", 30))
+    );
 
     @BeforeEach
     void resetDatabase() {
@@ -221,6 +287,112 @@ class BlogSchemaDriftMigrationTest {
                 """));
     }
 
+    @Test
+    @DisplayName("V8는 기존 공개 글을 보존하고 시리즈 컬럼을 미연결 상태로 추가한다")
+    void addsSeriesSchemaWithoutChangingExistingPosts() throws SQLException {
+        migrateThroughV7();
+
+        flyway().migrate();
+
+        assertTrue(tableExists("post_series"));
+        assertEquals("hello-post", scalarString("""
+                SELECT slug
+                FROM blog.post_detail
+                WHERE id = '99999999-9999-9999-9999-999999999999'
+                """));
+        assertEquals(0, scalarInteger("""
+                SELECT count(*)
+                FROM blog.post_detail
+                WHERE id = '99999999-9999-9999-9999-999999999999'
+                  AND (series_id IS NOT NULL OR series_order IS NOT NULL)
+                """));
+        assertForeignKey("fk_post_detail_series", "post_detail", "series_id", "post_series");
+        assertForeignKey("fk_post_series_category", "post_series", "category_id", "post_category");
+    }
+
+    @Test
+    @DisplayName("V9는 새 스키마에서 문자 타입 정합성을 변경 없이 통과한다")
+    void keepsFreshSchemaCanonicalTextTypes() throws SQLException {
+        flyway().migrate();
+
+        assertEquals("V9__align_varchar255_schema_drift.sql", scalarString("""
+                SELECT script
+                FROM blog.flyway_schema_history
+                WHERE version = '9'
+                  AND success
+                """));
+        assertColumnTypes(V9_CANONICAL_TEXT_COLUMNS);
+    }
+
+    @Test
+    @DisplayName("V9는 varchar(255)로 드리프트된 문자 컬럼을 V1-V8 정식 타입으로 복구하고 데이터를 보존한다")
+    void restoresVarchar255DriftWithoutLosingData() throws SQLException {
+        migrateThroughV8();
+        simulateV9Varchar255Drift();
+        executeSql("""
+                UPDATE blog.app_user
+                SET login_id = 'author-hangul', name = '작성자'
+                WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+                UPDATE blog.post_detail
+                SET title = '멀티바이트 제목', summary = '짧은 요약', content = '본문 한글 보존'
+                WHERE id = '99999999-9999-9999-9999-999999999999';
+                UPDATE blog.attached_files
+                SET original_name = '첨부-한글.txt', storage_path = '/files/첨부-한글.txt'
+                WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+                INSERT INTO blog.post_series (id, post_id, category_id, slug, name, description)
+                VALUES (
+                    '13131313-1313-1313-1313-131313131313',
+                    '77777777-7777-7777-7777-777777777777',
+                    '88888888-8888-8888-8888-888888888888',
+                    'series-hangul',
+                    '시리즈 이름',
+                    '시리즈 설명'
+                );
+                """);
+
+        flyway().migrate();
+
+        assertColumnTypes(V9_CANONICAL_TEXT_COLUMNS);
+        assertEquals("작성자", scalarString("SELECT name FROM blog.app_user WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'"));
+        assertEquals("본문 한글 보존", scalarString("SELECT content FROM blog.post_detail WHERE id = '99999999-9999-9999-9999-999999999999'"));
+        assertEquals("/files/첨부-한글.txt", scalarString("SELECT storage_path FROM blog.attached_files WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'"));
+        assertEquals("시리즈 설명", scalarString("SELECT description FROM blog.post_series WHERE id = '13131313-1313-1313-1313-131313131313'"));
+    }
+
+    @Test
+    @DisplayName("V9는 축소 대상 컬럼의 초과 길이를 값 노출 없이 거부하고 롤백한다")
+    void rejectsOverLengthNarrowingAndRollsBack() throws SQLException {
+        String overLengthLoginId = "x".repeat(101);
+        migrateThroughV8();
+        simulateV9Varchar255Drift();
+        executeSql("""
+                UPDATE blog.app_user
+                SET login_id = '%s'
+                WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+                """.formatted(overLengthLoginId));
+
+        FlywayException exception = assertThrows(FlywayException.class, () -> flyway().migrate());
+
+        assertTrue(exception.getMessage().contains("blog.app_user.login_id"));
+        assertTrue(exception.getMessage().contains("max length 101"));
+        assertFalse(exception.getMessage().contains(overLengthLoginId));
+        assertColumnTypes(Map.of(
+                "app_user.login_id", new ColumnExpectation("character varying", 255),
+                "auth_group.description", new ColumnExpectation("character varying", 255)
+        ));
+        assertEquals(0, scalarInteger("""
+                SELECT count(*)
+                FROM blog.flyway_schema_history
+                WHERE version = '9'
+                  AND success
+                """));
+        assertEquals(overLengthLoginId, scalarString("""
+                SELECT login_id
+                FROM blog.app_user
+                WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+                """));
+    }
+
     private void migrateThroughV2() {
         flyway(MigrationVersion.fromVersion("2")).migrate();
     }
@@ -233,6 +405,16 @@ class BlogSchemaDriftMigrationTest {
         migrateThroughV3();
         insertBoardFamilyRows();
         flyway(MigrationVersion.fromVersion("4")).migrate();
+    }
+
+    private void migrateThroughV7() throws SQLException {
+        migrateThroughV4();
+        flyway(MigrationVersion.fromVersion("7")).migrate();
+    }
+
+    private void migrateThroughV8() throws SQLException {
+        migrateThroughV7();
+        flyway(MigrationVersion.fromVersion("8")).migrate();
     }
 
     private void simulateOldVarcharColumns() throws SQLException {
@@ -250,6 +432,21 @@ class BlogSchemaDriftMigrationTest {
                     ALTER COLUMN country_code TYPE varchar(255)
                     USING country_code::text;
                 """);
+    }
+
+    private void simulateV9Varchar255Drift() throws SQLException {
+        String sql = V9_CANONICAL_TEXT_COLUMNS.keySet().stream()
+                .sorted(Comparator.naturalOrder())
+                .map(columnKey -> {
+                    String[] parts = columnKey.split("\\.");
+                    return """
+                            ALTER TABLE blog.%s
+                                ALTER COLUMN %s TYPE varchar(255)
+                                USING %s::text;
+                            """.formatted(parts[0], parts[1], parts[1]);
+                })
+                .collect(Collectors.joining());
+        executeSql(sql);
     }
 
     private void insertBoardFamilyRows() throws SQLException {

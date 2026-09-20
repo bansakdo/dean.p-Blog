@@ -4,6 +4,9 @@ server:
 spring:
   config:
     import: "optional:file:./.env.dev[.properties]"
+  web:
+    resources:
+      static-locations: classpath:/static/,file:${DEV_MEDIA_PUBLIC_ROOT:../dean-p-blog-media}/
   autoconfigure:
     exclude: []
   datasource:

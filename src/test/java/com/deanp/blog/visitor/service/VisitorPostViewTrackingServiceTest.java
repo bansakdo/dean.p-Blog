@@ -77,6 +77,7 @@ class VisitorPostViewTrackingServiceTest {
                 any(UUID.class),
                 org.mockito.ArgumentMatchers.eq(NOW.atZone(ZoneOffset.UTC).toLocalDate()),
                 org.mockito.ArgumentMatchers.eq(POST_DETAIL_ID),
+                org.mockito.ArgumentMatchers.eq(1L),
                 org.mockito.ArgumentMatchers.eq(NOW)
         );
     }
@@ -101,6 +102,7 @@ class VisitorPostViewTrackingServiceTest {
                 any(UUID.class),
                 org.mockito.ArgumentMatchers.eq(NOW.atZone(ZoneOffset.UTC).toLocalDate()),
                 org.mockito.ArgumentMatchers.eq(POST_DETAIL_ID),
+                org.mockito.ArgumentMatchers.eq(0L),
                 org.mockito.ArgumentMatchers.eq(NOW)
         );
     }
