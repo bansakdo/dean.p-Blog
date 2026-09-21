@@ -1,0 +1,43 @@
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="filters" class="sidebar-filters">
+        <section class="filter-block" aria-labelledby="category-filter-title">
+          <h2 id="category-filter-title">카테고리</h2>
+          <nav class="filter-links category-links" aria-label="카테고리">
+            <a th:classappend="${selectedCategory == null} ? 'is-active'"
+               th:attr="aria-current=${selectedCategory == null ? 'true' : null}"
+               th:href="@{/posts(tag=${selectedTag}, q=${search})}">
+              <span>전체 글</span><span class="filter-count" th:text="${totalPosts}">0</span>
+            </a>
+            <a th:each="category : ${categories}"
+               th:classappend="${category.slug == selectedCategory} ? 'is-active'"
+               th:attr="aria-current=${category.slug == selectedCategory ? 'true' : null}"
+               th:href="@{/posts(category=${category.slug}, tag=${selectedTag}, q=${search})}">
+              <span th:text="${category.name}">카테고리</span>
+              <span class="filter-count"><span th:text="${category.postCount}">0</span><span th:if="${category.slug == selectedCategory}" aria-hidden="true"> ✓</span></span>
+            </a>
+          </nav>
+        </section>
+        <section class="filter-block" aria-labelledby="series-filter-title">
+          <h2 id="series-filter-title"><span th:text="${selectedCategoryName != null ? selectedCategoryName + '의 시리즈' : '시리즈'}">시리즈</span><span th:text="${seriesOptions.size()}">0</span></h2>
+          <nav class="filter-links series-links" aria-label="시리즈">
+            <a th:each="series : ${seriesOptions}" th:classappend="${series.slug == selectedSeries} ? 'is-active'"
+               th:attr="aria-current=${series.slug == selectedSeries ? 'true' : null}"
+               th:href="@{/posts(category=${series.categorySlug}, series=${series.slug}, tag=${selectedTag}, q=${search})}">
+              <span class="series-name"><span th:text="${series.name}">시리즈</span><span aria-hidden="true" th:text="${series.slug == selectedSeries ? ' ✓' : ' →'}"> →</span></span>
+              <span class="series-meta" th:text="|${series.postCount}편 · ${series.statusLabel()}|">0편 · 연재 중</span>
+            </a>
+          </nav>
+          <p class="filter-help" th:text="${seriesOptions.isEmpty() ? '공개된 시리즈가 없습니다.' : (selectedCategory != null ? '선택한 카테고리의 시리즈입니다.' : '순서대로 읽는 연재 글입니다.')}">시리즈 안내</p>
+        </section>
+        <section class="filter-block" aria-labelledby="tag-filter-title">
+          <h2 id="tag-filter-title">태그로 좁혀보기</h2>
+          <nav class="tag-chip-links" aria-label="태그">
+            <a th:if="${selectedTag != null}" th:href="@{/posts(category=${selectedCategory}, series=${selectedSeries}, q=${search})}">전체</a>
+            <a th:each="tag : ${tags}" th:classappend="${tag.slug == selectedTag} ? 'is-active'"
+               th:attr="aria-current=${tag.slug == selectedTag ? 'true' : null}"
+               th:href="@{/posts(category=${selectedCategory}, series=${selectedSeries}, tag=${tag.slug}, q=${search})}"
+               th:text="${tag.name}">태그</a>
+          </nav>
+          <p class="filter-help" th:if="${tags.isEmpty()}">등록된 태그가 없습니다.</p>
+        </section>
+        <p class="filter-help browse-hint">분류를 누르면 바로 반영됩니다.</p>
+</div>

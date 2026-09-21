@@ -59,6 +59,61 @@ class BlogControllerTest {
     @MockitoBean
     private VisitorPostViewTrackingService visitorPostViewTrackingService;
 
+    /** 빈 검색은 전체 조회 없이 안내 화면을 표시한다. */
+    @Test
+    void blankSearchShowsGuidance() throws Exception {
+        mockMvc.perform(get("/search").param("q", "  "))
+                .andExpect(status().isOk()).andExpect(view().name("search"))
+                .andExpect(content().string(containsString("제목·요약·본문에서 검색합니다.")))
+                .andExpect(content().string(not(containsString("class=\"results-count\""))));
+        verify(postService, never()).findAll(any(), any(), any(), any());
+    }
+
+    /** 검색 결과의 제목과 편수 및 상세 링크를 렌더링한다. */
+    @Test
+    void dedicatedSearchRendersResults() throws Exception {
+        var post = postView();
+        when(postService.findAll(null, null, null, "Java")).thenReturn(List.of(post));
+        mockMvc.perform(get("/search").param("q", "Java"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(post.title())))
+                .andExpect(content().string(containsString("1편")))
+                .andExpect(content().string(containsString("/posts/" + post.slug())));
+    }
+
+    /** 검색 페이지에는 공통 메뉴만 표시하고 글 분류는 표시하지 않는다. */
+    @Test
+    void searchSidebarOmitsPostFilters() throws Exception {
+        mockMvc.perform(get("/search"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("class=\"sidebar-filters\""))))
+                .andExpect(content().string(containsString("id=\"site-sidebar\"")))
+                .andExpect(content().string(containsString("aria-controls=\"site-sidebar\"")));
+    }
+
+    /** 검색어를 정규화하고 결과가 없을 때 안내한다. */
+    @Test
+    void dedicatedSearchNormalizesQuery() throws Exception {
+        mockMvc.perform(get("/search").param("q", " missing "))
+                .andExpect(status().isOk()).andExpect(model().attribute("search", "missing"))
+                .andExpect(content().string(containsString("검색어에 맞는 글이 없습니다.")))
+                .andExpect(content().string(containsString("0편")));
+        verify(postService).findAll(null, null, null, "missing");
+    }
+
+    /** 공통 사이드 메뉴에 탐색과 테마를 배치하고 접이식 검색을 제거한다. */
+    @Test
+    void sidebarNavigationAndThemeAreRendered() throws Exception {
+        mockMvc.perform(get("/posts"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/search\"")))
+                .andExpect(content().string(containsString("class=\"sidebar-theme\"")))
+                .andExpect(content().string(containsString("id=\"site-sidebar\"")))
+                .andExpect(content().string(containsString("class=\"sidebar-filters\"")))
+
+                .andExpect(content().string(not(containsString("search-disclosure"))));
+    }
+
     /** 목록 템플릿이 필터 목록을 반복할 수 있도록 기본 빈 선택지를 제공한다. */
     @BeforeEach
     void defaultFilterOptions() {
@@ -260,8 +315,8 @@ class BlogControllerTest {
                 .andExpect(model().attribute("selectedTag", "java"))
                 .andExpect(model().attribute("search", "검색어"))
                 .andExpect(content().string(containsString("부트 캠프")))
-                .andExpect(content().string(containsString("name=\"tag\"")))
-                .andExpect(content().string(containsString("method=\"get\"")))
+                .andExpect(content().string(containsString("tag=java")))
+                .andExpect(content().string(not(containsString("search-disclosure"))))
                 .andReturn();
         Path output = Path.of("build/reports/series/selected.html");
         Files.createDirectories(output.getParent());

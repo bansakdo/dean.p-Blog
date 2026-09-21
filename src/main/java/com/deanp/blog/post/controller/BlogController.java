@@ -97,6 +97,21 @@ public class BlogController {
         return "posts";
     }
 
+    /**
+     * 검색어가 있을 때만 공개 글 검색 결과를 표시한다.
+     * @param search 제목·요약·본문 검색어
+     * @param model 검색 화면 모델
+     * @return 검색 템플릿 이름
+     */
+    @GetMapping("/search")
+    public String search(@RequestParam(required = false, name = "q") String search, Model model) {
+        search = normalize(search);
+        model.addAttribute("search", search);
+        model.addAttribute("posts", search == null ? List.of() : postService.findAll(null, null, null, search));
+        model.addAttribute("pageTitle", "검색 — dean.p");
+        return "search";
+    }
+
     /** 선택한 필터는 slug 대신 표시 이름을 사용하며, 알 수 없는 값은 그대로 보존한다. */
     private String filterName(List<com.deanp.blog.post.PostFilterOption> options, String slug) {
         return options.stream().filter(option -> option.slug().equals(slug))

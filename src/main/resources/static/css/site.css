@@ -50,11 +50,12 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .brand { font-size: 1.45rem; font-weight: 800; letter-spacing: -.06em; }
 .brand span { color: var(--accent); }
 .site-header nav { display: flex; align-items: center; gap: 26px; font-size: .94rem; font-weight: 650; }
-.theme-toggle {
+.theme-toggle, .menu-toggle, .sidebar-close {
   width: 38px; height: 38px; padding: 0; border: 1px solid var(--line); border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--surface); color: var(--text); cursor: pointer; font-size: 1rem;
 }
+.menu-toggle { border: 0; border-radius: 0; background: transparent; }
 .theme-toggle svg { display: block; }
 .hero { padding: clamp(88px, 12vw, 165px) 0 125px; position: relative; }
 .hero::after {
@@ -131,6 +132,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .site-footer { width: min(1240px, calc(100% - 40px)); margin-inline: auto; padding: 36px 0 50px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; color: var(--muted); font-size: .84rem; }
 
 .home-more { display: none; }
+.latest .post-card:nth-child(n + 7) { display: none; }
 .featured-grid .feature-card:not(:first-child) { display: none; }
 
 /* Desktop home: keep the existing mobile presentation unchanged. */
@@ -141,7 +143,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
   .featured .section-heading h2, .latest .section-heading h2 { font-size: 2rem; }
   .featured-grid, .latest .post-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
   .featured-grid .feature-card:not(:first-child) { display: grid; }
-  .latest .post-card:nth-child(n + 7), .latest-mobile-more { display: none; }
+  .latest-mobile-more { display: none; }
   .home-more { display: block; margin-top: 28px; text-align: center; }
   .featured-grid .feature-card, .latest .post-card { min-width: 0; overflow-wrap: anywhere; }
   .feature-card { padding: 32px; }
@@ -264,4 +266,26 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
   .posts-page .browse-toolbar { align-items: start; gap: 10px; }
   .posts-page .series-intro { padding: 20px; }
   .posts-page .series-intro h2, .posts-page .post-list h2 { font-size: 21px; }
+}
+
+/* 공통 사이드 메뉴: 테마 버튼은 스크롤 영역 밖 하단에 유지한다. */
+.site-header { justify-content: flex-start; gap: 18px; }
+.site-sidebar { position: fixed; inset: 0 auto 0 0; width: 280px; height: 100dvh; z-index: 100; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--line); }
+.site-sidebar[hidden], .sidebar-backdrop[hidden] { display: none; }
+.sidebar-heading, .sidebar-theme { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; flex-shrink: 0; }
+.sidebar-heading { border-bottom: 1px solid var(--line); }
+.sidebar-theme { border-top: 1px solid var(--line); }
+.sidebar-scroll { overflow-y: auto; min-height: 0; flex: 1; padding: 20px; overscroll-behavior: contain; }
+.sidebar-nav { display: grid; gap: 8px; }
+.sidebar-nav a { padding: 10px 12px; border-radius: 8px; }
+.sidebar-nav a:hover { background: var(--accent-soft); }
+.sidebar-filters { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.sidebar-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / .4); z-index: 99; }
+.posts-page .browse-layout { display: block; }
+@media (min-width: 721px) {
+  body.sidebar-open { padding-left: 280px; }
+}
+@media (max-width: 720px) {
+  .site-sidebar { width: min(280px, calc(100vw - 44px)); }
+  body.sidebar-open { overflow: hidden; }
 }
