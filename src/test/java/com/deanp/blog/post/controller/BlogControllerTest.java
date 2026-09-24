@@ -91,6 +91,17 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString("aria-controls=\"site-sidebar\"")));
     }
 
+    /** 인증 미구현 상태에서 사용자 메뉴는 비활성 로그인 안내만 제공한다. */
+    @Test
+    void accountMenuShowsHonestLoginPlaceholder() throws Exception {
+        mockMvc.perform(get("/search"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("aria-controls=\"account-panel\"")))
+                .andExpect(content().string(containsString("로그인 기능을 준비하고 있습니다.")))
+                .andExpect(content().string(containsString("type=\"button\" disabled")))
+                .andExpect(content().string(not(containsString("href=\"/login\""))));
+    }
+
     /** 검색어를 정규화하고 결과가 없을 때 안내한다. */
     @Test
     void dedicatedSearchNormalizesQuery() throws Exception {

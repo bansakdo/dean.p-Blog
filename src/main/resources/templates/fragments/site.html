@@ -21,12 +21,23 @@
   <script defer th:src="@{/js/site.js}"></script>
   <script defer th:src="@{/js/theme.js}"></script>
   <script defer th:src="@{/js/sidebar.js}"></script>
+  <script defer th:src="@{/js/account-menu.js}"></script>
 </head>
 <body>
 <th:block th:fragment="header">
 <header class="site-header">
   <button class="menu-toggle" type="button" aria-label="메뉴 열기" aria-controls="site-sidebar" aria-expanded="false">☰</button>
   <a class="brand" th:href="@{/}" aria-label="dean.p 홈">dean<span>.</span>p</a>
+  <div class="account-menu">
+    <button class="account-toggle" type="button" aria-label="사용자 메뉴" aria-expanded="false" aria-controls="account-panel">
+      <i data-lucide="user-round" aria-hidden="true"></i>
+    </button>
+    <section id="account-panel" class="account-panel" aria-labelledby="account-panel-title" hidden>
+      <h2 id="account-panel-title">사용자 메뉴</h2>
+      <p class="account-description">로그인 기능을 준비하고 있습니다.</p>
+      <button class="account-action" type="button" disabled><span>로그인</span><small>준비 중</small></button>
+    </section>
+  </div>
 </header>
 <div class="sidebar-backdrop" hidden></div>
 <aside id="site-sidebar" class="site-sidebar" aria-label="사이트 메뉴" hidden>

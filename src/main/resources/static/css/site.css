@@ -56,6 +56,17 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
   background: var(--surface); color: var(--text); cursor: pointer; font-size: 1rem;
 }
 .menu-toggle { border: 0; border-radius: 0; background: transparent; }
+.account-menu { position: relative; margin-left: auto; }
+.account-toggle { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 8px; background: transparent; color: var(--text); cursor: pointer; }
+.account-toggle:hover, .account-toggle[aria-expanded="true"] { background: var(--accent-soft); }
+.account-toggle svg { width: 21px; height: 21px; }
+.account-panel { position: absolute; top: calc(100% + 12px); right: 0; z-index: 90; width: min(260px, calc(100vw - 40px)); padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
+.account-panel[hidden] { display: none; }
+.account-panel h2 { margin: 0; font-size: .95rem; font-weight: 700; }
+.account-description { margin: 8px 0 16px; color: var(--muted); font-size: .8rem; }
+.account-action { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--muted); font-size: .9rem; }
+.account-action:disabled { cursor: not-allowed; }
+.account-action small { font-size: .75rem; }
 .theme-toggle svg { display: block; }
 .hero { padding: clamp(88px, 12vw, 165px) 0 125px; position: relative; }
 .hero::after {
