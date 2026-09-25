@@ -1,5 +1,8 @@
 package com.deanp.blog.visitor.service;
 
+import com.deanp.blog.persistence.TestPostgresql;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,9 +12,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.util.Map;
 import java.util.UUID;
@@ -28,14 +28,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest
 @ActiveProfiles("dev")
-@Testcontainers
 class VisitorTrackingConcurrencyTest {
 
-    @Container
-    private static final PostgreSQLContainer POSTGRESQL = new PostgreSQLContainer("postgres:16-alpine");
+    private static final TestPostgresql POSTGRESQL = new TestPostgresql();
 
-    private static final UUID AUTHOR_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    private static final UUID POST_DETAIL_ID = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
+    private UUID authorId;
+    private UUID postDetailId;
 
     @Autowired
     private VisitorPostViewTrackingService trackingService;
@@ -50,10 +48,13 @@ class VisitorTrackingConcurrencyTest {
      */
     @DynamicPropertySource
     static void configureDatasource(DynamicPropertyRegistry registry) {
-        registry.add("DB_URL", POSTGRESQL::getJdbcUrl);
-        registry.add("DB_USER", POSTGRESQL::getUsername);
-        registry.add("DB_PASSWORD", POSTGRESQL::getPassword);
-        registry.add("WAS_PORT", () -> "0");
+        POSTGRESQL.register(registry);
+    }
+
+    /** 로컬 일회용 DB를 종료한다. */
+    @AfterAll
+    static void stopDatabase() {
+        POSTGRESQL.stop();
     }
 
     /**
@@ -61,20 +62,30 @@ class VisitorTrackingConcurrencyTest {
      */
     @BeforeEach
     void insertPostFixture() {
-        jdbcTemplate.update("DELETE FROM blog.visitor_event");
-        jdbcTemplate.update("DELETE FROM blog.visitor_daily_summary");
-        jdbcTemplate.update("DELETE FROM blog.visitor");
-
+        authorId = UUID.randomUUID();
+        postDetailId = UUID.randomUUID();
         jdbcTemplate.update("""
                 INSERT INTO blog.app_user (id, login_id, password_hash, name)
                 VALUES (?, ?, 'hash', 'Concurrency Author')
-                ON CONFLICT (id) DO NOTHING
-                """, AUTHOR_ID, "concurrency-author");
+                """, authorId, "concurrency-author-" + authorId);
         jdbcTemplate.update("""
                 INSERT INTO blog.post_detail (id, author_id, slug, title, content, status, published_at)
                 VALUES (?, ?, ?, 'Concurrency Post', 'Body', 'PUBLISHED', now())
-                ON CONFLICT (id) DO NOTHING
-                """, POST_DETAIL_ID, AUTHOR_ID, "concurrency-" + UUID.randomUUID());
+                """, postDetailId, authorId, "concurrency-" + postDetailId);
+    }
+
+    /** 이 테스트가 만든 게시글·이벤트·방문자만 제거한다. */
+    @AfterEach
+    void removePostFixture() {
+        var visitorIds = jdbcTemplate.queryForList(
+                "SELECT visitor_id FROM blog.visitor_event WHERE post_detail_id = ?", UUID.class, postDetailId);
+        jdbcTemplate.update("DELETE FROM blog.visitor_event WHERE post_detail_id = ?", postDetailId);
+        jdbcTemplate.update("DELETE FROM blog.visitor_daily_summary WHERE post_detail_id = ?", postDetailId);
+        for (UUID visitorId : visitorIds) {
+            jdbcTemplate.update("DELETE FROM blog.visitor WHERE id = ?", visitorId);
+        }
+        jdbcTemplate.update("DELETE FROM blog.post_detail WHERE id = ?", postDetailId);
+        jdbcTemplate.update("DELETE FROM blog.app_user WHERE id = ?", authorId);
     }
 
     /**
@@ -130,7 +141,7 @@ class VisitorTrackingConcurrencyTest {
     private void recordAfterStart(CountDownLatch start, String anonymousKey) {
         try {
             assertThat(start.await(30, TimeUnit.SECONDS)).isTrue();
-            trackingService.recordPostView(anonymousKey, POST_DETAIL_ID, VisitorRequestMetadata.empty());
+            trackingService.recordPostView(anonymousKey, postDetailId, VisitorRequestMetadata.empty());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("concurrent tracking test interrupted", exception);
@@ -149,14 +160,14 @@ class VisitorTrackingConcurrencyTest {
                 FROM blog.visitor_event
                 WHERE post_detail_id = ?
                   AND event_type = 'POST_VIEW'
-                """, POST_DETAIL_ID);
+                """, postDetailId);
         Map<String, Object> summary = jdbcTemplate.queryForMap("""
                 SELECT landing_count AS landing_count,
                        view_count AS view_count,
                        unique_visitor_count AS unique_visitor_count
                 FROM blog.visitor_daily_summary
                 WHERE post_detail_id = ?
-                """, POST_DETAIL_ID);
+                """, postDetailId);
 
         assertThat(events)
                 .containsEntry("event_count", expectedEventCount)

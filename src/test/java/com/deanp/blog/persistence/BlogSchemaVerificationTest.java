@@ -1,6 +1,7 @@
 package com.deanp.blog.persistence;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -9,9 +10,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -27,11 +25,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest
 @ActiveProfiles("dev")
 @Transactional(readOnly = true)
-@Testcontainers
 class BlogSchemaVerificationTest {
 
-    @Container
-    private static final PostgreSQLContainer POSTGRESQL = new PostgreSQLContainer("postgres:16-alpine");
+    private static final TestPostgresql POSTGRESQL = new TestPostgresql();
 
     private static final Set<String> EXPECTED_TABLES = Set.of(
             "app_user",
@@ -107,10 +103,13 @@ class BlogSchemaVerificationTest {
 
     @DynamicPropertySource
     static void configureDatasource(DynamicPropertyRegistry registry) {
-        registry.add("DB_URL", POSTGRESQL::getJdbcUrl);
-        registry.add("DB_USER", POSTGRESQL::getUsername);
-        registry.add("DB_PASSWORD", POSTGRESQL::getPassword);
-        registry.add("WAS_PORT", () -> "0");
+        POSTGRESQL.register(registry);
+    }
+
+    /** 로컬 일회용 DB를 종료한다. */
+    @AfterAll
+    static void stopDatabase() {
+        POSTGRESQL.stop();
     }
 
     @Autowired
