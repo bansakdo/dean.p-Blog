@@ -17,6 +17,9 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+/**
+ * 관리자나 시스템 동작의 감사 이력을 blog.audit_log 테이블에 매핑한다.
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -42,7 +45,8 @@ public class AuditLog {
     @Column(name = "request_id")
     private String requestId;
 
-    @Column(name = "ip_address")
+    @JdbcTypeCode(SqlTypes.INET)
+    @Column(name = "ip_address", columnDefinition = "inet")
     private String ipAddress;
 
     @JdbcTypeCode(SqlTypes.JSON)

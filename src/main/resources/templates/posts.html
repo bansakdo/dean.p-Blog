@@ -1,25 +1,51 @@
 <!doctype html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/site :: head(${pageTitle})}"></head>
-<body>
+<body class="posts-page">
 <header th:replace="~{fragments/site :: header}"></header>
 <main class="shell page-space">
   <header class="page-intro">
-    <p class="eyebrow">WRITING</p>
-    <h1>글</h1>
-    <p>개발과 기록, 작은 시스템을 운영하며 배운 내용을 정리합니다.</p>
+    <div><h1>글</h1><p>개발하며 배운 것들, 만들어 가는 이야기.</p></div>
+    <p class="eyebrow">EXPLORE THE NOTES</p>
   </header>
-  <div class="post-list">
-    <article th:each="post : ${posts}">
-      <div class="post-meta"><time th:text="${post.publishedAt}"></time><span th:text="|${post.readingMinutes}분 읽기|">5분 읽기</span></div>
-      <div>
-        <h2><a th:href="@{/posts/{slug}(slug=${post.slug})}" th:text="${post.title}">글 제목</a></h2>
-        <p th:text="${post.summary}">요약</p>
-        <ul class="tag-list"><li th:each="tag : ${post.tags}" th:text="${tag}">태그</li></ul>
+  <div class="browse-layout">
+    <section class="browse-results" aria-label="글 목록">
+      <div class="browse-toolbar">
+        <div class="active-filters" aria-label="선택된 필터">
+          <span th:unless="${hasFilters}" class="all-posts-label">전체 글</span>
+          <a th:if="${selectedCategory != null}" th:href="@{/posts(series=${selectedSeries}, tag=${selectedTag}, q=${search})}"
+             th:attr="aria-label=|${selectedCategoryName} 카테고리 필터 해제|" th:text="|${selectedCategoryName} ×|">카테고리</a>
+          <a th:if="${selectedSeries != null}" th:href="@{/posts(category=${selectedCategory}, tag=${selectedTag}, q=${search})}"
+             th:with="name=${selectedSeriesInfo != null ? selectedSeriesInfo.name : selectedSeries}"
+             th:attr="aria-label=|${name} 시리즈 필터 해제|" th:text="|${name} ×|">시리즈</a>
+          <a th:if="${selectedTag != null}" th:href="@{/posts(category=${selectedCategory}, series=${selectedSeries}, q=${search})}"
+             th:attr="aria-label=|${selectedTagName} 태그 필터 해제|" th:text="|${selectedTagName} ×|">태그</a>
+          <a th:if="${search != null}" th:href="@{/posts(category=${selectedCategory}, series=${selectedSeries}, tag=${selectedTag})}" th:text="|검색: ${search} ×|">검색</a>
+          <a th:if="${hasFilters}" class="reset-link" aria-label="필터 초기화" th:href="@{/posts}">전체 해제</a>
+        </div>
+        <span class="sort-label" th:text="${selectedSeries != null ? '연재 순서 ↑' : '최신순 ↓'}">최신순 ↓</span>
       </div>
-    </article>
+      <section class="series-intro" th:if="${selectedSeriesInfo != null}" aria-labelledby="series-intro-title">
+        <p class="eyebrow" th:text="${selectedCategoryName != null ? selectedCategoryName + ' / SERIES' : 'SERIES'}">SERIES</p>
+        <h2 id="series-intro-title" th:text="${selectedSeriesInfo.name}">시리즈 이름</h2>
+        <p class="series-description" th:if="${selectedSeriesInfo.description != null}" th:text="${selectedSeriesInfo.description}">시리즈 소개</p>
+        <p class="series-progress" th:text="|전체 ${selectedSeriesInfo.postCount}편 · ${selectedSeriesInfo.statusLabel()}|">전체 0편 · 연재 중</p>
+      </section>
+      <p class="results-count"><strong th:text="|${posts.size()}편|">0편</strong><span th:text="${selectedTag != null || search != null ? '의 검색 결과' : '의 글'}">의 글</span></p>
+      <div class="post-list" th:if="${!posts.isEmpty()}">
+        <article th:each="post : ${posts}">
+          <div class="post-meta"><span class="post-category" th:if="${post.categoryName != null}" th:text="${post.categoryName}">카테고리</span><time th:datetime="${post.publishedAt}" th:text="${#temporals.format(post.publishedAt, 'yyyy.MM.dd')}"></time><span th:text="|· ${post.readingMinutes}분 읽기|">· 5분 읽기</span></div>
+          <h2><a th:href="@{/posts/{slug}(slug=${post.slug})}"><span class="series-number" th:if="${selectedSeries != null && post.seriesSlug != null && post.seriesOrder != null}" th:text="${#numbers.formatInteger(post.seriesOrder, 2) + '. '}">01. </span><span th:text="${post.title}">글 제목</span></a></h2>
+          <p class="post-summary" th:text="${post.summary}">요약</p>
+          <ul class="tag-list"><li th:each="tag : ${post.tags}" th:text="|# ${tag}|">태그</li></ul>
+          <a class="post-series-link" th:if="${post.seriesSlug != null}" th:href="@{/posts(series=${post.seriesSlug})}" th:text="|▤ ${post.seriesName} · ${post.seriesOrder}편 →|">시리즈 바로가기</a>
+        </article>
+      </div>
+      <p class="empty-state" th:if="${posts.isEmpty()}" th:text="${hasFilters ? '선택한 조건에 맞는 글이 없습니다.' : '아직 공개된 글이 없습니다.'}">아직 공개된 글이 없습니다.</p>
+    </section>
   </div>
 </main>
 <footer th:replace="~{fragments/site :: footer}"></footer>
+
 </body>
 </html>

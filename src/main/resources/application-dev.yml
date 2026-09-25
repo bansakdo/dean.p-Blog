@@ -4,6 +4,9 @@ server:
 spring:
   config:
     import: "optional:file:./.env.dev[.properties]"
+  web:
+    resources:
+      static-locations: classpath:/static/,file:${DEV_MEDIA_PUBLIC_ROOT:../dean-p-blog-media}/
   autoconfigure:
     exclude: []
   datasource:
@@ -12,7 +15,7 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         default_schema: blog
@@ -21,3 +24,8 @@ spring:
     default-schema: blog
     schemas: blog
     baseline-on-migrate: true
+
+app:
+  visitor:
+    cookie-secure: false
+    trusted-proxies: ${VISITOR_TRUSTED_PROXIES:}

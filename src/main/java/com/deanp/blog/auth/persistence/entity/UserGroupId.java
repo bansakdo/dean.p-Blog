@@ -8,6 +8,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.util.UUID;
 
+/**
+ * 사용자와 권한 그룹으로 구성된 user_group 복합 기본키를 표현한다.
+ */
 @Embeddable
 @Getter
 @EqualsAndHashCode

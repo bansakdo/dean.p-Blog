@@ -20,18 +20,39 @@
   <script defer src="https://unpkg.com/lucide@0.468.0"></script>
   <script defer th:src="@{/js/site.js}"></script>
   <script defer th:src="@{/js/theme.js}"></script>
+  <script defer th:src="@{/js/sidebar.js}"></script>
+  <script defer th:src="@{/js/account-menu.js}"></script>
 </head>
 <body>
-<header class="site-header" th:fragment="header">
+<th:block th:fragment="header">
+<header class="site-header">
+  <button class="menu-toggle" type="button" aria-label="메뉴 열기" aria-controls="site-sidebar" aria-expanded="false">☰</button>
   <a class="brand" th:href="@{/}" aria-label="dean.p 홈">dean<span>.</span>p</a>
-  <nav aria-label="주요 메뉴">
-    <a th:href="@{/posts}">글</a>
-    <a th:href="@{/about}">소개</a>
-    <button class="theme-toggle" type="button" data-theme-toggle aria-label="다크 모드로 전환">
-      <i data-lucide="sun-moon" aria-hidden="true"></i>
+  <div class="account-menu">
+    <button class="account-toggle" type="button" aria-label="사용자 메뉴" aria-expanded="false" aria-controls="account-panel">
+      <i data-lucide="user-round" aria-hidden="true"></i>
     </button>
-  </nav>
+    <section id="account-panel" class="account-panel" aria-labelledby="account-panel-title" hidden>
+      <h2 id="account-panel-title">사용자 메뉴</h2>
+      <p class="account-description">로그인 기능을 준비하고 있습니다.</p>
+      <button class="account-action" type="button" disabled><span>로그인</span><small>준비 중</small></button>
+    </section>
+  </div>
 </header>
+<div class="sidebar-backdrop" hidden></div>
+<aside id="site-sidebar" class="site-sidebar" aria-label="사이트 메뉴" hidden>
+  <div class="sidebar-heading"><strong>메뉴</strong><button class="sidebar-close" type="button" aria-label="메뉴 닫기">×</button></div>
+  <div class="sidebar-scroll">
+    <nav class="sidebar-nav" aria-label="주요 메뉴">
+      <a th:href="@{/posts}">글</a>
+      <a th:href="@{/about}">소개</a>
+      <a th:href="@{/search}">검색</a>
+    </nav>
+    <th:block th:if="${categories != null}"><div th:replace="~{fragments/filters :: filters}"></div></th:block>
+  </div>
+  <div class="sidebar-theme"><span>테마</span><button class="theme-toggle" type="button" data-theme-toggle aria-label="다크 모드로 전환"><i data-lucide="sun-moon" aria-hidden="true"></i></button></div>
+</aside>
+</th:block>
 <footer class="site-footer" th:fragment="footer">
   <p>생각하고, 만들고, 기록합니다.</p>
   <p>© 2026 dean.p</p>

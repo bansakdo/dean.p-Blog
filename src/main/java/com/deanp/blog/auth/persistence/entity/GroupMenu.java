@@ -13,6 +13,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.time.Instant;
 
+/**
+ * 권한 그룹과 메뉴 및 권한 코드의 연결을 blog.group_menu 테이블에 매핑한다.
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

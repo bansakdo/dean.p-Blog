@@ -3,8 +3,8 @@
 ## Status
 
 - 문서 상태: 진행 중
-- 마지막 갱신: 2026-08-31
-- 현재 단계: MVC·JPA Entity·Repository 구조 구성
+- 마지막 갱신: 2026-09-19
+- 현재 단계: 공개 게시글 화면이 PostgreSQL의 발행 콘텐츠를 Querydsl로 조회하고 카테고리·시리즈·태그·검색 필터를 제공
 
 ## System Shape
 
@@ -63,22 +63,25 @@ com.deanp.blog.<feature>
 ## Current Implementation
 
 - `post.controller.BlogController`: 홈, 글 목록, 글 본문, 소개 라우팅
-- `post.service.PostService`: 게시글 화면용 유스케이스 위임
-- `PostView`: 화면 표시용 게시글 데이터
-- `SamplePostRepository`: 화면 검증용 메모리 샘플 데이터
-- 기능별 JPA Entity 20개와 Spring Data Repository 20개
+- `post.service.PostService`: 공개 발행 게시글을 화면용 데이터로 변환하고 Markdown을 HTML로 렌더링
+- `PostView`: 템플릿에 노출하는 게시글 표시용 projection
+- `post.persistence.repository.PostDetailRepository`: 단순 CRUD와 공개 게시글 Custom Querydsl 조회 경계
+- `post.service.PostSeriesService`: 시리즈 생성·수정과 게시글 배치를 조합하며, 시리즈 대표 카테고리를 연결 게시글 카테고리에 동기화
+- `post.persistence.query.PublicPostQueryRepository`: `PUBLISHED` 상태와 `published_at IS NOT NULL` 조건, 최신순 목록, slug 조회, 카테고리·시리즈·태그·검색 필터와 태그 조인 결과를 제공
+- 게시판 상위 테이블 없이 `post_detail`을 실제 글로 사용하는 기능별 JPA Entity와 Spring Data Repository
 - Thymeleaf: 서버 렌더링 HTML
 - Vanilla JavaScript: 라이트/다크 테마 전환
-- PostgreSQL: Flyway `blog` 스키마와 JPA 매핑 연결
+- PostgreSQL: Flyway가 `blog` 스키마 evolution을 소유하고 Hibernate는 `validate`로 매핑 호환성만 확인
 
-현재 게시글 화면은 실제 PostgreSQL이 아니라 샘플 저장소를 사용합니다.
+현재 게시글 화면은 샘플 fallback 없이 PostgreSQL `blog.post_detail`의 공개 발행 콘텐츠만 사용합니다. Markdown 원문은 서버에서 HTML로 변환하며, 템플릿에는 Entity가 아니라 `PostView`만 전달합니다. V8에서 추가한 시리즈와 기존 글은 유지하며, V10은 게시판 상위 테이블 `post`와 `post_id` 참조만 제거합니다. 카테고리·시리즈 slug는 전체에서 고유합니다.
 
 ## Content Direction
 
 - Obsidian은 작성 도구로 사용합니다.
 - 블로그 전용 Git 저장소를 콘텐츠 저장소로 사용하는 방향입니다.
 - 서버가 개인 Vault 전체를 직접 읽지는 않습니다.
-- 공개 발행 기준과 Markdown 동기화 방식은 후속 설계 대상입니다.
+- 공개 표시 기준은 `post_detail.status = PUBLISHED`이고 `published_at`이 있는 글입니다.
+- Markdown 동기화·발행 파이프라인은 후속 설계 대상입니다.
 
 ## Planned Boundaries
 
@@ -94,7 +97,6 @@ com.deanp.blog.<feature>
 
 ## Decisions Pending
 
-- 게시글 PostgreSQL 스키마와 마이그레이션 소유 주체
 - Markdown front matter의 최종 형식
 - Git push 이후 발행 방식
 - 관리자 인증 및 권한 모델

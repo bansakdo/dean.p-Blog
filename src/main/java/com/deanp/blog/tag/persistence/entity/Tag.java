@@ -10,6 +10,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 게시글 분류와 탐색에 사용할 태그 정보를 blog.tag 테이블에 매핑한다.
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

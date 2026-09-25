@@ -12,9 +12,7 @@
       <p class="article-summary" th:text="${post.summary}">요약</p>
       <div class="post-meta"><time th:text="${post.publishedAt}"></time><span th:text="|${post.readingMinutes}분 읽기|">5분 읽기</span></div>
     </header>
-    <div class="article-body">
-      <p th:each="paragraph : ${post.paragraphs}" th:text="${paragraph}">본문</p>
-    </div>
+    <div class="article-body" th:utext="${post.htmlContent}">본문</div>
   </article>
 </main>
 <footer th:replace="~{fragments/site :: footer}"></footer>
