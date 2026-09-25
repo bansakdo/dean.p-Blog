@@ -4,11 +4,9 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
 import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -23,11 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Testcontainers
 class BlogSchemaDriftMigrationTest {
 
-    @Container
-    private static final PostgreSQLContainer POSTGRESQL = new PostgreSQLContainer("postgres:16-alpine");
+    private static final TestPostgresql POSTGRESQL = new TestPostgresql();
 
     private static final Map<String, ColumnExpectation> V9_CANONICAL_TEXT_COLUMNS = Map.ofEntries(
             Map.entry("app_user.login_id", new ColumnExpectation("character varying", 100)),
@@ -95,7 +91,15 @@ class BlogSchemaDriftMigrationTest {
 
     @BeforeEach
     void resetDatabase() {
+        POSTGRESQL.start();
+        POSTGRESQL.verifyCi();
         flyway().clean();
+    }
+
+    /** 로컬 일회용 DB를 종료한다. */
+    @AfterAll
+    static void stopDatabase() {
+        POSTGRESQL.stop();
     }
 
     @Test
@@ -554,7 +558,7 @@ class BlogSchemaDriftMigrationTest {
 
     private Flyway flyway(MigrationVersion target) {
         var configuration = Flyway.configure()
-                .dataSource(POSTGRESQL.getJdbcUrl(), POSTGRESQL.getUsername(), POSTGRESQL.getPassword())
+                .dataSource(POSTGRESQL.url(), POSTGRESQL.user(), POSTGRESQL.password())
                 .defaultSchema("blog")
                 .schemas("blog")
                 .cleanDisabled(false);
@@ -566,7 +570,7 @@ class BlogSchemaDriftMigrationTest {
 
     private void executeSql(String sql) throws SQLException {
         try (Connection connection = DriverManager.getConnection(
-                POSTGRESQL.getJdbcUrl(), POSTGRESQL.getUsername(), POSTGRESQL.getPassword());
+                POSTGRESQL.url(), POSTGRESQL.user(), POSTGRESQL.password());
              Statement statement = connection.createStatement()) {
             statement.execute(sql);
         }
@@ -574,7 +578,7 @@ class BlogSchemaDriftMigrationTest {
 
     private void assertColumnTypes(Map<String, ColumnExpectation> expectedColumns) throws SQLException {
         try (Connection connection = DriverManager.getConnection(
-                POSTGRESQL.getJdbcUrl(), POSTGRESQL.getUsername(), POSTGRESQL.getPassword());
+                POSTGRESQL.url(), POSTGRESQL.user(), POSTGRESQL.password());
              Statement statement = connection.createStatement()) {
             for (Map.Entry<String, ColumnExpectation> entry : expectedColumns.entrySet()) {
                 String[] parts = entry.getKey().split("\\.");
@@ -648,7 +652,7 @@ class BlogSchemaDriftMigrationTest {
 
     private String scalarString(String sql) throws SQLException {
         try (Connection connection = DriverManager.getConnection(
-                POSTGRESQL.getJdbcUrl(), POSTGRESQL.getUsername(), POSTGRESQL.getPassword());
+                POSTGRESQL.url(), POSTGRESQL.user(), POSTGRESQL.password());
              Statement statement = connection.createStatement()) {
             var resultSet = statement.executeQuery(sql);
             resultSet.next();
@@ -658,7 +662,7 @@ class BlogSchemaDriftMigrationTest {
 
     private int scalarInteger(String sql) throws SQLException {
         try (Connection connection = DriverManager.getConnection(
-                POSTGRESQL.getJdbcUrl(), POSTGRESQL.getUsername(), POSTGRESQL.getPassword());
+                POSTGRESQL.url(), POSTGRESQL.user(), POSTGRESQL.password());
              Statement statement = connection.createStatement()) {
             var resultSet = statement.executeQuery(sql);
             resultSet.next();

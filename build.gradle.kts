@@ -50,3 +50,49 @@ dependencies {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+val ciDbPreflight = tasks.register<JavaExec>("ciDbPreflight") {
+	group = "verification"
+	dependsOn(tasks.testClasses)
+	classpath = sourceSets.test.get().runtimeClasspath
+	mainClass = "com.deanp.blog.persistence.CiDatabaseGate"
+	args("preflight")
+}
+
+val ciDbDriftTest = tasks.register<Test>("ciDbDriftTest") {
+	group = "verification"
+	dependsOn(ciDbPreflight)
+	testClassesDirs = sourceSets.test.get().output.classesDirs
+	classpath = sourceSets.test.get().runtimeClasspath
+	systemProperty("blog.ci.db", "true")
+	filter { includeTestsMatching("*BlogSchemaDriftMigrationTest") }
+}
+
+val ciDbReset = tasks.register<JavaExec>("ciDbReset") {
+	group = "verification"
+	dependsOn(ciDbDriftTest)
+	classpath = sourceSets.test.get().runtimeClasspath
+	mainClass = "com.deanp.blog.persistence.CiDatabaseGate"
+	args("reset")
+}
+
+val ciDbSchemaTest = tasks.register<Test>("ciDbSchemaTest") {
+	group = "verification"
+	dependsOn(ciDbReset)
+	testClassesDirs = sourceSets.test.get().output.classesDirs
+	classpath = sourceSets.test.get().runtimeClasspath
+	systemProperty("blog.ci.db", "true")
+	filter { includeTestsMatching("*BlogSchemaVerificationTest") }
+}
+
+tasks.register<Test>("ciDbIntegrationTest") {
+	group = "verification"
+	dependsOn(ciDbSchemaTest)
+	testClassesDirs = sourceSets.test.get().output.classesDirs
+	classpath = sourceSets.test.get().runtimeClasspath
+	systemProperty("blog.ci.db", "true")
+	filter {
+		excludeTestsMatching("*BlogSchemaDriftMigrationTest")
+		excludeTestsMatching("*BlogSchemaVerificationTest")
+	}
+}

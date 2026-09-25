@@ -1,9 +1,11 @@
 package com.deanp.blog.visitor.persistence.repository;
 
+import com.deanp.blog.persistence.TestPostgresql;
 import com.deanp.blog.visitor.persistence.entity.Visitor;
 import com.deanp.blog.visitor.persistence.entity.VisitorEvent;
 import com.deanp.blog.visitor.service.VisitorRequestMetadata;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,9 +14,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -31,11 +30,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @ActiveProfiles("dev")
 @Transactional
-@Testcontainers
 class VisitorDailySummaryRepositoryTest {
 
-    @Container
-    private static final PostgreSQLContainer POSTGRESQL = new PostgreSQLContainer("postgres:16-alpine");
+    private static final TestPostgresql POSTGRESQL = new TestPostgresql();
 
     private static final LocalDate SEPTEMBER_FIRST = LocalDate.of(2026, 9, 1);
     private static final LocalDate SEPTEMBER_SECOND = LocalDate.of(2026, 9, 2);
@@ -75,10 +72,13 @@ class VisitorDailySummaryRepositoryTest {
      */
     @DynamicPropertySource
     static void configureDatasource(DynamicPropertyRegistry registry) {
-        registry.add("DB_URL", POSTGRESQL::getJdbcUrl);
-        registry.add("DB_USER", POSTGRESQL::getUsername);
-        registry.add("DB_PASSWORD", POSTGRESQL::getPassword);
-        registry.add("WAS_PORT", () -> "0");
+        POSTGRESQL.register(registry);
+    }
+
+    /** 로컬 일회용 DB를 종료한다. */
+    @AfterAll
+    static void stopDatabase() {
+        POSTGRESQL.stop();
     }
 
     /**

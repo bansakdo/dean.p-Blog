@@ -42,6 +42,16 @@ DB_PASSWORD
 - 비밀번호와 토큰을 문서, 로그, 저장소에 기록하지 않습니다.
 - 실제 외부 DB 연결 상태와 권한은 운영 환경에서 별도로 확인해야 합니다.
 
+## CI database tests
+
+로컬 `./gradlew test`는 기존처럼 Testcontainers의 일회용 PostgreSQL을 사용합니다. CI 전용 외부 DB는 별도 작업 `./gradlew --no-daemon --max-workers=1 ciDbIntegrationTest bootJar`로만 사용합니다. 운영 담당자가 Jenkins에 `CI_DB_URL`, `CI_DB_USER`, `CI_DB_PASSWORD`를 주입해야 하며 이 저장소의 Jenkinsfile은 아직 해당 작업을 호출하지 않습니다. Jenkins Credential ID는 `dean-p-blog-ci-db`입니다. 암호를 소스·로그·명령 인수로 전달하지 마세요.
+
+CI 작업은 별도 JVM에서 접속 사전 검증 → V3~V10 드리프트 재현 테스트(테스트마다 `blog` 스키마 clean) → `blog` 스키마 clean 및 최신 마이그레이션 적용 → 스키마 검증 → 일반 테스트 순으로 진행합니다. `CI_DB_ALLOWED_HOST`, `CI_DB_ALLOWED_PORT`는 허용할 접속 대상(URL과 정확히 일치해야 함), `CI_DB_SERVER_ADDR`, `CI_DB_SERVER_PORT`는 독립적으로 확인한 PostgreSQL 서버의 `inet_server_addr()`·`inet_server_port()` 기대값으로 Jenkins의 비밀 아닌 환경설정에 각각 주입합니다. 모두 필수이며 기본값은 없습니다. NAT가 있으면 외부 접속 주소·포트와 실제 서버가 보고하는 내부 주소·포트가 다를 수 있으므로 후자를 복사해 외부값으로 가정하지 마세요. 기대값을 확인할 수 없으면 CI 작업을 실행하지 않습니다.
+
+사전 검증은 접속 URL·계정과 실제 연결의 `current_database()`(`dean_p_blog_ci`), `current_user`(`dean_p_blog_app_ci`), 서버 주소·포트, 계정 관리자 권한을 확인합니다. URL과 허용 대상을 동일한 잘못된 값으로 설정하면 두 입력의 일치만으로 안전을 보증하지 못합니다. 허용 대상과 서버 기대값은 서로 다른 근거로 확인하고, DB명·계정·권한 검사를 추가 방어선으로 유지합니다. 계정의 다른 DB 접속 권한 제한도 별도로 유지해야 합니다.
+
+이 DB는 테스트가 스키마 전체를 지우므로 다른 작업과 공유하지 마세요. Jenkins에서 해당 DB 사용 작업 전체를 상호 배제하고 기존 `clean test bootJar` 호출을 교체하는 것은 운영 담당 범위입니다. CI 전용 DB 외에서는 이 작업을 실행하지 마세요. 실제 CI 접속·마이그레이션·Jenkins 실행은 별도 확인이 필요합니다.
+
 ## Database Bootstrap
 
 초기 PostgreSQL 사용자·데이터베이스·스키마 설정 스크립트:

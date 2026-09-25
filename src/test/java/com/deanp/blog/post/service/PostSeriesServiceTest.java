@@ -1,7 +1,9 @@
 package com.deanp.blog.post.service;
 
+import com.deanp.blog.persistence.TestPostgresql;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -10,9 +12,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.util.UUID;
 
@@ -23,11 +22,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest
 @ActiveProfiles("dev")
 @Transactional
-@Testcontainers
 class PostSeriesServiceTest {
 
-    @Container
-    private static final PostgreSQLContainer DB = new PostgreSQLContainer("postgres:16-alpine");
+    private static final TestPostgresql DB = new TestPostgresql();
 
     @Autowired
     private PostSeriesService service;
@@ -39,10 +36,13 @@ class PostSeriesServiceTest {
     /** @param registry 테스트 전용 데이터베이스 설정 */
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
-        registry.add("DB_URL", DB::getJdbcUrl);
-        registry.add("DB_USER", DB::getUsername);
-        registry.add("DB_PASSWORD", DB::getPassword);
-        registry.add("WAS_PORT", () -> "0");
+        DB.register(registry);
+    }
+
+    /** 로컬 일회용 DB를 종료한다. */
+    @AfterAll
+    static void stopDatabase() {
+        DB.stop();
     }
 
     /** 서비스 검증에 필요한 카테고리와 글을 준비한다. */
