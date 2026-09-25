@@ -119,14 +119,10 @@ class VisitorDailySummaryRepositoryTest {
                 VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'summary-author', 'hash', 'Author')
                 """);
         jdbcTemplate.update("""
-                INSERT INTO blog.post (id, post_code, name)
-                VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'summary-blog', 'Summary Blog')
-                """);
-        jdbcTemplate.update("""
-                INSERT INTO blog.post_detail (id, post_id, author_id, slug, title, content, status, published_at)
+                INSERT INTO blog.post_detail (id, author_id, slug, title, content, status, published_at)
                 VALUES
-                    (?, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'summary-post', 'Summary Post', 'Body', 'PUBLISHED', now()),
-                    (?, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'other-summary-post', 'Other Summary Post', 'Body', 'PUBLISHED', now())
+                    (?, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'summary-post', 'Summary Post', 'Body', 'PUBLISHED', now()),
+                    (?, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'other-summary-post', 'Other Summary Post', 'Body', 'PUBLISHED', now())
                 """, POST_DETAIL_ID, OTHER_POST_DETAIL_ID);
     }
 

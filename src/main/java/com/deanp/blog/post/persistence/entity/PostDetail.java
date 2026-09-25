@@ -27,9 +27,6 @@ public class PostDetail {
     @Column(name = "id")
     private UUID id;
 
-    @Column(name = "post_id")
-    private UUID postId;
-
     @Column(name = "category_id")
     private UUID categoryId;
 
@@ -71,10 +68,6 @@ public class PostDetail {
 
     @Column(name = "updated_at")
     private Instant updatedAt;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id", insertable = false, updatable = false)
-    private Post post;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", insertable = false, updatable = false)

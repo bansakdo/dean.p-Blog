@@ -235,7 +235,7 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
                 .leftJoin(QAttachedFile.attachedFile).on(QAttachedFile.attachedFile.id.eq(postDetail.representativeImageId))
                 .leftJoin(category).on(category.id.eq(postDetail.categoryId))
                 .leftJoin(series).on(series.id.eq(postDetail.seriesId),
-                        series.status.in("ACTIVE", "COMPLETED"), series.postId.eq(postDetail.postId))
+                        series.status.in("ACTIVE", "COMPLETED"))
                 .leftJoin(postTag).on(postTag.id.postDetailId.eq(postDetail.id))
                 .leftJoin(tag).on(tag.id.eq(postTag.id.tagId))
                 .where(postDetail.status.eq(PUBLISHED), postDetail.publishedAt.loe(java.time.Instant.now()));

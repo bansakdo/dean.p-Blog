@@ -39,7 +39,6 @@ class BlogSchemaVerificationTest {
             "menu",
             "common_code",
             "common_code_detail",
-            "post",
             "post_category",
             "post_series",
             "tag",
@@ -60,17 +59,12 @@ class BlogSchemaVerificationTest {
     private static final Map<String, ForeignKeyExpectation> EXPECTED_FOREIGN_KEYS = Map.ofEntries(
             Map.entry("fk_menu_parent", new ForeignKeyExpectation("menu", List.of("parent_id"), "menu", List.of("id"))),
             Map.entry("fk_common_code_detail_code", new ForeignKeyExpectation("common_code_detail", List.of("common_code_id"), "common_code", List.of("id"))),
-            Map.entry("fk_post_category_post", new ForeignKeyExpectation("post_category", List.of("post_id"), "post", List.of("id"))),
             Map.entry("fk_post_category_parent", new ForeignKeyExpectation("post_category", List.of("parent_id"), "post_category", List.of("id"))),
-            Map.entry("fk_post_detail_post", new ForeignKeyExpectation("post_detail", List.of("post_id"), "post", List.of("id"))),
             Map.entry("fk_post_detail_category", new ForeignKeyExpectation("post_detail", List.of("category_id"), "post_category", List.of("id"))),
             Map.entry("fk_post_detail_author", new ForeignKeyExpectation("post_detail", List.of("author_id"), "app_user", List.of("id"))),
             Map.entry("fk_post_representative_image", new ForeignKeyExpectation("post_detail", List.of("id", "representative_image_id"), "post_attached_file", List.of("post_detail_id", "attached_file_id"))),
-            Map.entry("fk_post_series_post", new ForeignKeyExpectation("post_series", List.of("post_id"), "post", List.of("id"))),
             Map.entry("fk_post_series_category", new ForeignKeyExpectation("post_series", List.of("category_id"), "post_category", List.of("id"))),
-            Map.entry("fk_post_series_post_category", new ForeignKeyExpectation("post_series", List.of("post_id", "category_id"), "post_category", List.of("post_id", "id"))),
             Map.entry("fk_post_detail_series", new ForeignKeyExpectation("post_detail", List.of("series_id"), "post_series", List.of("id"))),
-            Map.entry("fk_post_detail_post_series", new ForeignKeyExpectation("post_detail", List.of("post_id", "series_id"), "post_series", List.of("post_id", "id"))),
             Map.entry("fk_user_group_user", new ForeignKeyExpectation("user_group", List.of("user_id"), "app_user", List.of("id"))),
             Map.entry("fk_user_group_group", new ForeignKeyExpectation("user_group", List.of("group_id"), "auth_group", List.of("id"))),
             Map.entry("fk_group_menu_group", new ForeignKeyExpectation("group_menu", List.of("group_id"), "auth_group", List.of("id"))),
@@ -89,13 +83,13 @@ class BlogSchemaVerificationTest {
     );
 
     private static final Map<String, IndexExpectation> EXPECTED_INDEXES = Map.ofEntries(
-            Map.entry("idx_post_detail_post_status", new IndexExpectation("post_detail", List.of("post_id", "status", "published_at"))),
+            Map.entry("idx_post_detail_status_published", new IndexExpectation("post_detail", List.of("status", "published_at"))),
             Map.entry("idx_post_detail_category", new IndexExpectation("post_detail", List.of("category_id", "published_at"))),
             Map.entry("idx_post_detail_author", new IndexExpectation("post_detail", List.of("author_id"))),
             Map.entry("idx_post_series_category", new IndexExpectation("post_series", List.of("category_id", "sort_order", "name"))),
             Map.entry("idx_post_detail_series", new IndexExpectation("post_detail", List.of("series_id", "series_order"))),
-            Map.entry("ux_post_category_post_id_id", new IndexExpectation("post_category", List.of("post_id", "id"))),
-            Map.entry("ux_post_series_post_id_id", new IndexExpectation("post_series", List.of("post_id", "id"))),
+            Map.entry("uq_post_category_slug", new IndexExpectation("post_category", List.of("slug"))),
+            Map.entry("uq_post_series_slug", new IndexExpectation("post_series", List.of("slug"))),
             Map.entry("ux_post_detail_series_order", new IndexExpectation("post_detail", List.of("series_id", "series_order"))),
             Map.entry("idx_post_tag_tag", new IndexExpectation("post_tag", List.of("tag_id", "post_detail_id"))),
             Map.entry("idx_post_revision_detail_created", new IndexExpectation("post_revision", List.of("post_detail_id", "created_at"))),
@@ -147,7 +141,7 @@ class BlogSchemaVerificationTest {
         Map<String, String> appliedMigrations = jdbcTemplate.query("""
                 SELECT version, script
                 FROM blog.flyway_schema_history
-                WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9')
+                WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10')
                   AND success
                 """, rs -> {
                     Map<String, String> migrations = new java.util.HashMap<>();
@@ -166,7 +160,8 @@ class BlogSchemaVerificationTest {
                 "6", "V6__reconcile_visitor_daily_summary_counts.sql",
                 "7", "V7__add_representative_image.sql",
                 "8", "V8__add_post_series.sql",
-                "9", "V9__align_varchar255_schema_drift.sql"
+                "9", "V9__align_varchar255_schema_drift.sql",
+                "10", "V10__remove_post_container.sql"
         ), appliedMigrations);
     }
 

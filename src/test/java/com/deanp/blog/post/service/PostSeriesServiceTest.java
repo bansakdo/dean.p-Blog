@@ -45,24 +45,22 @@ class PostSeriesServiceTest {
         registry.add("WAS_PORT", () -> "0");
     }
 
-    /** 서비스 검증에 필요한 게시판, 카테고리, 글을 준비한다. */
+    /** 서비스 검증에 필요한 카테고리와 글을 준비한다. */
     @BeforeEach
     void fixtures() {
         jdbc.update("INSERT INTO blog.app_user (id, login_id, password_hash, name) VALUES (?, 'series-user', 'hash', '작성자')", id(1));
-        jdbc.update("INSERT INTO blog.post (id, post_code, name) VALUES (?, 'series-blog', 'Blog')", id(2));
-        jdbc.update("INSERT INTO blog.post (id, post_code, name) VALUES (?, 'other-blog', 'Other')", id(3));
-        category(10, 2, "dev");
-        category(11, 2, "life");
-        category(12, 3, "other");
-        post(20, 2, 10, "first");
-        post(21, 2, 11, "second");
-        post(22, 3, 12, "other");
+        category(10, "dev");
+        category(11, "life");
+        category(12, "other");
+        post(20, 10, "first");
+        post(21, 11, "second");
+        post(22, 12, "other");
     }
 
     /** 배치 시 게시글 카테고리는 시리즈 대표 카테고리로 자동 동기화된다. */
     @Test
     void assignsPostToSeriesAndSynchronizesCategory() {
-        UUID seriesId = service.createSeries(command(2, 10, "boot", "부트", null));
+        UUID seriesId = service.createSeries(command(10, "boot", "부트", null));
 
         service.assignPost(seriesId, id(21), 1);
         entityManager.flush();
@@ -75,35 +73,36 @@ class PostSeriesServiceTest {
     /** 대표 카테고리 변경은 연결된 게시글 카테고리를 함께 변경한다. */
     @Test
     void updatesSeriesCategoryAndLinkedPosts() {
-        UUID seriesId = service.createSeries(command(2, 10, "boot", "부트", null));
+        UUID seriesId = service.createSeries(command(10, "boot", "부트", null));
         service.assignPost(seriesId, id(20), 1);
 
-        service.updateSeries(seriesId, command(2, 11, "life-series", "일상", "소개"));
+        service.updateSeries(seriesId, command(11, "life-series", "일상", "소개"));
         entityManager.flush();
 
         assertThat(column("category_id", 20)).isEqualTo(id(11));
     }
 
-    /** 잘못된 소유권, 중복 slug, 중복 순서는 명시적으로 거부한다. */
+    /** 없는 카테고리, 중복 slug, 중복 순서는 명시적으로 거부한다. */
     @Test
-    void rejectsInvalidOwnershipDuplicateSlugAndDuplicateOrder() {
-        UUID seriesId = service.createSeries(command(2, 10, "boot", "부트", null));
+    void rejectsUnknownCategoryDuplicateSlugAndDuplicateOrder() {
+        UUID seriesId = service.createSeries(command(10, "boot", "부트", null));
         service.assignPost(seriesId, id(20), 1);
 
-        assertThatThrownBy(() -> service.createSeries(command(2, 12, "bad", "오류", null)))
+        assertThatThrownBy(() -> service.createSeries(command(99, "bad", "오류", null)))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.createSeries(command(2, 10, "boot", "중복", null)))
+        assertThatThrownBy(() -> service.createSeries(command(12, "boot", "중복", null)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.assignPost(seriesId, id(21), 1))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.assignPost(seriesId, id(22), 2))
-                .isInstanceOf(IllegalArgumentException.class);
+        service.assignPost(seriesId, id(22), 2);
+        entityManager.flush();
+        assertThat(column("category_id", 22)).isEqualTo(id(10));
     }
 
     /** 게시글 시리즈 연결만 제거하고 카테고리는 현재 값을 유지한다. */
     @Test
     void removesPostFromSeries() {
-        UUID seriesId = service.createSeries(command(2, 10, "boot", "부트", null));
+        UUID seriesId = service.createSeries(command(10, "boot", "부트", null));
         service.assignPost(seriesId, id(20), 1);
 
         entityManager.flush();
@@ -116,9 +115,9 @@ class PostSeriesServiceTest {
         assertThat(column("category_id", 20)).isEqualTo(id(10));
     }
 
-    /** @param post 게시판 식별자 @param category 카테고리 식별자 @param slug URL 값 @param name 표시명 @param description 소개 @return 명령 */
-    private PostSeriesCommand command(int post, int category, String slug, String name, String description) {
-        return new PostSeriesCommand(id(post), id(category), slug, name, description, 0);
+    /** @param category 카테고리 식별자 @param slug URL 값 @param name 표시명 @param description 소개 @return 명령 */
+    private PostSeriesCommand command(int category, String slug, String name, String description) {
+        return new PostSeriesCommand(id(category), slug, name, description, 0);
     }
 
     /** @param number 식별자 숫자 @return 고정 테스트 UUID */
@@ -126,16 +125,16 @@ class PostSeriesServiceTest {
         return new UUID(0, number);
     }
 
-    /** @param number 식별자 @param post 게시판 @param slug URL 값 */
-    private void category(int number, int post, String slug) {
-        jdbc.update("INSERT INTO blog.post_category (id, post_id, slug, name) VALUES (?, ?, ?, ?)",
-                id(number), id(post), slug, slug);
+    /** @param number 식별자 @param slug URL 값 */
+    private void category(int number, String slug) {
+        jdbc.update("INSERT INTO blog.post_category (id, slug, name) VALUES (?, ?, ?)",
+                id(number), slug, slug);
     }
 
-    /** @param number 식별자 @param post 게시판 @param category 카테고리 @param slug URL 값 */
-    private void post(int number, int post, int category, String slug) {
-        jdbc.update("INSERT INTO blog.post_detail (id, post_id, category_id, author_id, slug, title, content, status, published_at) VALUES (?, ?, ?, ?, ?, ?, '본문', 'PUBLISHED', now())",
-                id(number), id(post), id(category), id(1), slug, slug);
+    /** @param number 식별자 @param category 카테고리 @param slug URL 값 */
+    private void post(int number, int category, String slug) {
+        jdbc.update("INSERT INTO blog.post_detail (id, category_id, author_id, slug, title, content, status, published_at) VALUES (?, ?, ?, ?, ?, '본문', 'PUBLISHED', now())",
+                id(number), id(category), id(1), slug, slug);
     }
 
     /** @param column 컬럼명 @param post 게시글 숫자 식별자 @return UUID 컬럼 값 */

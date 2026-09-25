@@ -68,12 +68,12 @@ com.deanp.blog.<feature>
 - `post.persistence.repository.PostDetailRepository`: 단순 CRUD와 공개 게시글 Custom Querydsl 조회 경계
 - `post.service.PostSeriesService`: 시리즈 생성·수정과 게시글 배치를 조합하며, 시리즈 대표 카테고리를 연결 게시글 카테고리에 동기화
 - `post.persistence.query.PublicPostQueryRepository`: `PUBLISHED` 상태와 `published_at IS NOT NULL` 조건, 최신순 목록, slug 조회, 카테고리·시리즈·태그·검색 필터와 태그 조인 결과를 제공
-- 기능별 JPA Entity 20개와 Spring Data Repository 20개
+- 게시판 상위 테이블 없이 `post_detail`을 실제 글로 사용하는 기능별 JPA Entity와 Spring Data Repository
 - Thymeleaf: 서버 렌더링 HTML
 - Vanilla JavaScript: 라이트/다크 테마 전환
 - PostgreSQL: Flyway가 `blog` 스키마 evolution을 소유하고 Hibernate는 `validate`로 매핑 호환성만 확인
 
-현재 게시글 화면은 샘플 fallback 없이 PostgreSQL `blog.post_detail`의 공개 발행 콘텐츠만 사용합니다. Markdown 원문은 서버에서 HTML로 변환하며, 템플릿에는 Entity가 아니라 `PostView`만 전달합니다. V8 마이그레이션은 `post_series`와 `post_detail.series_id`, `post_detail.series_order`를 추가하지만 기존 글은 시리즈 미연결 상태로 유지합니다.
+현재 게시글 화면은 샘플 fallback 없이 PostgreSQL `blog.post_detail`의 공개 발행 콘텐츠만 사용합니다. Markdown 원문은 서버에서 HTML로 변환하며, 템플릿에는 Entity가 아니라 `PostView`만 전달합니다. V8에서 추가한 시리즈와 기존 글은 유지하며, V10은 게시판 상위 테이블 `post`와 `post_id` 참조만 제거합니다. 카테고리·시리즈 slug는 전체에서 고유합니다.
 
 ## Content Direction
 

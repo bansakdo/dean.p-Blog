@@ -5,7 +5,6 @@ import com.deanp.blog.post.persistence.entity.PostDetail;
 import com.deanp.blog.post.persistence.entity.PostSeries;
 import com.deanp.blog.post.persistence.repository.PostCategoryRepository;
 import com.deanp.blog.post.persistence.repository.PostDetailRepository;
-import com.deanp.blog.post.persistence.repository.PostRepository;
 import com.deanp.blog.post.persistence.repository.PostSeriesRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class PostSeriesService {
-
-    private final PostRepository posts;
     private final PostCategoryRepository categories;
     private final PostSeriesRepository series;
     private final PostDetailRepository postDetails;
@@ -33,13 +30,10 @@ public class PostSeriesService {
     @Transactional
     public UUID createSeries(PostSeriesCommand command) {
         PostSeriesCommand normalized = command.normalized();
-        validatePostExists(normalized.postId());
-        PostCategory category = requireCategory(normalized.categoryId());
-        validateCategoryOwnership(normalized.postId(), category);
-        validateNewSlug(normalized.postId(), normalized.slug());
+        requireCategory(normalized.categoryId());
+        validateNewSlug(normalized.slug());
 
         PostSeries saved = series.save(PostSeries.create(
-                normalized.postId(),
                 normalized.categoryId(),
                 normalized.slug(),
                 normalized.name(),
@@ -58,9 +52,8 @@ public class PostSeriesService {
     @Transactional
     public void updateSeries(UUID seriesId, PostSeriesCommand command) {
         PostSeries target = requireSeries(seriesId);
-        PostSeriesCommand normalized = command.normalizedForPost(target.getPostId());
-        PostCategory category = requireCategory(normalized.categoryId());
-        validateCategoryOwnership(target.getPostId(), category);
+        PostSeriesCommand normalized = command.normalized();
+        requireCategory(normalized.categoryId());
         validateExistingSlug(target, normalized.slug());
 
         target.update(
@@ -89,7 +82,6 @@ public class PostSeriesService {
 
         PostSeries target = requireSeries(seriesId);
         PostDetail post = requirePostDetail(postDetailId);
-        validatePostOwnership(target, post);
         validateMembership(target, post);
         validateSeriesOrder(target, post, seriesOrder);
 
@@ -104,17 +96,6 @@ public class PostSeriesService {
     @Transactional
     public void removePost(UUID postDetailId) {
         requirePostDetail(postDetailId).removeFromSeries();
-    }
-
-    /**
-     * 게시판 존재 여부를 검증한다.
-     *
-     * @param postId 게시판 식별자
-     */
-    private void validatePostExists(UUID postId) {
-        if (postId == null || !posts.existsById(postId)) {
-            throw new IllegalArgumentException("존재하지 않는 게시판입니다.");
-        }
     }
 
     /**
@@ -160,37 +141,12 @@ public class PostSeriesService {
     }
 
     /**
-     * 카테고리가 같은 게시판에 속하는지 검증한다.
-     *
-     * @param postId 게시판 식별자
-     * @param category 카테고리 엔티티
-     */
-    private void validateCategoryOwnership(UUID postId, PostCategory category) {
-        if (!postId.equals(category.getPostId())) {
-            throw new IllegalArgumentException("시리즈 카테고리는 같은 게시판에 속해야 합니다.");
-        }
-    }
-
-    /**
-     * 게시글이 시리즈와 같은 게시판에 속하는지 검증한다.
-     *
-     * @param target 시리즈 엔티티
-     * @param post 게시글 엔티티
-     */
-    private void validatePostOwnership(PostSeries target, PostDetail post) {
-        if (!target.getPostId().equals(post.getPostId())) {
-            throw new IllegalArgumentException("다른 게시판의 게시글은 시리즈에 배치할 수 없습니다.");
-        }
-    }
-
-    /**
      * 새 시리즈 slug 중복 여부를 검증한다.
      *
-     * @param postId 게시판 식별자
      * @param slug URL 식별자
      */
-    private void validateNewSlug(UUID postId, String slug) {
-        if (series.existsByPostIdAndSlug(postId, slug)) {
+    private void validateNewSlug(String slug) {
+        if (series.existsBySlug(slug)) {
             throw new IllegalArgumentException("이미 사용 중인 시리즈 slug입니다.");
         }
     }
@@ -202,7 +158,7 @@ public class PostSeriesService {
      * @param slug URL 식별자
      */
     private void validateExistingSlug(PostSeries target, String slug) {
-        if (series.existsByPostIdAndSlugAndIdNot(target.getPostId(), slug, target.getId())) {
+        if (series.existsBySlugAndIdNot(slug, target.getId())) {
             throw new IllegalArgumentException("이미 사용 중인 시리즈 slug입니다.");
         }
     }

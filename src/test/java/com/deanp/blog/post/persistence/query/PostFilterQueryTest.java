@@ -47,7 +47,6 @@ class PostFilterQueryTest {
     @BeforeEach
     void fixtures() {
         jdbc.update("INSERT INTO blog.app_user (id, login_id, password_hash, name) VALUES (?, 'filter-user', 'hash', '작성자')", id(1));
-        jdbc.update("INSERT INTO blog.post (id, post_code, name) VALUES (?, 'filter-blog', 'Blog')", id(2));
         category(3, "dev", "개발");
         category(4, "life", "일상");
         category(5, "private", "비공개분류");
@@ -178,7 +177,7 @@ class PostFilterQueryTest {
 
     /** @param number 식별자 @param slug URL 값 @param name 표시명 */
     private void category(int number, String slug, String name) {
-        jdbc.update("INSERT INTO blog.post_category (id, post_id, slug, name) VALUES (?, ?, ?, ?)", id(number), id(2), slug, name);
+        jdbc.update("INSERT INTO blog.post_category (id, slug, name) VALUES (?, ?, ?)", id(number), slug, name);
     }
 
     /** @param number 식별자 @param slug URL 값 @param name 표시명 */
@@ -188,15 +187,15 @@ class PostFilterQueryTest {
 
     /** @param number 식별자 @param category 분류 식별자 @param slug URL 값 @param status 공개 상태 @param dated 발행일 존재 여부 */
     private void post(int number, int category, String slug, String status, boolean dated) {
-        jdbc.update("INSERT INTO blog.post_detail (id, post_id, category_id, author_id, slug, title, content, status, published_at) VALUES (?, ?, ?, ?, ?, ?, '본문', ?, ?)",
-                id(number), id(2), id(category), id(1), slug, slug, status,
+        jdbc.update("INSERT INTO blog.post_detail (id, category_id, author_id, slug, title, content, status, published_at) VALUES (?, ?, ?, ?, ?, '본문', ?, ?)",
+                id(number), id(category), id(1), slug, slug, status,
                 dated ? java.sql.Timestamp.from(java.time.Instant.parse("2026-09-01T00:00:00Z")) : null);
     }
 
     /** @param number 식별자 @param category 대표 카테고리 @param slug URL 값 @param name 표시명 @param description 소개 */
     private void series(int number, int category, String slug, String name, String description) {
-        jdbc.update("INSERT INTO blog.post_series (id, post_id, category_id, slug, name, description) VALUES (?, ?, ?, ?, ?, ?)",
-                id(number), id(2), id(category), slug, name, description);
+        jdbc.update("INSERT INTO blog.post_series (id, category_id, slug, name, description) VALUES (?, ?, ?, ?, ?)",
+                id(number), id(category), slug, name, description);
     }
 
     /** @param post 글 식별자 @param series 시리즈 식별자 @param order 시리즈 순서 */

@@ -73,6 +73,7 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 - V6 적용 후 원본 이벤트 수와 summary를 대조하고, Flyway history와 Hibernate validate 결과를 확인합니다.
 - V9는 과거 개발 스키마에서 문자 컬럼이 일괄 `varchar(255)`로 생성된 드리프트만 V1-V8 migration의 명시 타입으로 복구합니다. 축소되는 컬럼은 `char_length` 최대값을 먼저 검사하며, 실패 오류에는 테이블·컬럼·최대 길이만 포함하고 실제 값은 노출하지 않습니다.
 - V9 적용 전 운영 백업을 확보하고 Flyway validation을 통과시켜야 합니다. V6 checksum repair는 별도 운영 절차이며 애플리케이션이나 migration에서 validation을 자동 우회하지 않습니다.
+- V10은 상위 게시판 `post`를 제거합니다. 적용 전 스키마 백업과 카테고리·시리즈 slug 중복 여부를 확인해야 하며, 중복 시 데이터 변경 없이 중단합니다. `post_detail`·카테고리·시리즈·태그·방문 이력은 보존합니다. 기존 애플리케이션은 V10 스키마와 호환되지 않으므로 적용과 코드 교체를 함께 계획해야 합니다.
 
 ## Visitor Tracking
 

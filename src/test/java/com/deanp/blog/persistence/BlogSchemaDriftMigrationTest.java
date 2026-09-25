@@ -162,7 +162,7 @@ class BlogSchemaDriftMigrationTest {
         migrateThroughV3();
         insertBoardFamilyRows();
 
-        flyway().migrate();
+        flyway(MigrationVersion.fromVersion("4")).migrate();
 
         assertFalse(tableExists("board"));
         assertFalse(tableExists("board_category"));
@@ -292,7 +292,7 @@ class BlogSchemaDriftMigrationTest {
     void addsSeriesSchemaWithoutChangingExistingPosts() throws SQLException {
         migrateThroughV7();
 
-        flyway().migrate();
+        flyway(MigrationVersion.fromVersion("8")).migrate();
 
         assertTrue(tableExists("post_series"));
         assertEquals("hello-post", scalarString("""
@@ -313,7 +313,7 @@ class BlogSchemaDriftMigrationTest {
     @Test
     @DisplayName("V9는 새 스키마에서 문자 타입 정합성을 변경 없이 통과한다")
     void keepsFreshSchemaCanonicalTextTypes() throws SQLException {
-        flyway().migrate();
+        flyway(MigrationVersion.fromVersion("9")).migrate();
 
         assertEquals("V9__align_varchar255_schema_drift.sql", scalarString("""
                 SELECT script
@@ -350,7 +350,7 @@ class BlogSchemaDriftMigrationTest {
                 );
                 """);
 
-        flyway().migrate();
+        flyway(MigrationVersion.fromVersion("9")).migrate();
 
         assertColumnTypes(V9_CANONICAL_TEXT_COLUMNS);
         assertEquals("작성자", scalarString("SELECT name FROM blog.app_user WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'"));
@@ -391,6 +391,64 @@ class BlogSchemaDriftMigrationTest {
                 FROM blog.app_user
                 WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
                 """));
+    }
+
+    /** V10은 기존 글과 관련 이력을 유지하고 게시판 FK·컬럼만 제거한다. */
+    @Test
+    void removesPostContainerWithoutLosingRelatedRows() throws SQLException {
+        migrateThroughV8();
+        flyway(MigrationVersion.fromVersion("9")).migrate();
+        executeSql("""
+                INSERT INTO blog.post_series (id, post_id, category_id, slug, name)
+                VALUES ('13131313-1313-1313-1313-131313131313',
+                        '77777777-7777-7777-7777-777777777777',
+                        '88888888-8888-8888-8888-888888888888', 'series', '시리즈');
+                UPDATE blog.post_detail
+                SET series_id = '13131313-1313-1313-1313-131313131313', series_order = 1
+                WHERE id = '99999999-9999-9999-9999-999999999999';
+                """);
+
+        flyway().migrate();
+
+        assertFalse(tableExists("post"));
+        assertEquals(0, scalarInteger("""
+                SELECT count(*) FROM information_schema.columns
+                WHERE table_schema = 'blog' AND column_name = 'post_id'
+                  AND table_name IN ('post_detail', 'post_category', 'post_series')
+                """));
+        assertEquals("hello-post", scalarString("SELECT slug FROM blog.post_detail WHERE id = '99999999-9999-9999-9999-999999999999'"));
+        assertEquals("series", scalarString("SELECT slug FROM blog.post_series WHERE id = '13131313-1313-1313-1313-131313131313'"));
+        assertEquals(1, scalarInteger("SELECT series_order FROM blog.post_detail WHERE id = '99999999-9999-9999-9999-999999999999'"));
+        assertEquals(1, scalarInteger("SELECT count(*) FROM blog.post_tag"));
+        assertEquals(1, scalarInteger("SELECT count(*) FROM blog.post_attached_file"));
+        assertEquals(1, scalarInteger("SELECT count(*) FROM blog.post_revision"));
+        assertEquals(1, scalarInteger("SELECT count(*) FROM blog.publish_history"));
+        assertEquals(1, scalarInteger("SELECT count(*) FROM blog.visitor_event"));
+        assertEquals(1, scalarInteger("SELECT count(*) FROM blog.visitor_daily_summary"));
+        assertForeignKey("fk_post_detail_category", "post_detail", "category_id", "post_category");
+        assertForeignKey("fk_post_detail_series", "post_detail", "series_id", "post_series");
+        assertForeignKey("fk_post_series_category", "post_series", "category_id", "post_category");
+        assertTrue(indexExists("idx_post_detail_status_published"));
+    }
+
+    /** 게시판별로 같은 slug가 있으면 V10은 데이터를 바꾸지 않고 중단한다. */
+    @Test
+    void rejectsDuplicateSlugsAcrossContainers() throws SQLException {
+        migrateThroughV8();
+        flyway(MigrationVersion.fromVersion("9")).migrate();
+        executeSql("""
+                INSERT INTO blog.post (id, post_code, name)
+                VALUES ('14141414-1414-1414-1414-141414141414', 'other', '다른 게시판');
+                INSERT INTO blog.post_category (id, post_id, name, slug)
+                VALUES ('15151515-1515-1515-1515-151515151515',
+                        '14141414-1414-1414-1414-141414141414', '중복', 'general');
+                """);
+
+        assertThrows(FlywayException.class, () -> flyway().migrate());
+        assertTrue(tableExists("post"));
+        assertEquals(2, scalarInteger("SELECT count(*) FROM blog.post"));
+        assertEquals(2, scalarInteger("SELECT count(*) FROM blog.post_category WHERE slug = 'general'"));
+        assertEquals(0, scalarInteger("SELECT count(*) FROM blog.flyway_schema_history WHERE version = '10' AND success"));
     }
 
     private void migrateThroughV2() {

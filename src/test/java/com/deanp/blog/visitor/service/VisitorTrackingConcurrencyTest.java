@@ -35,7 +35,6 @@ class VisitorTrackingConcurrencyTest {
     private static final PostgreSQLContainer POSTGRESQL = new PostgreSQLContainer("postgres:16-alpine");
 
     private static final UUID AUTHOR_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    private static final UUID POST_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     private static final UUID POST_DETAIL_ID = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
 
     @Autowired
@@ -72,15 +71,10 @@ class VisitorTrackingConcurrencyTest {
                 ON CONFLICT (id) DO NOTHING
                 """, AUTHOR_ID, "concurrency-author");
         jdbcTemplate.update("""
-                INSERT INTO blog.post (id, post_code, name)
-                VALUES (?, ?, 'Concurrency Blog')
+                INSERT INTO blog.post_detail (id, author_id, slug, title, content, status, published_at)
+                VALUES (?, ?, ?, 'Concurrency Post', 'Body', 'PUBLISHED', now())
                 ON CONFLICT (id) DO NOTHING
-                """, POST_ID, "concurrency-blog");
-        jdbcTemplate.update("""
-                INSERT INTO blog.post_detail (id, post_id, author_id, slug, title, content, status, published_at)
-                VALUES (?, ?, ?, ?, 'Concurrency Post', 'Body', 'PUBLISHED', now())
-                ON CONFLICT (id) DO NOTHING
-                """, POST_DETAIL_ID, POST_ID, AUTHOR_ID, "concurrency-" + UUID.randomUUID());
+                """, POST_DETAIL_ID, AUTHOR_ID, "concurrency-" + UUID.randomUUID());
     }
 
     /**

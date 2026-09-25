@@ -26,9 +26,6 @@ public class PostSeries {
     @Column(name = "id")
     private UUID id;
 
-    @Column(name = "post_id")
-    private UUID postId;
-
     @Column(name = "category_id")
     private UUID categoryId;
 
@@ -54,17 +51,12 @@ public class PostSeries {
     private Instant updatedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id", insertable = false, updatable = false)
-    private Post post;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", insertable = false, updatable = false)
     private PostCategory category;
 
     /**
      * 새 시리즈 엔티티를 생성한다.
      *
-     * @param postId 게시판 식별자
      * @param categoryId 대표 카테고리 식별자
      * @param slug URL 식별자
      * @param name 표시 이름
@@ -73,7 +65,6 @@ public class PostSeries {
      * @return 저장 가능한 시리즈 엔티티
      */
     public static PostSeries create(
-            UUID postId,
             UUID categoryId,
             String slug,
             String name,
@@ -83,7 +74,6 @@ public class PostSeries {
         PostSeries series = new PostSeries();
         Instant now = Instant.now();
         series.id = UUID.randomUUID();
-        series.postId = postId;
         series.categoryId = categoryId;
         series.slug = slug;
         series.name = name;

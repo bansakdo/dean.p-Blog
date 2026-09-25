@@ -58,7 +58,6 @@ com.deanp.blog.post.persistence.query
 
 바라보는 테이블:
 
-- `post`: 게시판 기본 정보
 - `post_detail`: 게시글 본문·제목·상태
 - `post_category`: 대표 카테고리
 - `post_series`: 시리즈와 대표 카테고리
@@ -209,7 +208,6 @@ Markdown/Git 발행과 콘텐츠 이력을 담당합니다.
 - `post_series`: 시리즈 필터
 - `post_tag`: 태그 연결
 - `tag`: 태그명
-- `post`: 게시판 범위
 
 제목·상태·카테고리·태그·발행일을 조합한 검색은 Querydsl을 기본으로 사용합니다. 검색 조건이 PostgreSQL 전문 검색으로 확장되면 Querydsl BooleanExpression과 PostgreSQL 전용 표현식의 책임을 `search.persistence`에 둡니다.
 
@@ -224,7 +222,6 @@ Markdown/Git 발행과 콘텐츠 이력을 담당합니다.
 | `group_menu` | `auth` | `menu` |
 | `common_code` | `code` | 각 업무 모듈 |
 | `common_code_detail` | `code` | 각 업무 모듈 |
-| `post` | `post` | `search` |
 | `post_detail` | `post` | `search`, `publishing`, `visitor` |
 | `post_category` | `post` | `search` |
 | `post_series` | `post` | `search` |
