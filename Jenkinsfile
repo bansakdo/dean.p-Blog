@@ -1,6 +1,6 @@
-// 목적: main 브랜치를 CI 전용 DB에서 검증하고 운영 배포는 승인 전까지 차단합니다.
+// 목적: main 브랜치를 CI 전용 DB에서 검증하고 Mac mini에 자동 배포합니다.
 // 사용: Jenkins Pipeline을 Pipeline script from SCM으로 설정하고 이 파일을 지정합니다.
-// 설계: CI DB 접속 검증·테스트 후 명시적 안전 게이트에서 중단합니다. 관련 스크립트: gradlew.
+// 설계: CI 검증 후 제한된 SSH 키로 main 커밋만 전달합니다. 관련 스크립트: gradlew, Mac mini deploy.py.
 pipeline {
   agent { label 'java25' }
   triggers { pollSCM('H/2 * * * *') }
@@ -24,9 +24,17 @@ pipeline {
     stage('Archive') {
       steps { archiveArtifacts artifacts: 'build/libs/*.jar', fingerprint: true }
     }
-    stage('Production safety gate') {
+    stage('Deploy to Mac mini') {
       steps {
-        error('Deployment blocked: CI validation does not authorize production deployment. Confirm backup, migration compatibility and rollback before enabling deployment.')
+        withCredentials([sshUserPrivateKey(credentialsId: 'dean-p-blog-deploy-ssh', keyFileVariable: 'DEPLOY_KEY', usernameVariable: 'DEPLOY_USER')]) {
+          sh '''
+            set -eu
+            DEPLOY_SHA="$(git rev-parse HEAD)"
+            ssh -T -i "$DEPLOY_KEY" -o BatchMode=yes -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$WORKSPACE/deploy/known_hosts" \
+              "$DEPLOY_USER@host.docker.internal" "deploy $DEPLOY_SHA"
+          '''
+        }
       }
     }
   }
