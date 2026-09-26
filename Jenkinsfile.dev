@@ -26,15 +26,13 @@ pipeline {
     }
     stage('Deploy to development server') {
       steps {
-        withCredentials([sshUserPrivateKey(credentialsId: 'dean-p-blog-dev-deploy-ssh', keyFileVariable: 'DEPLOY_KEY', usernameVariable: 'DEPLOY_USER')]) {
-          sh '''
-            set -eu
-            DEPLOY_SHA="$(git rev-parse HEAD)"
-            ssh -T -i "$DEPLOY_KEY" -o BatchMode=yes -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$WORKSPACE/deploy/known_hosts" \
-              "$DEPLOY_USER@host.docker.internal" "deploy $DEPLOY_SHA"
-          '''
-        }
+        sh '''
+          set -eu
+          DEPLOY_SHA="$(git rev-parse HEAD)"
+          ssh -T -i /run/secrets/dean-p-blog-dev-deploy -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$WORKSPACE/deploy/known_hosts" \
+            macmini@host.docker.internal "deploy $DEPLOY_SHA"
+        '''
       }
     }
   }
