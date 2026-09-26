@@ -16,7 +16,7 @@ pipeline {
     stage('Build and test') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dean-p-blog-ci-db', usernameVariable: 'CI_DB_USER', passwordVariable: 'CI_DB_PASSWORD')]) {
-          sh 'sh ./gradlew --no-daemon --max-workers=1 clean ciDbIntegrationTest bootJar'
+          sh 'JAVA_TOOL_OPTIONS="-Xmx256m -XX:MaxMetaspaceSize=192m" sh ./gradlew --no-daemon --max-workers=1 clean ciDbIntegrationTest bootJar'
         }
       }
       post { always { junit allowEmptyResults: true, testResults: 'build/test-results/*/*.xml' } }
