@@ -137,7 +137,7 @@ com.deanp.blog.post.persistence.query
 
 ### `com.deanp.blog.media`
 
-첨부파일 메타데이터와 게시글 연결을 담당합니다. 실제 파일 바이트는 외부 저장소에 둡니다.
+첨부파일 메타데이터와 게시글 연결을 담당합니다. 실제 파일 바이트는 외부 저장소의 `posts/{게시글 ID}/{파일명}`에 둡니다. `media.controller.PublicMediaConfiguration`은 `/media/posts/**`만 해당 `posts/` 디렉터리에서 제공합니다.
 
 바라보는 테이블:
 

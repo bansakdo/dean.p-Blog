@@ -70,6 +70,7 @@ com.deanp.blog.<feature>
 - `post.persistence.query.PublicPostQueryRepository`: `PUBLISHED` 상태와 `published_at IS NOT NULL` 조건, 최신순 목록, slug 조회, 카테고리·시리즈·태그·검색 필터와 태그 조인 결과를 제공
 - 게시판 상위 테이블 없이 `post_detail`을 실제 글로 사용하는 기능별 JPA Entity와 Spring Data Repository
 - Thymeleaf: 서버 렌더링 HTML
+- `media.controller.PublicMediaConfiguration`: 외부 저장소의 `posts/` 파일만 `/media/posts/**`로 공개
 - Vanilla JavaScript: 라이트/다크 테마 전환
 - PostgreSQL: Flyway가 `blog` 스키마 evolution을 소유하고 Hibernate는 `validate`로 매핑 호환성만 확인
 
