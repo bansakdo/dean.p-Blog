@@ -11,7 +11,11 @@
 - Java 25 LTS
 - Spring Boot 4.1.1
 - 외부 PostgreSQL 서버
-- 애플리케이션은 Docker 기반 이식성을 고려하되, PostgreSQL을 로컬 컨테이너로 실행하지 않습니다.
+- 루트 `Dockerfile`은 Java 25로 `bootJar`를 빌드하고, 비루트 사용자로 실행하는 Java 25 런타임 이미지를 만듭니다. PostgreSQL 컨테이너는 포함하지 않습니다.
+- `docker build -t dean-p-blog:local .`로 이미지만 빌드합니다. `.dockerignore`가 Git·빌드 산출물·`.env*`를 빌드 컨텍스트에서 제외합니다.
+- 이미지 내부 HTTP 포트는 `8080`(`WAS_PORT`)이며 Mac mini의 `/Users/macmini/services/dean-p-blog/compose.yaml`은 `127.0.0.1:63050:8080`으로만 바인딩합니다. 비밀 파일은 소스·이미지 밖의 `secrets/.env.prod`(0600), 미디어는 `media/` 외부 바인드 마운트에 둡니다.
+- `main` Jenkins 빌드가 CI 검증 후 제한된 SSH 키로 Mac mini의 `deploy.py`에 커밋 SHA만 전달하는 배포 경로를 준비했습니다. 스크립트는 현재 `main` SHA와 운영 DB migration 버전 집합이 소스와 같은지 확인한 뒤 이미지를 빌드·교체하고 localhost HTTP 응답을 검사합니다. 실패 시 이전 이미지로 돌아가며, 최초 실패 시 새 컨테이너만 제거합니다. **DB migration 및 데이터는 이미지 롤백으로 되돌아가지 않습니다.**
+- Jenkins 에이전트에 Docker socket을 연결하지 않습니다. 도메인·프록시·Prometheus/Grafana는 아직 구성하지 않았습니다. Dockerfile 자체는 배포 스크립트가 아닙니다. SSH 키 설치와 PR 병합, 실제 Jenkins 실행·재부팅 검증 전에는 운영 배포 완료로 보지 않습니다.
 
 ## Profiles
 
@@ -44,13 +48,13 @@ DB_PASSWORD
 
 ## CI database tests
 
-로컬 `./gradlew test`는 기존처럼 Testcontainers의 일회용 PostgreSQL을 사용합니다. CI 전용 외부 DB는 별도 작업 `./gradlew --no-daemon --max-workers=1 ciDbIntegrationTest bootJar`로만 사용합니다. 운영 담당자가 Jenkins에 `CI_DB_URL`, `CI_DB_USER`, `CI_DB_PASSWORD`를 주입해야 하며 이 저장소의 Jenkinsfile은 아직 해당 작업을 호출하지 않습니다. Jenkins Credential ID는 `dean-p-blog-ci-db`입니다. 암호를 소스·로그·명령 인수로 전달하지 마세요.
+로컬 `./gradlew test`는 기존처럼 Testcontainers의 일회용 PostgreSQL을 사용합니다. Jenkinsfile은 외부 CI 전용 DB 작업 `./gradlew --no-daemon --max-workers=1 ciDbIntegrationTest bootJar`를 호출합니다. Jenkins 작업 매개변수로 CI DB 접속 주소·서버 기대값을 주입하고, 별도 Credential ID `dean-p-blog-ci-db`로 `CI_DB_USER`, `CI_DB_PASSWORD`를 바인딩합니다. 암호를 소스·로그·명령 인수로 전달하지 마세요.
 
 CI 작업은 별도 JVM에서 접속 사전 검증 → V3~V10 드리프트 재현 테스트(테스트마다 `blog` 스키마 clean) → `blog` 스키마 clean 및 최신 마이그레이션 적용 → 스키마 검증 → 일반 테스트 순으로 진행합니다. `CI_DB_ALLOWED_HOST`, `CI_DB_ALLOWED_PORT`는 허용할 접속 대상(URL과 정확히 일치해야 함), `CI_DB_SERVER_ADDR`, `CI_DB_SERVER_PORT`는 독립적으로 확인한 PostgreSQL 서버의 `inet_server_addr()`·`inet_server_port()` 기대값으로 Jenkins의 비밀 아닌 환경설정에 각각 주입합니다. 모두 필수이며 기본값은 없습니다. NAT가 있으면 외부 접속 주소·포트와 실제 서버가 보고하는 내부 주소·포트가 다를 수 있으므로 후자를 복사해 외부값으로 가정하지 마세요. 기대값을 확인할 수 없으면 CI 작업을 실행하지 않습니다.
 
 사전 검증은 접속 URL·계정과 실제 연결의 `current_database()`(`dean_p_blog_ci`), `current_user`(`dean_p_blog_app_ci`), 서버 주소·포트, 계정 관리자 권한을 확인합니다. URL과 허용 대상을 동일한 잘못된 값으로 설정하면 두 입력의 일치만으로 안전을 보증하지 못합니다. 허용 대상과 서버 기대값은 서로 다른 근거로 확인하고, DB명·계정·권한 검사를 추가 방어선으로 유지합니다. 계정의 다른 DB 접속 권한 제한도 별도로 유지해야 합니다.
 
-이 DB는 테스트가 스키마 전체를 지우므로 다른 작업과 공유하지 마세요. Jenkins에서 해당 DB 사용 작업 전체를 상호 배제하고 기존 `clean test bootJar` 호출을 교체하는 것은 운영 담당 범위입니다. CI 전용 DB 외에서는 이 작업을 실행하지 마세요. 실제 CI 접속·마이그레이션·Jenkins 실행은 별도 확인이 필요합니다.
+이 DB는 테스트가 스키마 전체를 지우므로 다른 작업과 공유하지 마세요. Jenkins는 CI DB 사용 작업을 직렬 실행하며 빌드가 성공해야 배포 단계로 넘어갑니다. CI 전용 DB 외에서는 이 작업을 실행하지 마세요. 운영 DB 및 배포 경로는 별도 검증 대상입니다.
 
 ## Database Bootstrap
 
