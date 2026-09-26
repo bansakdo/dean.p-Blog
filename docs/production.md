@@ -2,9 +2,9 @@
 
 ## Status
 
-- 문서 상태: 초안
-- 마지막 갱신: 2026-08-31
-- 현재 배포 상태: 실제 운영 배포 전
+- 문서 상태: 운영 배포 기록
+- 마지막 갱신: 2026-09-26
+- 현재 배포 상태: Mac mini Docker에서 운영 중. LAN 접속 주소는 `http://192.168.1.55:63050/`이며 인터넷 접속은 미검증, HTTPS·도메인은 별도 구성입니다.
 
 ## Runtime
 
@@ -13,9 +13,9 @@
 - 외부 PostgreSQL 서버
 - 루트 `Dockerfile`은 Java 25로 `bootJar`를 빌드하고, 비루트 사용자로 실행하는 Java 25 런타임 이미지를 만듭니다. PostgreSQL 컨테이너는 포함하지 않습니다.
 - `docker build -t dean-p-blog:local .`로 이미지만 빌드합니다. `.dockerignore`가 Git·빌드 산출물·`.env*`를 빌드 컨텍스트에서 제외합니다.
-- 이미지 내부 HTTP 포트는 `8080`(`WAS_PORT`)이며 Mac mini의 `/Users/macmini/services/dean-p-blog/compose.yaml`은 `127.0.0.1:63050:8080`으로만 바인딩합니다. 비밀 파일은 소스·이미지 밖의 `secrets/.env.prod`(0600), 미디어는 `media/` 외부 바인드 마운트에 둡니다.
-- `main` Jenkins 빌드가 CI 검증 후 제한된 SSH 키로 Mac mini의 `deploy.py`에 커밋 SHA만 전달하는 배포 경로를 준비했습니다. 스크립트는 현재 `main` SHA와 운영 DB migration 버전 집합이 소스와 같은지 확인한 뒤 이미지를 빌드·교체하고 localhost HTTP 응답을 검사합니다. 실패 시 이전 이미지로 돌아가며, 최초 실패 시 새 컨테이너만 제거합니다. **DB migration 및 데이터는 이미지 롤백으로 되돌아가지 않습니다.**
-- Jenkins 에이전트에 Docker socket을 연결하지 않습니다. 도메인·프록시·Prometheus/Grafana는 아직 구성하지 않았습니다. Dockerfile 자체는 배포 스크립트가 아닙니다. SSH 키 설치와 PR 병합, 실제 Jenkins 실행·재부팅 검증 전에는 운영 배포 완료로 보지 않습니다.
+- 이미지 내부 HTTP 포트는 `8080`(`WAS_PORT`)이며 Mac mini의 `/Users/macmini/services/dean-p-blog/compose.yaml`은 `192.168.1.55:63050:8080`으로 바인딩합니다. 비밀 파일은 소스·이미지 밖의 `secrets/.env.prod`(0600), 미디어는 `media/` 외부 바인드 마운트에 둡니다. IP가 바뀌면 Compose와 호스트의 `deploy.py` 기동 검사 주소를 함께 변경해야 합니다.
+- `main` Jenkins 빌드는 CI 검증 후 제한된 SSH 키로 Mac mini의 `deploy.py`에 커밋 SHA만 전달합니다. 스크립트는 현재 `main` SHA와 운영 DB migration 버전 집합이 소스와 같은지 확인한 뒤 이미지를 빌드·교체하고 `192.168.1.55:63050`의 HTTP 응답을 검사합니다. 실패 시 이전 이미지로 돌아가며, 최초 실패 시 새 컨테이너만 제거합니다. **DB migration 및 데이터는 이미지 롤백으로 되돌아가지 않습니다.**
+- Jenkins 에이전트에 Docker socket을 연결하지 않습니다. Jenkins #10에서 CI 테스트 100개와 첫 배포에 성공했고, SCM 폴링 트리거는 등록됐습니다. 이후 변경의 자동 배포, 실제 롤백, 운영 DB 별도 복원, 재부팅 후 동작은 아직 검증하지 않았습니다. 도메인·프록시·Prometheus/Grafana는 미구성입니다. Dockerfile 자체는 배포 스크립트가 아닙니다.
 
 ## Profiles
 
@@ -54,7 +54,7 @@ CI 작업은 별도 JVM에서 접속 사전 검증 → V3~V10 드리프트 재�
 
 사전 검증은 접속 URL·계정과 실제 연결의 `current_database()`(`dean_p_blog_ci`), `current_user`(`dean_p_blog_app_ci`), 서버 주소·포트, 계정 관리자 권한을 확인합니다. URL과 허용 대상을 동일한 잘못된 값으로 설정하면 두 입력의 일치만으로 안전을 보증하지 못합니다. 허용 대상과 서버 기대값은 서로 다른 근거로 확인하고, DB명·계정·권한 검사를 추가 방어선으로 유지합니다. 계정의 다른 DB 접속 권한 제한도 별도로 유지해야 합니다.
 
-이 DB는 테스트가 스키마 전체를 지우므로 다른 작업과 공유하지 마세요. Jenkins는 CI DB 사용 작업을 직렬 실행하며 빌드가 성공해야 배포 단계로 넘어갑니다. CI 전용 DB 외에서는 이 작업을 실행하지 마세요. 운영 DB 및 배포 경로는 별도 검증 대상입니다.
+이 DB는 테스트가 스키마 전체를 지우므로 다른 작업과 공유하지 마세요. Jenkins는 CI DB 사용 작업을 직렬 실행하며 빌드가 성공해야 배포 단계로 넘어갑니다. CI 전용 DB 외에서는 이 작업을 실행하지 마세요. 운영 DB의 실제 별도 복원 시험과 장애 시 이미지 롤백은 아직 검증하지 않았습니다.
 
 ## Database Bootstrap
 
@@ -99,24 +99,23 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 
 ## Deployment Checklist
 
-- [ ] Java 25 런타임 확인
-- [ ] `prod` 프로필 확인
-- [ ] `DB_URL`, `DB_USER`, `DB_PASSWORD`를 안전하게 주입
-- [ ] 외부 PostgreSQL 연결 및 권한 확인
-- [ ] Flyway migration 적용 및 Hibernate validate 시작 확인
-- [ ] 애플리케이션 기동 확인
+- [x] Java 25 런타임 확인
+- [x] `prod` 프로필 확인
+- [x] `DB_URL`, `DB_USER`, `DB_PASSWORD`를 안전하게 주입
+- [x] 외부 PostgreSQL 연결 및 권한 확인
+- [x] Flyway migration 이력 일치 및 Hibernate validate 시작 확인
+- [x] 애플리케이션 기동 확인
 - [ ] HTTPS 인증서와 리버스 프록시 설정
 - [ ] 로그 위치와 보존 정책 확인
-- [ ] 백업 실행 확인
+- [x] 백업 실행 확인
 - [ ] 백업에서 실제 복구 테스트
 - [ ] RSS, 사이트맵, robots.txt, 검색 메타데이터 확인
 - [ ] 운영 장애 시 롤백 절차 확인
 
 ## Not Yet Verified
 
-- 실제 운영 서버 배포
-- 실제 운영 서버의 외부 PostgreSQL 접속
-- 실제 운영 서버의 Flyway migration 적용
+- 다른 LAN 장치에서의 접속 및 이후 변경의 자동 배포
+- 운영 장애 시 이미지 롤백과 재부팅 후 동작
 - HTTPS
-- 백업·복구
+- 백업의 실제 별도 DB 복원
 - 모니터링과 알림
