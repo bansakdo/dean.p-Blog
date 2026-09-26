@@ -1,0 +1,41 @@
+// 목적: dev 브랜치를 CI 전용 DB에서 검증하고 개발 서버에 자동 배포합니다.
+// 사용: Jenkins Pipeline script from SCM의 브랜치를 dev, 스크립트 경로를 Jenkinsfile.dev로 지정합니다.
+// 설계: java25 에이전트의 단일 executor에서 main 작업과 CI DB 사용을 직렬화한 뒤 별도 제한 SSH 키로 dev만 배포합니다. 관련 스크립트: gradlew, Mac mini dean-p-blog-dev/deploy.py.
+pipeline {
+  agent { label 'java25' }
+  triggers { pollSCM('H/2 * * * *') }
+  options {
+    disableConcurrentBuilds()
+    timeout(time: 30, unit: 'MINUTES')
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+  }
+  stages {
+    stage('Checkout dev') {
+      steps { git branch: 'dev', url: 'https://github.com/bansakdo/dean.p-Blog.git' }
+    }
+    stage('Build and test') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'dean-p-blog-ci-db', usernameVariable: 'CI_DB_USER', passwordVariable: 'CI_DB_PASSWORD')]) {
+          sh 'sh ./gradlew --no-daemon --max-workers=1 clean ciDbIntegrationTest bootJar'
+        }
+      }
+      post { always { junit allowEmptyResults: true, testResults: 'build/test-results/*/*.xml' } }
+    }
+    stage('Archive') {
+      steps { archiveArtifacts artifacts: 'build/libs/*.jar', fingerprint: true }
+    }
+    stage('Deploy to development server') {
+      steps {
+        withCredentials([sshUserPrivateKey(credentialsId: 'dean-p-blog-dev-deploy-ssh', keyFileVariable: 'DEPLOY_KEY', usernameVariable: 'DEPLOY_USER')]) {
+          sh '''
+            set -eu
+            DEPLOY_SHA="$(git rev-parse HEAD)"
+            ssh -T -i "$DEPLOY_KEY" -o BatchMode=yes -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$WORKSPACE/deploy/known_hosts" \
+              "$DEPLOY_USER@host.docker.internal" "deploy $DEPLOY_SHA"
+          '''
+        }
+      }
+    }
+  }
+}
