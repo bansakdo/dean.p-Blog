@@ -90,7 +90,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .feature-card p:not(.post-meta) { color: var(--muted); }
 .post-meta { display: flex; gap: 14px; color: var(--muted); font-size: .8rem; letter-spacing: .04em; }
 .post-thumbnail { display: block; width: 100%; max-width: 640px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; margin-bottom: 20px; }
-.feature-card .post-thumbnail { max-width: none; height: 180px; aspect-ratio: auto; }
+.feature-card .post-thumbnail, .latest .post-thumbnail { max-width: none; height: 180px; aspect-ratio: auto; }
 .post-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; }
 .post-card { min-height: 310px; padding: 32px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
 .post-card h3 { margin: 38px 0 12px; font-size: 1.65rem; line-height: 1.2; letter-spacing: -.035em; }
@@ -162,11 +162,10 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 
   .latest .post-card { min-height: 0; padding: 24px; }
   .latest .post-card h3 { margin-top: 20px; font-size: 1.4rem; }
-  .latest .post-thumbnail { max-width: 400px; }
 }
 
 @media (max-width: 720px) {
-  .feature-card .post-thumbnail { height: 100px; }
+  .feature-card .post-thumbnail, .latest .post-thumbnail { height: 100px; }
   .site-header { height: 72px; }
   .site-header nav { gap: 16px; }
   .hero { padding: 85px 0 90px; }
