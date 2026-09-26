@@ -112,13 +112,17 @@ class BlogControllerTest {
         verify(postService).findAll(null, null, null, "missing");
     }
 
-    /** 공통 사이드 메뉴에 탐색과 테마를 배치하고 접이식 검색을 제거한다. */
+    /** 공통 메뉴에는 소개·글만 순서대로 표시하고 테마 버튼은 유지한다. */
     @Test
     void sidebarNavigationAndThemeAreRendered() throws Exception {
         mockMvc.perform(get("/posts"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("href=\"/search\"")))
+                .andExpect(content().string(matchesPattern("(?s).*class=\"sidebar-nav\"[^>]*>\\s*<a href=\"/about\">소개</a>\\s*<a href=\"/posts\">글</a>\\s*</nav>.*")))
+                .andExpect(content().string(not(containsString(">검색</a>"))))
+                .andExpect(content().string(not(containsString("<strong>메뉴</strong>"))))
+                .andExpect(content().string(not(containsString("<span>테마</span>"))))
                 .andExpect(content().string(containsString("class=\"sidebar-theme\"")))
+                .andExpect(content().string(containsString("data-theme-toggle")))
                 .andExpect(content().string(containsString("id=\"site-sidebar\"")))
                 .andExpect(content().string(containsString("class=\"sidebar-filters\"")))
 
