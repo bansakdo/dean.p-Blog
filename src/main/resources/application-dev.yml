@@ -4,9 +4,6 @@ server:
 spring:
   config:
     import: "optional:file:./.env.dev[.properties]"
-  web:
-    resources:
-      static-locations: classpath:/static/,file:${DEV_MEDIA_PUBLIC_ROOT:../dean-p-blog-media}/
   autoconfigure:
     exclude: []
   datasource:
@@ -26,6 +23,8 @@ spring:
     baseline-on-migrate: true
 
 app:
+  media:
+    storage-root: ${APP_MEDIA_STORAGE_ROOT:../dean-p-blog-media}
   visitor:
     cookie-secure: false
     trusted-proxies: ${VISITOR_TRUSTED_PROXIES:}
