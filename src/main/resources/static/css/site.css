@@ -200,8 +200,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .article-body a { color: var(--accent); border-bottom: 1px solid currentColor; }
 
 /* Public archive: screenshot-aligned styles, isolated from home and article pages. */
-.posts-page .shell, .posts-page .site-header, .posts-page .site-footer { width: min(1160px, calc(100% - 40px)); }
-.posts-page .site-header { height: 94px; }
+.posts-page .shell, .posts-page .site-footer { width: min(1160px, calc(100% - 40px)); }
 .posts-page .site-header nav > a[href="/posts"] { color: var(--accent); }
 .posts-page .page-space { padding-block: 48px 50px; }
 .posts-page .page-intro { max-width: none; display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 36px; }
