@@ -15,10 +15,9 @@
     toggle.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
     toggle.textContent = open ? '×' : '☰';
     background.forEach(element => { element.inert = open && mobile.matches; });
-    if (focus) (open && mobile.matches ? sidebar.querySelector('.sidebar-close') : toggle).focus();
+    if (focus) (open && mobile.matches ? sidebar.querySelector('.sidebar-nav a') : toggle).focus();
   };
   toggle.addEventListener('click', () => setOpen(!open, true));
-  sidebar.querySelector('.sidebar-close').addEventListener('click', () => setOpen(false, true));
   backdrop.addEventListener('click', () => setOpen(false, true));
   document.addEventListener('keydown', event => {
     if (!open) return;

@@ -138,6 +138,8 @@ class BlogControllerTest {
                 .andExpect(content().string(not(containsString(">검색</a>"))))
                 .andExpect(content().string(not(containsString("<strong>메뉴</strong>"))))
                 .andExpect(content().string(not(containsString("<span>테마</span>"))))
+                .andExpect(content().string(not(containsString("class=\"sidebar-heading\""))))
+                .andExpect(content().string(not(containsString("class=\"sidebar-close\""))))
                 .andExpect(content().string(containsString("class=\"sidebar-theme\"")))
                 .andExpect(content().string(containsString("data-theme-toggle")))
                 .andExpect(content().string(containsString("id=\"site-sidebar\"")))
