@@ -4,7 +4,7 @@
   const backdrop = document.querySelector('.sidebar-backdrop');
   if (!sidebar || !toggle || !backdrop) return;
   const mobile = matchMedia('(max-width: 720px)');
-  const background = [...document.querySelectorAll('body > main, body > footer')];
+  const background = [...document.querySelectorAll('body > .site-header, body > main, body > footer')];
   let open = false;
   const setOpen = (next, focus = false) => {
     open = next;
