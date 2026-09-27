@@ -140,6 +140,17 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
     /** @return 공개 글에서 사용하는 태그만 이름순으로 반환한다. */
     @Override
     public List<PostFilterOption> findPublishedTags() {
+        return publishedTagsQuery().fetch();
+    }
+
+    /** @param offset 건너뛸 태그 수 @param limit 조회할 최대 태그 수 @return 공개 글 태그 구간 */
+    @Override
+    public List<PostFilterOption> findPublishedTags(long offset, int limit) {
+        return publishedTagsQuery().offset(offset).limit(limit).fetch();
+    }
+
+    /** @return 공개 글에서 사용하는 태그만 이름·슬러그 순으로 정렬한 조회 */
+    private JPAQuery<PostFilterOption> publishedTagsQuery() {
         QPostDetail post = QPostDetail.postDetail;
         QPostTag postTag = QPostTag.postTag;
         QTag tag = QTag.tag;
@@ -147,7 +158,7 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
                 .distinct().from(post).join(postTag).on(postTag.id.postDetailId.eq(post.id))
                 .join(tag).on(tag.id.eq(postTag.id.tagId))
                 .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()))
-                .orderBy(tag.name.asc(), tag.slug.asc()).fetch();
+                .orderBy(tag.name.asc(), tag.slug.asc());
     }
 
     /** 공개 글이 있는 시리즈만 선택지로 반환한다. */

@@ -107,6 +107,11 @@ public class PostService {
         return posts.findPublishedTags();
     }
 
+    /** @param offset 건너뛸 태그 수 @param limit 조회할 최대 태그 수 @return 공개 글 태그 구간 */
+    public List<PostFilterOption> findTags(long offset, int limit) {
+        return posts.findPublishedTags(offset, limit);
+    }
+
     /**
      * 선택 카테고리 안에서 공개 글이 있는 시리즈를 조회한다.
      *

@@ -37,6 +37,8 @@
                th:href="@{/posts(category=${selectedCategory}, series=${selectedSeries}, tag=${tag.slug}, q=${search})}"
                th:text="${tag.name}">태그</a>
           </nav>
+          <button type="button" class="tag-more" data-tag-more th:if="${hasMoreTags}" th:attr="data-offset=${tags.size()}">태그 더 보기</button>
+          <p class="filter-help" data-tag-error role="alert" hidden>태그를 불러오지 못했습니다. 다시 시도해 주세요.</p>
           <p class="filter-help" th:if="${tags.isEmpty()}">등록된 태그가 없습니다.</p>
         </section>
         <p class="filter-help browse-hint">분류를 누르면 바로 반영됩니다.</p>

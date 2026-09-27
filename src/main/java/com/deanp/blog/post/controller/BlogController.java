@@ -1,6 +1,7 @@
 package com.deanp.blog.post.controller;
 
 import com.deanp.blog.post.PostView;
+import com.deanp.blog.post.PostFilterOption;
 import com.deanp.blog.post.service.PostService;
 import com.deanp.blog.visitor.controller.VisitorCookieIdentifier;
 import com.deanp.blog.visitor.service.VisitorPostViewTrackingService;
@@ -15,6 +16,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,6 +32,7 @@ import java.util.List;
 public class BlogController {
 
     private static final Logger log = LoggerFactory.getLogger(BlogController.class);
+    private static final int TAG_BATCH_SIZE = 20;
 
     private final PostService postService;
     private final VisitorCookieIdentifier visitorCookieIdentifier;
@@ -79,14 +82,15 @@ public class BlogController {
         search = normalize(search);
         model.addAttribute("posts", postService.findAll(category, series, tag, search));
         var categories = postService.findCategories();
-        var tags = postService.findTags();
+        var tags = postService.findTags(0, TAG_BATCH_SIZE + 1);
         model.addAttribute("categories", categories);
         model.addAttribute("totalPosts", postService.countPublishedPosts());
         model.addAttribute("selectedCategoryName", filterName(categories, category));
-        model.addAttribute("selectedTagName", filterName(tags, tag));
+        model.addAttribute("selectedTagName", tag == null ? null : filterName(postService.findTags(), tag));
         model.addAttribute("seriesOptions", postService.findSeries(category));
         model.addAttribute("selectedSeriesInfo", postService.findSeries(category, series).orElse(null));
-        model.addAttribute("tags", tags);
+        model.addAttribute("tags", tags.stream().limit(TAG_BATCH_SIZE).toList());
+        model.addAttribute("hasMoreTags", tags.size() > TAG_BATCH_SIZE);
         model.addAttribute("selectedCategory", category);
         model.addAttribute("selectedSeries", series);
         model.addAttribute("selectedTag", tag);
@@ -96,6 +100,24 @@ public class BlogController {
 
         return "posts";
     }
+
+    /**
+     * 추가 공개 태그를 스무 개씩 응답한다.
+     * @param offset 이미 표시한 태그 수
+     * @return 다음 태그 구간과 뒤에 남은 태그 여부
+     */
+    @GetMapping("/posts/tags/more")
+    @ResponseBody
+    public TagPage moreTags(@RequestParam(defaultValue = "20") int offset) {
+        if (offset < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+        var tags = postService.findTags(offset, TAG_BATCH_SIZE + 1);
+        return new TagPage(tags.stream().limit(TAG_BATCH_SIZE).toList(), tags.size() > TAG_BATCH_SIZE);
+    }
+
+    /** @param tags 요청 구간의 공개 태그 @param hasMore 추가 구간 존재 여부 */
+    public record TagPage(List<PostFilterOption> tags, boolean hasMore) { }
 
     /**
      * 검색어가 있을 때만 공개 글 검색 결과를 표시한다.

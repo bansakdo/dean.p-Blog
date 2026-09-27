@@ -45,6 +45,14 @@ public interface PublicPostQueryRepository {
     List<PostFilterOption> findPublishedTags();
 
     /**
+     * 공개 글 태그를 이름순으로 나누어 조회한다.
+     * @param offset 건너뛸 태그 수
+     * @param limit 조회할 최대 태그 수
+     * @return 요청 구간의 태그 선택지
+     */
+    List<PostFilterOption> findPublishedTags(long offset, int limit);
+
+    /**
      * 공개 글이 있는 시리즈 선택지를 조회한다.
      *
      * @param categorySlug 선택 카테고리

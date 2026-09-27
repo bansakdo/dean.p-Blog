@@ -41,6 +41,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -146,6 +147,28 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString("class=\"sidebar-filters\"")))
 
                 .andExpect(content().string(not(containsString("search-disclosure"))));
+    }
+
+    /** 처음에는 태그 20개만 렌더링하고 추가 요청의 구간·남은 태그 여부를 응답한다. */
+    @Test
+    void tagFiltersLoadInBatchesOfTwenty() throws Exception {
+        var first = IntStream.range(0, 21)
+                .mapToObj(index -> new com.deanp.blog.post.PostFilterOption("tag-" + index, "태그" + index))
+                .toList();
+        when(postService.findTags(0, 21)).thenReturn(first);
+        mockMvc.perform(get("/posts"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-offset=\"20\"")))
+                .andExpect(content().string(containsString("태그19</a>")))
+                .andExpect(content().string(not(containsString("태그20</a>"))));
+
+        when(postService.findTags(20, 21)).thenReturn(List.of(first.get(20)));
+        mockMvc.perform(get("/posts/tags/more").param("offset", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tags[0].slug").value("tag-20"))
+                .andExpect(jsonPath("$.hasMore").value(false));
+        mockMvc.perform(get("/posts/tags/more").param("offset", "-1"))
+                .andExpect(status().isBadRequest());
     }
 
     /** 목록 템플릿이 필터 목록을 반복할 수 있도록 기본 빈 선택지를 제공한다. */

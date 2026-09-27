@@ -93,6 +93,14 @@ class PostFilterQueryTest {
                 .containsExactly("java", "spring");
     }
 
+    /** 공개 글 태그는 이름순으로 중복 없이 구간 조회하며 비공개 태그는 제외한다. */
+    @Test
+    void pagesPublishedTags() {
+        assertThat(posts.findPublishedTags(0, 1)).extracting(PostFilterOption::slug).containsExactly("java");
+        assertThat(posts.findPublishedTags(1, 1)).extracting(PostFilterOption::slug).containsExactly("spring");
+        assertThat(posts.findPublishedTags(2, 1)).isEmpty();
+    }
+
     /** 공백 조건은 전체 조회이며 존재하지 않는 조건은 빈 결과다. */
     @Test
     void handlesBlankAndUnknownFilters() {
