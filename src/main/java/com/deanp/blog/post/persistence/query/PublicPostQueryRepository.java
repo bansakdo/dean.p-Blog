@@ -35,6 +35,16 @@ public interface PublicPostQueryRepository {
      */
     List<PublicPostRow> findPublishedRows(String categorySlug, String seriesSlug, String tagSlug, String search);
 
+    /**
+     * 여러 태그 중 하나와 일치하는 공개 글을 다른 필터와 함께 조회한다.
+     * @param categorySlug 선택 카테고리
+     * @param seriesSlug 선택 시리즈
+     * @param tagSlugs OR 조건으로 선택한 태그 슬러그 목록
+     * @param search 검색어
+     * @return 조건에 맞는 공개 글의 전체 태그 행
+     */
+    List<PublicPostRow> findPublishedRowsWithAnyTags(String categorySlug, String seriesSlug, List<String> tagSlugs, String search);
+
     /** @return 미분류 글까지 포함한 전체 공개 글 수 */
     long countPublishedPosts();
 

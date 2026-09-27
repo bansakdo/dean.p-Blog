@@ -92,6 +92,11 @@ public class PostService {
         return toPostViews(posts.findPublishedRows(categorySlug, seriesSlug, tagSlug, search));
     }
 
+    /** @param categorySlug 선택 카테고리 @param seriesSlug 선택 시리즈 @param tagSlugs OR 태그 목록 @param search 검색어 @return 조건에 맞는 공개 글 */
+    public List<PostView> findAllWithAnyTags(String categorySlug, String seriesSlug, List<String> tagSlugs, String search) {
+        return toPostViews(posts.findPublishedRowsWithAnyTags(categorySlug, seriesSlug, tagSlugs, search));
+    }
+
     /** @return 미분류 글을 포함한 전체 공개 글 수 */
     public long countPublishedPosts() {
         return posts.countPublishedPosts();

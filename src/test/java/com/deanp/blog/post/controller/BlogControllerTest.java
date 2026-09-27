@@ -171,6 +171,39 @@ class BlogControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /** 복수 태그 선택을 정규화하고 각 필터를 별도로 해제할 수 있도록 렌더링한다. */
+    @Test
+    void rendersMultipleTagFiltersAndKeepsCategorySelection() throws Exception {
+        var options = List.of(new com.deanp.blog.post.PostFilterOption("java", "Java"),
+                new com.deanp.blog.post.PostFilterOption("spring", "Spring"));
+        when(postService.findCategories()).thenReturn(List.of(new com.deanp.blog.post.PostFilterOption("dev", "개발", 2)));
+        when(postService.findTags()).thenReturn(options);
+        when(postService.findTags(0, 21)).thenReturn(options);
+        when(postService.findAllWithAnyTags("dev", null, List.of("java", "spring"), null)).thenReturn(List.of(postView()));
+
+        mockMvc.perform(get("/posts").param("category", "dev").param("tag", " java , spring, java "))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("selectedTag", "java,spring"))
+                .andExpect(content().string(containsString("Java ×")))
+                .andExpect(content().string(containsString("Spring ×")))
+                .andExpect(content().string(not(containsString("aria-hidden=\"true\"> ✓</span>"))));
+        verify(postService).findAllWithAnyTags("dev", null, List.of("java", "spring"), null);
+    }
+
+    /** 첫 태그 구간 밖에서 선택한 태그도 사이드바 상단에 활성 상태로 유지한다. */
+    @Test
+    void keepsSelectedTagVisibleOutsideInitialBatch() throws Exception {
+        var first = new com.deanp.blog.post.PostFilterOption("java", "Java");
+        var selected = new com.deanp.blog.post.PostFilterOption("kotlin", "Kotlin");
+        when(postService.findTags(0, 21)).thenReturn(List.of(first));
+        when(postService.findTags()).thenReturn(List.of(first, selected));
+
+        mockMvc.perform(get("/posts").param("tag", "kotlin"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-tag-slug=\"kotlin\"")))
+                .andExpect(content().string(containsString("Kotlin ×")));
+    }
+
     /** 목록 템플릿이 필터 목록을 반복할 수 있도록 기본 빈 선택지를 제공한다. */
     @BeforeEach
     void defaultFilterOptions() {

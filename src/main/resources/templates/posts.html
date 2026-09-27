@@ -18,8 +18,8 @@
           <a th:if="${selectedSeries != null}" th:href="@{/posts(category=${selectedCategory}, tag=${selectedTag}, q=${search})}"
              th:with="name=${selectedSeriesInfo != null ? selectedSeriesInfo.name : selectedSeries}"
              th:attr="aria-label=|${name} 시리즈 필터 해제|" th:text="|${name} ×|">시리즈</a>
-          <a th:if="${selectedTag != null}" th:href="@{/posts(category=${selectedCategory}, series=${selectedSeries}, q=${search})}"
-             th:attr="aria-label=|${selectedTagName} 태그 필터 해제|" th:text="|${selectedTagName} ×|">태그</a>
+          <a th:each="tag : ${selectedTagFilters}" th:href="@{/posts(category=${selectedCategory}, series=${selectedSeries}, tag=${tag.nextTags}, q=${search})}"
+             th:attr="aria-label=|${tag.name} 태그 필터 해제|" th:text="|${tag.name} ×|">태그</a>
           <a th:if="${search != null}" th:href="@{/posts(category=${selectedCategory}, series=${selectedSeries}, tag=${selectedTag})}" th:text="|검색: ${search} ×|">검색</a>
           <a th:if="${hasFilters}" class="reset-link" aria-label="필터 초기화" th:href="@{/posts}">전체 해제</a>
         </div>

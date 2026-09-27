@@ -69,6 +69,12 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
      */
     @Override
     public List<PublicPostRow> findPublishedRows(String categorySlug, String seriesSlug, String tagSlug, String search) {
+        return findPublishedRowsWithAnyTags(categorySlug, seriesSlug, tagSlug == null || tagSlug.isBlank() ? List.of() : List.of(tagSlug), search);
+    }
+
+    /** @param categorySlug 선택 카테고리 @param seriesSlug 선택 시리즈 @param tagSlugs OR 태그 목록 @param search 검색어 @return 공개 글과 전체 태그 행 */
+    @Override
+    public List<PublicPostRow> findPublishedRowsWithAnyTags(String categorySlug, String seriesSlug, List<String> tagSlugs, String search) {
         // Querydsl Q 타입을 준비해 게시글, 카테고리, 태그 조인 대상을 명확히 한다.
         QPostDetail postDetail = QPostDetail.postDetail;
         QPostCategory category = QPostCategory.postCategory;
@@ -89,12 +95,12 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
         }
 
         // 별도 EXISTS 조건으로 필터링해 화면에 표시할 태그 조인 행은 줄이지 않는다.
-        if (tagSlug != null && !tagSlug.isBlank()) {
+        if (tagSlugs != null && !tagSlugs.isEmpty()) {
             QPostTag matchingPostTag = new QPostTag("matchingPostTag");
             QTag matchingTag = new QTag("matchingTag");
             query.where(JPAExpressions.selectOne().from(matchingPostTag)
                     .join(matchingTag).on(matchingTag.id.eq(matchingPostTag.id.tagId))
-                    .where(matchingPostTag.id.postDetailId.eq(postDetail.id), matchingTag.slug.eq(tagSlug))
+                    .where(matchingPostTag.id.postDetailId.eq(postDetail.id), matchingTag.slug.in(tagSlugs))
                     .exists());
         }
 

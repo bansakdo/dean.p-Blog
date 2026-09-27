@@ -84,6 +84,20 @@ class PostFilterQueryTest {
         assertThat(posts.findPublishedRowsNewestFirst("life", "spring")).isEmpty();
     }
 
+    /** 태그끼리는 OR, 카테고리와 검색 조건은 AND로 결합하며 일치한 글의 전체 태그를 보존한다. */
+    @Test
+    void matchesAnySelectedTagWithoutDuplicatingPosts() {
+        tag(9, "kotlin", "Kotlin");
+        link(11, 9);
+
+        assertThat(posts.findPublishedRowsWithAnyTags(null, null, java.util.List.of("spring", "kotlin"), null))
+                .extracting(PublicPostRow::slug).containsOnly("dev-post", "life-post");
+        assertThat(posts.findPublishedRowsWithAnyTags("dev", null, java.util.List.of("spring", "kotlin"), "dev-post"))
+                .extracting(PublicPostRow::tagName).containsExactly("Java", "Spring");
+        assertThat(posts.findPublishedRowsWithAnyTags(null, null, java.util.List.of("missing", "spring"), null))
+                .extracting(PublicPostRow::slug).containsOnly("dev-post");
+    }
+
     /** 공개 글에 사용된 분류만 중복 없이 선택지로 노출한다. */
     @Test
     void optionsExcludeDraftAndUnpublishedMetadata() {

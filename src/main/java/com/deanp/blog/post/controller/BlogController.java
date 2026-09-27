@@ -22,6 +22,8 @@ import org.springframework.web.server.ResponseStatusException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -66,7 +68,7 @@ public class BlogController {
      * @param category 선택된 카테고리 슬러그, 없으면 전체 글
      * @param series 선택된 시리즈 슬러그, 없으면 시리즈 조건 생략
      * @param search 검색어, 없으면 검색 조건 생략
-     * @param tag 선택된 태그 슬러그, 없으면 태그 조건 생략
+     * @param tag 쉼표로 구분한 선택 태그 슬러그, 없으면 태그 조건 생략
      * @param model Thymeleaf 렌더링에 사용할 모델
      * @return 글 목록 템플릿 이름
      */
@@ -78,18 +80,30 @@ public class BlogController {
         // 선택된 카테고리 조건과 조회 결과를 목록 템플릿 모델에 담는다.
         category = normalize(category);
         series = normalize(series);
-        tag = normalize(tag);
+        var selectedTags = tag == null ? List.<String>of() : Arrays.stream(tag.split(","))
+                .map(String::strip).filter(value -> !value.isEmpty()).distinct().toList();
+        tag = selectedTags.isEmpty() ? null : String.join(",", selectedTags);
         search = normalize(search);
-        model.addAttribute("posts", postService.findAll(category, series, tag, search));
+        model.addAttribute("posts", selectedTags.size() > 1
+                ? postService.findAllWithAnyTags(category, series, selectedTags, search)
+                : postService.findAll(category, series, tag, search));
         var categories = postService.findCategories();
         var tags = postService.findTags(0, TAG_BATCH_SIZE + 1);
+        var allTags = selectedTags.isEmpty() ? List.<PostFilterOption>of() : postService.findTags();
+        var firstTags = tags.stream().limit(TAG_BATCH_SIZE).toList();
+        var selectedChips = selectedTags.stream()
+                .map(slug -> tagChip(new PostFilterOption(slug, filterName(allTags, slug)), selectedTags)).toList();
         model.addAttribute("categories", categories);
         model.addAttribute("totalPosts", postService.countPublishedPosts());
         model.addAttribute("selectedCategoryName", filterName(categories, category));
-        model.addAttribute("selectedTagName", tag == null ? null : filterName(postService.findTags(), tag));
+        model.addAttribute("selectedTagFilters", selectedChips);
+        model.addAttribute("pinnedTagChips", selectedChips.stream()
+                .filter(chip -> firstTags.stream().noneMatch(option -> option.slug().equals(chip.slug()))).toList());
         model.addAttribute("seriesOptions", postService.findSeries(category));
         model.addAttribute("selectedSeriesInfo", postService.findSeries(category, series).orElse(null));
-        model.addAttribute("tags", tags.stream().limit(TAG_BATCH_SIZE).toList());
+        model.addAttribute("tags", firstTags);
+        model.addAttribute("tagChips", firstTags.stream()
+                .map(option -> tagChip(option, selectedTags)).toList());
         model.addAttribute("hasMoreTags", tags.size() > TAG_BATCH_SIZE);
         model.addAttribute("selectedCategory", category);
         model.addAttribute("selectedSeries", series);
@@ -100,6 +114,17 @@ public class BlogController {
 
         return "posts";
     }
+
+    /** @param option 화면에 표시할 태그 @param selected 선택된 태그 목록 @return 클릭 시 해당 태그만 전환하는 링크 데이터 */
+    private TagChip tagChip(PostFilterOption option, List<String> selected) {
+        var next = new ArrayList<>(selected);
+        boolean active = next.remove(option.slug());
+        if (!active) next.add(option.slug());
+        return new TagChip(option.slug(), option.name(), active, next.isEmpty() ? null : String.join(",", next));
+    }
+
+    /** @param slug 태그 슬러그 @param name 표시 이름 @param selected 현재 선택 여부 @param nextTags 클릭 후 남는 태그 슬러그 문자열 */
+    public record TagChip(String slug, String name, boolean selected, String nextTags) { }
 
     /**
      * 추가 공개 태그를 스무 개씩 응답한다.
