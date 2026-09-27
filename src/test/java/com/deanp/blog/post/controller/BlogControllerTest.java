@@ -102,6 +102,23 @@ class BlogControllerTest {
                 .andExpect(content().string(not(containsString("href=\"/login\""))));
     }
 
+    /** 검색 링크는 사용자 메뉴 앞에 있으며 메뉴를 열지 않아도 접근할 수 있다. */
+    @Test
+    void headerSearchPrecedesAccountMenu() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*<a class=\"header-search\" href=\"/search\" aria-label=\"검색\">.*<div class=\"account-menu\">.*")));
+    }
+
+    /** 첫 화면의 메뉴는 닫혀 있고 헤더 버튼에서 열 수 있다. */
+    @Test
+    void sidebarStartsClosed() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("aria-controls=\"site-sidebar\" aria-expanded=\"false\"")))
+                .andExpect(content().string(containsString("id=\"site-sidebar\" class=\"site-sidebar\" aria-label=\"사이트 메뉴\" hidden")));
+    }
+
     /** 검색어를 정규화하고 결과가 없을 때 안내한다. */
     @Test
     void dedicatedSearchNormalizesQuery() throws Exception {
