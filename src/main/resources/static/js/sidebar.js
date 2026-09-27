@@ -11,6 +11,7 @@
     sidebar.hidden = !open;
     backdrop.hidden = !open || !mobile.matches;
     document.body.classList.toggle('sidebar-open', open);
+    sessionStorage.setItem('deanp-sidebar-open', String(open));
     toggle.setAttribute('aria-expanded', String(open));
     toggle.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
     toggle.textContent = open ? '×' : '☰';
@@ -28,5 +29,6 @@
     setOpen(false);
     if (!open && restoreFocus) toggle.focus();
   });
-  setOpen(false);
+  const savedOpen = sessionStorage.getItem('deanp-sidebar-open') === 'true';
+  setOpen(savedOpen, savedOpen && mobile.matches);
 })();
