@@ -102,6 +102,23 @@ class BlogControllerTest {
                 .andExpect(content().string(not(containsString("href=\"/login\""))));
     }
 
+    /** 검색 링크는 사용자 메뉴 앞에 있으며 메뉴를 열지 않아도 접근할 수 있다. */
+    @Test
+    void headerSearchPrecedesAccountMenu() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*<a class=\"header-search\" href=\"/search\" aria-label=\"검색\">.*<div class=\"account-menu\">.*")));
+    }
+
+    /** 첫 화면의 메뉴는 닫혀 있고 헤더 버튼에서 열 수 있다. */
+    @Test
+    void sidebarStartsClosed() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("aria-controls=\"site-sidebar\" aria-expanded=\"false\"")))
+                .andExpect(content().string(containsString("id=\"site-sidebar\" class=\"site-sidebar\" aria-label=\"사이트 메뉴\" hidden")));
+    }
+
     /** 검색어를 정규화하고 결과가 없을 때 안내한다. */
     @Test
     void dedicatedSearchNormalizesQuery() throws Exception {
@@ -112,13 +129,17 @@ class BlogControllerTest {
         verify(postService).findAll(null, null, null, "missing");
     }
 
-    /** 공통 사이드 메뉴에 탐색과 테마를 배치하고 접이식 검색을 제거한다. */
+    /** 공통 메뉴에는 소개·글만 순서대로 표시하고 테마 버튼은 유지한다. */
     @Test
     void sidebarNavigationAndThemeAreRendered() throws Exception {
         mockMvc.perform(get("/posts"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("href=\"/search\"")))
+                .andExpect(content().string(matchesPattern("(?s).*class=\"sidebar-nav\"[^>]*>\\s*<a href=\"/about\">소개</a>\\s*<a href=\"/posts\">글</a>\\s*</nav>.*")))
+                .andExpect(content().string(not(containsString(">검색</a>"))))
+                .andExpect(content().string(not(containsString("<strong>메뉴</strong>"))))
+                .andExpect(content().string(not(containsString("<span>테마</span>"))))
                 .andExpect(content().string(containsString("class=\"sidebar-theme\"")))
+                .andExpect(content().string(containsString("data-theme-toggle")))
                 .andExpect(content().string(containsString("id=\"site-sidebar\"")))
                 .andExpect(content().string(containsString("class=\"sidebar-filters\"")))
 

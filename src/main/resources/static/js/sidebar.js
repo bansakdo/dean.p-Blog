@@ -13,6 +13,7 @@
     document.body.classList.toggle('sidebar-open', open);
     toggle.setAttribute('aria-expanded', String(open));
     toggle.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
+    toggle.textContent = open && !mobile.matches ? '×' : '☰';
     background.forEach(element => { element.inert = open && mobile.matches; });
     if (open && mobile.matches) {
       sidebar.setAttribute('role', 'dialog');
@@ -21,7 +22,7 @@
       sidebar.removeAttribute('role');
       sidebar.removeAttribute('aria-modal');
     }
-    if (focus) (open ? sidebar.querySelector('button') : toggle).focus();
+    if (focus) (open && mobile.matches ? sidebar.querySelector('.sidebar-close') : toggle).focus();
   };
   toggle.addEventListener('click', () => setOpen(!open, true));
   sidebar.querySelector('.sidebar-close').addEventListener('click', () => setOpen(false, true));
@@ -40,8 +41,8 @@
   });
   mobile.addEventListener('change', () => {
     const restoreFocus = sidebar.contains(document.activeElement);
-    setOpen(!mobile.matches);
+    setOpen(false);
     if (!open && restoreFocus) toggle.focus();
   });
-  setOpen(!mobile.matches);
+  setOpen(false);
 })();
