@@ -307,9 +307,10 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 }
 @media (max-width: 720px) {
   html { overflow-x: clip; }
-  .site-header { padding-inline: 20px; }
-  .site-sidebar { width: min(280px, calc(100vw - 44px)); }
-  body > .site-header, body > main, body > .site-footer { transition: transform .25s ease; }
-  body.sidebar-open > .site-header, body.sidebar-open > main, body.sidebar-open > .site-footer { transform: translateX(min(280px, calc(100vw - 44px))); }
+  .site-header { position: sticky; top: 0; z-index: 101; padding-inline: 20px; background: var(--bg); }
+  .site-sidebar { top: 72px; height: calc(100dvh - 72px); width: min(280px, calc(100vw - 44px)); }
+  .sidebar-backdrop { top: 72px; }
+  body > main, body > .site-footer { transition: transform .25s ease; }
+  body.sidebar-open > main, body.sidebar-open > .site-footer { transform: translateX(min(280px, calc(100vw - 44px))); }
   body.sidebar-open { overflow: hidden; }
 }
