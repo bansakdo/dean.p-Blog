@@ -8,6 +8,9 @@ import com.deanp.blog.post.persistence.repository.PostDetailRepository;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.data.MutableDataSet;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -92,9 +95,11 @@ public class PostService {
         return toPostViews(posts.findPublishedRows(categorySlug, seriesSlug, tagSlug, search));
     }
 
-    /** @param categorySlug 선택 카테고리 @param seriesSlug 선택 시리즈 @param tagSlugs OR 태그 목록 @param search 검색어 @return 조건에 맞는 공개 글 */
-    public List<PostView> findAllWithAnyTags(String categorySlug, String seriesSlug, List<String> tagSlugs, String search) {
-        return toPostViews(posts.findPublishedRowsWithAnyTags(categorySlug, seriesSlug, tagSlugs, search));
+    /** @param categorySlug 선택 카테고리 @param seriesSlug 선택 시리즈 @param tagSlugs OR 태그 목록 @param search 검색어 @param page 1부터 시작하는 페이지 @param size 페이지당 글 수 @return 글 단위 조회 페이지 */
+    public Page<PostView> findPage(String categorySlug, String seriesSlug, List<String> tagSlugs,
+                                   String search, int page, int size) {
+        var result = posts.findPublishedPage(categorySlug, seriesSlug, tagSlugs, search, (long) (page - 1) * size, size);
+        return new PageImpl<>(toPostViews(result.rows()), PageRequest.of(page - 1, size), result.total());
     }
 
     /** @return 미분류 글을 포함한 전체 공개 글 수 */

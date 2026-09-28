@@ -18,7 +18,7 @@
       for (const tag of page.tags) {
         if ([...list.querySelectorAll('[data-tag-slug]')].some(link => link.dataset.tagSlug === tag.slug)) continue;
         const url = new URL('/posts', location.origin);
-        for (const key of ['category', 'series', 'q']) {
+        for (const key of ['category', 'series', 'q', 'size']) {
           if (filters.has(key)) url.searchParams.set(key, filters.get(key));
         }
         const nextTags = selectedTags.filter(slug => slug !== tag.slug);

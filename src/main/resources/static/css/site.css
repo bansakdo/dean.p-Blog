@@ -248,6 +248,13 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .posts-page .series-intro .series-progress { color: var(--accent); margin: 18px 0 0; font-size: 12px; }
 .posts-page .results-count { color: var(--muted); font-size: 12px; margin: 0; }
 .posts-page .results-count strong { color: var(--text); margin-right: 3px; }
+.posts-page .post-list-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 8px; }
+.posts-page .post-page-size { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.posts-page .post-page-size select, .posts-page .post-page-size button { min-height: 44px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; }
+.posts-page .post-page-size button { background: var(--accent-soft); cursor: pointer; }
+.posts-page .post-pagination { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 26px 0 10px; }
+.posts-page .post-pagination a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 7px; font-size: 13px; }
+.posts-page .post-pagination a.is-active { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
 .posts-page .post-list { border-top: 0; }
 .posts-page .post-list article { display: block; padding: 24px 0 26px; overflow-wrap: anywhere; }
 .posts-page .post-list article .post-meta { flex-direction: row; flex-wrap: wrap; gap: 5px; letter-spacing: 0; font-size: 11px; margin-bottom: 10px; }

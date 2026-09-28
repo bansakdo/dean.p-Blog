@@ -16,6 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,6 +35,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -179,7 +182,8 @@ class BlogControllerTest {
         when(postService.findCategories()).thenReturn(List.of(new com.deanp.blog.post.PostFilterOption("dev", "개발", 2)));
         when(postService.findTags()).thenReturn(options);
         when(postService.findTags(0, 21)).thenReturn(options);
-        when(postService.findAllWithAnyTags("dev", null, List.of("java", "spring"), null)).thenReturn(List.of(postView()));
+        when(postService.findPage("dev", null, List.of("java", "spring"), null, 1, 20))
+                .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(0, 20), 1));
 
         mockMvc.perform(get("/posts").param("category", "dev").param("tag", " java , spring, java "))
                 .andExpect(status().isOk())
@@ -187,7 +191,7 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString("Java ×")))
                 .andExpect(content().string(containsString("Spring ×")))
                 .andExpect(content().string(not(containsString("aria-hidden=\"true\"> ✓</span>"))));
-        verify(postService).findAllWithAnyTags("dev", null, List.of("java", "spring"), null);
+        verify(postService).findPage("dev", null, List.of("java", "spring"), null, 1, 20);
     }
 
     /** 첫 태그 구간 밖에서 선택한 태그도 사이드바 상단에 활성 상태로 유지한다. */
@@ -204,10 +208,43 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString("Kotlin ×")));
     }
 
+    /** 기본 20개·선택한 페이지 크기·페이지 이동과 필터 유지 및 범위 오류를 검증한다. */
+    @Test
+    void rendersPostPaginationAndPageSizeChoices() throws Exception {
+        when(postService.findPage(null, null, List.of(), null, 1, 20))
+                .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(0, 20), 41));
+        when(postService.findPage(null, null, List.of(), null, 2, 20))
+                .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(1, 20), 41));
+        when(postService.findPage(null, null, List.of(), null, 1, 10))
+                .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(0, 10), 41));
+        when(postService.findPage(null, null, List.of(), null, 4, 20))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(3, 20), 41));
+
+        mockMvc.perform(get("/posts"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("pageSize", 20))
+                .andExpect(model().attribute("totalPages", 3))
+                .andExpect(content().string(containsString("41편")))
+                .andExpect(content().string(containsString("글 목록 페이지")));
+        mockMvc.perform(get("/posts").param("page", "2"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("currentPage", 2))
+                .andExpect(content().string(containsString("aria-current=\"page\"")));
+        mockMvc.perform(get("/posts").param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("pageSize", 10))
+                .andExpect(content().string(containsString("size=10")));
+        mockMvc.perform(get("/posts").param("page", "0")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/posts").param("size", "30")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/posts").param("page", "4")).andExpect(status().isNotFound());
+    }
+
     /** 목록 템플릿이 필터 목록을 반복할 수 있도록 기본 빈 선택지를 제공한다. */
     @BeforeEach
     void defaultFilterOptions() {
         when(postService.findAll(any(), any(), any(), any())).thenReturn(List.of());
+        when(postService.findPage(any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
         when(postService.findCategories()).thenReturn(List.of());
         when(postService.findSeries(null)).thenReturn(List.of());
         when(postService.findSeries(null, null)).thenReturn(Optional.empty());
@@ -240,7 +277,8 @@ class BlogControllerTest {
                 "preview-" + i, titles.get(i), summaries.get(i), LocalDate.of(2026, 9, 18).minusDays(i),
                 6, List.of("Java", i == 0 ? "Spring" : "PostgreSQL"), "", "/media/should-not-render.png",
                 "개발", "spring-blog", selected.name(), i * 2 + 1)).toList();
-        when(postService.findAll("dev", "spring-blog", null, null)).thenReturn(posts);
+        when(postService.findPage("dev", "spring-blog", List.of(), null, 1, 20))
+                .thenReturn(new PageImpl<>(posts, PageRequest.of(0, 20), 3));
         var result = mockMvc.perform(get("/posts").param("category", "dev").param("series", "spring-blog"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("전체 3편 · 연재 중")))
@@ -277,7 +315,8 @@ class BlogControllerTest {
                 "<p><strong>Markdown</strong> 본문</p>\n"
         );
         when(postService.findAll()).thenReturn(List.of(post));
-        when(postService.findAll(null, null, null, null)).thenReturn(List.of(post));
+        when(postService.findPage(null, null, List.of(), null, 1, 20))
+                .thenReturn(new PageImpl<>(List.of(post), PageRequest.of(0, 20), 1));
         when(postService.findBySlug("real-post")).thenReturn(Optional.of(post));
 
         mockMvc.perform(get("/"))
@@ -391,7 +430,8 @@ class BlogControllerTest {
                 new com.deanp.blog.post.PostFilterOption("spring", "Spring")));
         when(postService.findSeries("dev")).thenReturn(List.of(
                 new PostSeriesOption("boot-camp", "부트 캠프", "소개", "dev")));
-        when(postService.findAll("dev", "boot-camp", "java", "검색어")).thenReturn(List.of(postView()));
+        when(postService.findPage("dev", "boot-camp", List.of("java"), "검색어", 1, 20))
+                .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(0, 20), 1));
         when(postService.findSeries("dev", "boot-camp")).thenReturn(Optional.of(
                 new PostSeriesOption("boot-camp", "부트 캠프", "소개", "dev")));
         var result = mockMvc.perform(get("/posts")
@@ -411,7 +451,7 @@ class BlogControllerTest {
         Path output = Path.of("build/reports/series/selected.html");
         Files.createDirectories(output.getParent());
         Files.writeString(output, result.getResponse().getContentAsString(StandardCharsets.UTF_8));
-        verify(postService).findAll("dev", "boot-camp", "java", "검색어");
+        verify(postService).findPage("dev", "boot-camp", List.of("java"), "검색어", 1, 20);
 
         mockMvc.perform(get("/posts").param("tag", "missing"))
                 .andExpect(status().isOk())
@@ -419,7 +459,7 @@ class BlogControllerTest {
                 .andExpect(model().attribute("selectedTag", "missing"));
         mockMvc.perform(get("/posts").param("category", " ").param("tag", ""))
                 .andExpect(status().isOk()).andExpect(model().attribute("hasFilters", false));
-        verify(postService).findAll(null, null, null, null);
+        verify(postService).findPage(null, null, List.of(), null, 1, 20);
     }
 
     @Test
@@ -434,7 +474,8 @@ class BlogControllerTest {
                 List.of(),
                 "<p>본문</p>\n"
         );
-        when(postService.findAll("spring", null, null, null)).thenReturn(List.of(post));
+        when(postService.findPage("spring", null, List.of(), null, 1, 20))
+                .thenReturn(new PageImpl<>(List.of(post), PageRequest.of(0, 20), 1));
         when(postService.findSeries("spring")).thenReturn(List.of());
 
         mockMvc.perform(get("/posts").param("category", "spring"))
@@ -442,7 +483,7 @@ class BlogControllerTest {
                 .andExpect(view().name("posts"))
                 .andExpect(content().string(containsString("Spring 카테고리 글")));
 
-        verify(postService).findAll("spring", null, null, null);
+        verify(postService).findPage("spring", null, List.of(), null, 1, 20);
     }
 
     /**

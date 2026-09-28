@@ -25,6 +25,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.IntStream;
 
 /**
  * 공개 블로그 화면 요청을 받아 Thymeleaf 뷰 모델을 구성한다.
@@ -35,6 +36,7 @@ public class BlogController {
 
     private static final Logger log = LoggerFactory.getLogger(BlogController.class);
     private static final int TAG_BATCH_SIZE = 20;
+    private static final List<Integer> PAGE_SIZES = List.of(10, 20, 50);
 
     private final PostService postService;
     private final VisitorCookieIdentifier visitorCookieIdentifier;
@@ -69,6 +71,8 @@ public class BlogController {
      * @param series 선택된 시리즈 슬러그, 없으면 시리즈 조건 생략
      * @param search 검색어, 없으면 검색 조건 생략
      * @param tag 쉼표로 구분한 선택 태그 슬러그, 없으면 태그 조건 생략
+     * @param page 1부터 시작하는 페이지 번호
+     * @param size 페이지당 글 수(10, 20, 50)
      * @param model Thymeleaf 렌더링에 사용할 모델
      * @return 글 목록 템플릿 이름
      */
@@ -76,7 +80,12 @@ public class BlogController {
     public String posts(@RequestParam(required = false) String category,
                         @RequestParam(required = false) String series,
                         @RequestParam(required = false, name = "q") String search,
-                        @RequestParam(required = false) String tag, Model model) {
+                        @RequestParam(required = false) String tag,
+                        @RequestParam(defaultValue = "1") int page,
+                        @RequestParam(defaultValue = "20") int size, Model model) {
+        if (page < 1 || !PAGE_SIZES.contains(size)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
         // 선택된 카테고리 조건과 조회 결과를 목록 템플릿 모델에 담는다.
         category = normalize(category);
         series = normalize(series);
@@ -84,9 +93,17 @@ public class BlogController {
                 .map(String::strip).filter(value -> !value.isEmpty()).distinct().toList();
         tag = selectedTags.isEmpty() ? null : String.join(",", selectedTags);
         search = normalize(search);
-        model.addAttribute("posts", selectedTags.size() > 1
-                ? postService.findAllWithAnyTags(category, series, selectedTags, search)
-                : postService.findAll(category, series, tag, search));
+        var postPage = postService.findPage(category, series, selectedTags, search, page, size);
+        int totalPages = Math.max(1, postPage.getTotalPages());
+        if (page > totalPages) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        model.addAttribute("posts", postPage.getContent());
+        model.addAttribute("matchingPostCount", postPage.getTotalElements());
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("pageNumbers", IntStream.rangeClosed(1, totalPages).boxed().toList());
+        model.addAttribute("pageSize", size);
         var categories = postService.findCategories();
         var tags = postService.findTags(0, TAG_BATCH_SIZE + 1);
         var allTags = selectedTags.isEmpty() ? List.<PostFilterOption>of() : postService.findTags();

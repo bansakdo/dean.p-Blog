@@ -98,6 +98,36 @@ class PostFilterQueryTest {
                 .extracting(PublicPostRow::slug).containsOnly("dev-post");
     }
 
+    /** 태그 조인 행이 아닌 글 단위로 페이지를 나누고 필터 결과 총수를 계산한다. */
+    @Test
+    void pagesPublishedPostsWithoutSplittingTags() {
+        var first = posts.findPublishedPage(null, null, java.util.List.of(), null, 0, 1);
+        assertThat(first.total()).isEqualTo(3);
+        assertThat(first.rows()).extracting(PublicPostRow::slug).containsOnly("dev-post");
+        assertThat(first.rows()).extracting(PublicPostRow::tagName).containsExactly("Java", "Spring");
+        assertThat(posts.findPublishedPage(null, null, java.util.List.of(), null, 1, 1).rows())
+                .extracting(PublicPostRow::slug).containsExactly("life-post");
+        assertThat(posts.findPublishedPage(null, null, java.util.List.of(), null, 3, 1).rows()).isEmpty();
+
+        var filtered = posts.findPublishedPage("dev", "boot-camp", java.util.List.of("spring", "java"), null, 0, 1);
+        assertThat(filtered.total()).isEqualTo(1);
+        assertThat(filtered.rows()).extracting(PublicPostRow::tagName).containsExactly("Java", "Spring");
+        assertThat(posts.findPublishedPage("life", "boot-camp", java.util.List.of(), null, 0, 10).total()).isZero();
+        assertThat(posts.findPublishedPage(null, null, java.util.List.of("spring"), "life-post", 0, 10).total()).isZero();
+        assertThat(posts.findPublishedPage(null, null, java.util.List.of("java"), "life-post", 0, 10).rows())
+                .extracting(PublicPostRow::slug).containsExactly("life-post");
+    }
+
+    /** 시리즈 페이징은 발행일이 아닌 연재 순서를 보존한다. */
+    @Test
+    void pagesSeriesInSeriesOrder() {
+        var first = posts.findPublishedPage("dev", "boot-camp", java.util.List.of(), null, 0, 1);
+        assertThat(first.total()).isEqualTo(2);
+        assertThat(first.rows()).extracting(PublicPostRow::slug).containsExactly("untagged-post");
+        assertThat(posts.findPublishedPage("dev", "boot-camp", java.util.List.of(), null, 1, 1).rows())
+                .extracting(PublicPostRow::slug).containsOnly("dev-post");
+    }
+
     /** 공개 글에 사용된 분류만 중복 없이 선택지로 노출한다. */
     @Test
     void optionsExcludeDraftAndUnpublishedMetadata() {
