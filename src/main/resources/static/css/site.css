@@ -50,7 +50,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .brand { font-size: 1.45rem; font-weight: 800; letter-spacing: -.06em; }
 .brand span { color: var(--accent); }
 .site-header nav { display: flex; align-items: center; gap: 26px; font-size: .94rem; font-weight: 650; }
-.theme-toggle, .menu-toggle, .sidebar-close {
+.theme-toggle, .menu-toggle {
   width: 38px; height: 38px; padding: 0; border: 1px solid var(--line); border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--surface); color: var(--text); cursor: pointer; font-size: 1rem;
@@ -200,8 +200,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .article-body a { color: var(--accent); border-bottom: 1px solid currentColor; }
 
 /* Public archive: screenshot-aligned styles, isolated from home and article pages. */
-.posts-page .shell, .posts-page .site-header, .posts-page .site-footer { width: min(1160px, calc(100% - 40px)); }
-.posts-page .site-header { height: 94px; }
+.posts-page .shell, .posts-page .site-footer { width: min(1160px, calc(100% - 40px)); }
 .posts-page .site-header nav > a[href="/posts"] { color: var(--accent); }
 .posts-page .page-space { padding-block: 48px 50px; }
 .posts-page .page-intro { max-width: none; display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 36px; }
@@ -231,6 +230,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .posts-page .tag-chip-links { gap: 7px; }
 .posts-page .tag-chip-links a { border-radius: 7px; background: var(--surface); color: var(--text); padding: 5px 11px; font-size: 12px; overflow-wrap: anywhere; max-width: 100%; }
 .posts-page .tag-chip-links a.is-active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.posts-page .tag-more { margin-top: 12px; padding: 6px 10px; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent); color: var(--bg); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.posts-page .tag-more[hidden] { display: none; }
 .posts-page .browse-results { min-width: 0; }
 .posts-page .browse-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .posts-page .active-filters { margin: 0; align-items: center; min-width: 0; }
@@ -247,6 +248,13 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .posts-page .series-intro .series-progress { color: var(--accent); margin: 18px 0 0; font-size: 12px; }
 .posts-page .results-count { color: var(--muted); font-size: 12px; margin: 0; }
 .posts-page .results-count strong { color: var(--text); margin-right: 3px; }
+.posts-page .post-list-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 8px; }
+.posts-page .post-page-size { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.posts-page .post-page-size select, .posts-page .post-page-size button { min-height: 44px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; }
+.posts-page .post-page-size button { background: var(--accent-soft); cursor: pointer; }
+.posts-page .post-pagination { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 26px 0 10px; }
+.posts-page .post-pagination a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 7px; font-size: 13px; }
+.posts-page .post-pagination a.is-active { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
 .posts-page .post-list { border-top: 0; }
 .posts-page .post-list article { display: block; padding: 24px 0 26px; overflow-wrap: anywhere; }
 .posts-page .post-list article .post-meta { flex-direction: row; flex-wrap: wrap; gap: 5px; letter-spacing: 0; font-size: 11px; margin-bottom: 10px; }
@@ -286,9 +294,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .site-header .account-menu { margin-left: 0; }
 .site-sidebar { position: fixed; inset: 0 auto 0 0; width: 280px; height: 100dvh; z-index: 100; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--line); }
 .site-sidebar[hidden], .sidebar-backdrop[hidden] { display: none; }
-.sidebar-heading, .sidebar-theme { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; flex-shrink: 0; }
-.sidebar-heading { justify-content: flex-end; border-bottom: 1px solid var(--line); }
-.sidebar-theme { justify-content: flex-start; border-top: 1px solid var(--line); }
+.sidebar-theme { display: flex; align-items: center; justify-content: flex-start; padding: 18px 20px; flex-shrink: 0; border-top: 1px solid var(--line); }
 .sidebar-scroll { overflow-y: auto; min-height: 0; flex: 1; padding: 20px; overscroll-behavior: contain; }
 .sidebar-nav { display: grid; gap: 8px; }
 .sidebar-nav a { padding: 10px 12px; border-radius: 8px; }
@@ -299,14 +305,17 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 @media (min-width: 721px) {
   .site-header { position: sticky; top: 0; z-index: 101; background: var(--bg); }
   .site-sidebar { top: 88px; height: calc(100dvh - 88px); }
-  .sidebar-heading { display: none; }
   body.sidebar-open > main { margin-left: 280px; }
   body.sidebar-open > main.shell, body.sidebar-open > main.article { width: min(1120px, calc(100% - 320px)); margin-left: 300px; margin-right: 20px; }
   body.sidebar-open.posts-page > main.shell { width: min(1160px, calc(100% - 320px)); }
   body.sidebar-open > .site-footer { width: min(1240px, calc(100% - 320px)); margin-left: 300px; margin-right: 20px; }
 }
 @media (max-width: 720px) {
-  .site-header { padding-inline: 20px; }
-  .site-sidebar { width: min(280px, calc(100vw - 44px)); }
+  html { overflow-x: clip; }
+  .site-header { position: sticky; top: 0; z-index: 101; padding-inline: 20px; background: var(--bg); }
+  .site-sidebar { top: 72px; height: calc(100dvh - 72px); width: min(280px, calc(100vw - 44px)); }
+  .sidebar-backdrop { top: 72px; }
+  body > main, body > .site-footer { transition: transform .25s ease; }
+  body.sidebar-open > main, body.sidebar-open > .site-footer { transform: translateX(min(280px, calc(100vw - 44px))); }
   body.sidebar-open { overflow: hidden; }
 }
