@@ -84,6 +84,50 @@ class PostFilterQueryTest {
         assertThat(posts.findPublishedRowsNewestFirst("life", "spring")).isEmpty();
     }
 
+    /** 태그끼리는 OR, 카테고리와 검색 조건은 AND로 결합하며 일치한 글의 전체 태그를 보존한다. */
+    @Test
+    void matchesAnySelectedTagWithoutDuplicatingPosts() {
+        tag(9, "kotlin", "Kotlin");
+        link(11, 9);
+
+        assertThat(posts.findPublishedRowsWithAnyTags(null, null, java.util.List.of("spring", "kotlin"), null))
+                .extracting(PublicPostRow::slug).containsOnly("dev-post", "life-post");
+        assertThat(posts.findPublishedRowsWithAnyTags("dev", null, java.util.List.of("spring", "kotlin"), "dev-post"))
+                .extracting(PublicPostRow::tagName).containsExactly("Java", "Spring");
+        assertThat(posts.findPublishedRowsWithAnyTags(null, null, java.util.List.of("missing", "spring"), null))
+                .extracting(PublicPostRow::slug).containsOnly("dev-post");
+    }
+
+    /** 태그 조인 행이 아닌 글 단위로 페이지를 나누고 필터 결과 총수를 계산한다. */
+    @Test
+    void pagesPublishedPostsWithoutSplittingTags() {
+        var first = posts.findPublishedPage(null, null, java.util.List.of(), null, 0, 1);
+        assertThat(first.total()).isEqualTo(3);
+        assertThat(first.rows()).extracting(PublicPostRow::slug).containsOnly("dev-post");
+        assertThat(first.rows()).extracting(PublicPostRow::tagName).containsExactly("Java", "Spring");
+        assertThat(posts.findPublishedPage(null, null, java.util.List.of(), null, 1, 1).rows())
+                .extracting(PublicPostRow::slug).containsExactly("life-post");
+        assertThat(posts.findPublishedPage(null, null, java.util.List.of(), null, 3, 1).rows()).isEmpty();
+
+        var filtered = posts.findPublishedPage("dev", "boot-camp", java.util.List.of("spring", "java"), null, 0, 1);
+        assertThat(filtered.total()).isEqualTo(1);
+        assertThat(filtered.rows()).extracting(PublicPostRow::tagName).containsExactly("Java", "Spring");
+        assertThat(posts.findPublishedPage("life", "boot-camp", java.util.List.of(), null, 0, 10).total()).isZero();
+        assertThat(posts.findPublishedPage(null, null, java.util.List.of("spring"), "life-post", 0, 10).total()).isZero();
+        assertThat(posts.findPublishedPage(null, null, java.util.List.of("java"), "life-post", 0, 10).rows())
+                .extracting(PublicPostRow::slug).containsExactly("life-post");
+    }
+
+    /** 시리즈 페이징은 발행일이 아닌 연재 순서를 보존한다. */
+    @Test
+    void pagesSeriesInSeriesOrder() {
+        var first = posts.findPublishedPage("dev", "boot-camp", java.util.List.of(), null, 0, 1);
+        assertThat(first.total()).isEqualTo(2);
+        assertThat(first.rows()).extracting(PublicPostRow::slug).containsExactly("untagged-post");
+        assertThat(posts.findPublishedPage("dev", "boot-camp", java.util.List.of(), null, 1, 1).rows())
+                .extracting(PublicPostRow::slug).containsOnly("dev-post");
+    }
+
     /** 공개 글에 사용된 분류만 중복 없이 선택지로 노출한다. */
     @Test
     void optionsExcludeDraftAndUnpublishedMetadata() {
@@ -91,6 +135,14 @@ class PostFilterQueryTest {
                 .containsExactly("dev", "life");
         assertThat(posts.findPublishedTags()).extracting(PostFilterOption::slug)
                 .containsExactly("java", "spring");
+    }
+
+    /** 공개 글 태그는 이름순으로 중복 없이 구간 조회하며 비공개 태그는 제외한다. */
+    @Test
+    void pagesPublishedTags() {
+        assertThat(posts.findPublishedTags(0, 1)).extracting(PostFilterOption::slug).containsExactly("java");
+        assertThat(posts.findPublishedTags(1, 1)).extracting(PostFilterOption::slug).containsExactly("spring");
+        assertThat(posts.findPublishedTags(2, 1)).isEmpty();
     }
 
     /** 공백 조건은 전체 조회이며 존재하지 않는 조건은 빈 결과다. */
