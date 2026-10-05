@@ -304,7 +304,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .posts-page .browse-layout { display: block; }
 @media (min-width: 721px) {
   .site-header { position: sticky; top: 0; z-index: 101; background: var(--bg); }
-  .site-sidebar { top: 88px; height: calc(100dvh - 88px); }
+  .site-sidebar { top: 74px; height: calc(100dvh - 74px); }
   body.sidebar-open > main { margin-left: 280px; }
   body.sidebar-open > main.shell, body.sidebar-open > main.article { width: min(1120px, calc(100% - 320px)); margin-left: 300px; margin-right: 20px; }
   body.sidebar-open.posts-page > main.shell { width: min(1160px, calc(100% - 320px)); }
