@@ -1,4 +1,5 @@
 :root {
+  --site-header-height: 74px;
   color-scheme: light;
   --bg: #f7f6f2;
   --surface: #fffefb;
@@ -40,7 +41,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .shell { width: min(1120px, calc(100% - 40px)); margin-inline: auto; }
 .site-header {
   width: min(1240px, calc(100% - 40px));
-  height: 74px;
+  height: var(--site-header-height);
   margin-inline: auto;
   display: flex;
   align-items: center;
@@ -166,7 +167,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 
 @media (max-width: 720px) {
   .feature-card .post-thumbnail, .latest .post-thumbnail { height: 100px; }
-  .site-header { height: 72px; }
+  :root { --site-header-height: 72px; }
   .site-header nav { gap: 16px; }
   .hero { padding: 85px 0 90px; }
   .featured, .latest { padding: 72px 0; }
@@ -271,7 +272,6 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
   .posts-page .browse-sidebar { padding-right: 18px; }
 }
 @media (max-width: 720px) {
-  .posts-page .site-header { height: 72px; }
   .posts-page .page-space { padding-block: 34px 50px; }
   .posts-page .page-intro { display: block; margin-bottom: 26px; }
   .posts-page .page-intro h1 { font-size: 36px; }
@@ -304,7 +304,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .posts-page .browse-layout { display: block; }
 @media (min-width: 721px) {
   .site-header { position: sticky; top: 0; z-index: 101; background: var(--bg); }
-  .site-sidebar { top: 88px; height: calc(100dvh - 88px); }
+  .site-sidebar { top: var(--site-header-height); height: calc(100dvh - var(--site-header-height)); }
   body.sidebar-open > main { margin-left: 280px; }
   body.sidebar-open > main.shell, body.sidebar-open > main.article { width: min(1120px, calc(100% - 320px)); margin-left: 300px; margin-right: 20px; }
   body.sidebar-open.posts-page > main.shell { width: min(1160px, calc(100% - 320px)); }
@@ -313,8 +313,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 @media (max-width: 720px) {
   html { overflow-x: clip; }
   .site-header { position: sticky; top: 0; z-index: 101; padding-inline: 20px; background: var(--bg); }
-  .site-sidebar { top: 72px; height: calc(100dvh - 72px); width: min(280px, calc(100vw - 44px)); }
-  .sidebar-backdrop { top: 72px; }
+  .site-sidebar { top: var(--site-header-height); height: calc(100dvh - var(--site-header-height)); width: min(280px, calc(100vw - 44px)); }
+  .sidebar-backdrop { top: var(--site-header-height); }
   body > main, body > .site-footer { transition: transform .25s ease; }
   body.sidebar-open > main, body.sidebar-open > .site-footer { transform: translateX(min(280px, calc(100vw - 44px))); }
   body.sidebar-open { overflow: hidden; }

@@ -54,6 +54,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         TrustedProxyMatcher.class, VisitorRequestMetadataFactory.class})
 class BlogControllerTest {
 
+    /** 헤더와 메뉴가 공통 높이 변수를 사용하고 모바일 높이는 유지되는지 확인한다. */
+    @Test
+    void sidebarHeightMatchesDesktopHeader() throws Exception {
+        mockMvc.perform(get("/css/site.css"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("--site-header-height: 74px;")))
+                .andExpect(content().string(containsString("height: var(--site-header-height);")))
+                .andExpect(content().string(containsString(".site-sidebar { top: var(--site-header-height); height: calc(100dvh - var(--site-header-height));")))
+                .andExpect(content().string(not(containsString(".site-sidebar { top: 88px;"))))
+                .andExpect(content().string(containsString(":root { --site-header-height: 72px; }")))
+                .andExpect(content().string(containsString(".sidebar-backdrop { top: var(--site-header-height); }")));
+    }
+
     @Autowired
     private MockMvc mockMvc;
 
