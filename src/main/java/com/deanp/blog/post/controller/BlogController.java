@@ -1,6 +1,7 @@
 package com.deanp.blog.post.controller;
 
 import com.deanp.blog.post.PostView;
+import com.deanp.blog.post.PostFilterOption;
 import com.deanp.blog.post.service.PostService;
 import com.deanp.blog.visitor.controller.VisitorCookieIdentifier;
 import com.deanp.blog.visitor.service.VisitorPostViewTrackingService;
@@ -15,12 +16,16 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.IntStream;
 
 /**
  * 공개 블로그 화면 요청을 받아 Thymeleaf 뷰 모델을 구성한다.
@@ -30,6 +35,8 @@ import java.util.List;
 public class BlogController {
 
     private static final Logger log = LoggerFactory.getLogger(BlogController.class);
+    private static final int TAG_BATCH_SIZE = 20;
+    private static final List<Integer> PAGE_SIZES = List.of(10, 20, 50);
 
     private final PostService postService;
     private final VisitorCookieIdentifier visitorCookieIdentifier;
@@ -63,7 +70,9 @@ public class BlogController {
      * @param category 선택된 카테고리 슬러그, 없으면 전체 글
      * @param series 선택된 시리즈 슬러그, 없으면 시리즈 조건 생략
      * @param search 검색어, 없으면 검색 조건 생략
-     * @param tag 선택된 태그 슬러그, 없으면 태그 조건 생략
+     * @param tag 쉼표로 구분한 선택 태그 슬러그, 없으면 태그 조건 생략
+     * @param page 1부터 시작하는 페이지 번호
+     * @param size 페이지당 글 수(10, 20, 50)
      * @param model Thymeleaf 렌더링에 사용할 모델
      * @return 글 목록 템플릿 이름
      */
@@ -71,22 +80,48 @@ public class BlogController {
     public String posts(@RequestParam(required = false) String category,
                         @RequestParam(required = false) String series,
                         @RequestParam(required = false, name = "q") String search,
-                        @RequestParam(required = false) String tag, Model model) {
+                        @RequestParam(required = false) String tag,
+                        @RequestParam(defaultValue = "1") int page,
+                        @RequestParam(defaultValue = "20") int size, Model model) {
+        if (page < 1 || !PAGE_SIZES.contains(size)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
         // 선택된 카테고리 조건과 조회 결과를 목록 템플릿 모델에 담는다.
         category = normalize(category);
         series = normalize(series);
-        tag = normalize(tag);
+        var selectedTags = tag == null ? List.<String>of() : Arrays.stream(tag.split(","))
+                .map(String::strip).filter(value -> !value.isEmpty()).distinct().toList();
+        tag = selectedTags.isEmpty() ? null : String.join(",", selectedTags);
         search = normalize(search);
-        model.addAttribute("posts", postService.findAll(category, series, tag, search));
+        var postPage = postService.findPage(category, series, selectedTags, search, page, size);
+        int totalPages = Math.max(1, postPage.getTotalPages());
+        if (page > totalPages) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        model.addAttribute("posts", postPage.getContent());
+        model.addAttribute("matchingPostCount", postPage.getTotalElements());
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("pageNumbers", IntStream.rangeClosed(1, totalPages).boxed().toList());
+        model.addAttribute("pageSize", size);
         var categories = postService.findCategories();
-        var tags = postService.findTags();
+        var tags = postService.findTags(0, TAG_BATCH_SIZE + 1);
+        var allTags = selectedTags.isEmpty() ? List.<PostFilterOption>of() : postService.findTags();
+        var firstTags = tags.stream().limit(TAG_BATCH_SIZE).toList();
+        var selectedChips = selectedTags.stream()
+                .map(slug -> tagChip(new PostFilterOption(slug, filterName(allTags, slug)), selectedTags)).toList();
         model.addAttribute("categories", categories);
         model.addAttribute("totalPosts", postService.countPublishedPosts());
         model.addAttribute("selectedCategoryName", filterName(categories, category));
-        model.addAttribute("selectedTagName", filterName(tags, tag));
+        model.addAttribute("selectedTagFilters", selectedChips);
+        model.addAttribute("pinnedTagChips", selectedChips.stream()
+                .filter(chip -> firstTags.stream().noneMatch(option -> option.slug().equals(chip.slug()))).toList());
         model.addAttribute("seriesOptions", postService.findSeries(category));
         model.addAttribute("selectedSeriesInfo", postService.findSeries(category, series).orElse(null));
-        model.addAttribute("tags", tags);
+        model.addAttribute("tags", firstTags);
+        model.addAttribute("tagChips", firstTags.stream()
+                .map(option -> tagChip(option, selectedTags)).toList());
+        model.addAttribute("hasMoreTags", tags.size() > TAG_BATCH_SIZE);
         model.addAttribute("selectedCategory", category);
         model.addAttribute("selectedSeries", series);
         model.addAttribute("selectedTag", tag);
@@ -96,6 +131,35 @@ public class BlogController {
 
         return "posts";
     }
+
+    /** @param option 화면에 표시할 태그 @param selected 선택된 태그 목록 @return 클릭 시 해당 태그만 전환하는 링크 데이터 */
+    private TagChip tagChip(PostFilterOption option, List<String> selected) {
+        var next = new ArrayList<>(selected);
+        boolean active = next.remove(option.slug());
+        if (!active) next.add(option.slug());
+        return new TagChip(option.slug(), option.name(), active, next.isEmpty() ? null : String.join(",", next));
+    }
+
+    /** @param slug 태그 슬러그 @param name 표시 이름 @param selected 현재 선택 여부 @param nextTags 클릭 후 남는 태그 슬러그 문자열 */
+    public record TagChip(String slug, String name, boolean selected, String nextTags) { }
+
+    /**
+     * 추가 공개 태그를 스무 개씩 응답한다.
+     * @param offset 이미 표시한 태그 수
+     * @return 다음 태그 구간과 뒤에 남은 태그 여부
+     */
+    @GetMapping("/posts/tags/more")
+    @ResponseBody
+    public TagPage moreTags(@RequestParam(defaultValue = "20") int offset) {
+        if (offset < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+        var tags = postService.findTags(offset, TAG_BATCH_SIZE + 1);
+        return new TagPage(tags.stream().limit(TAG_BATCH_SIZE).toList(), tags.size() > TAG_BATCH_SIZE);
+    }
+
+    /** @param tags 요청 구간의 공개 태그 @param hasMore 추가 구간 존재 여부 */
+    public record TagPage(List<PostFilterOption> tags, boolean hasMore) { }
 
     /**
      * 검색어가 있을 때만 공개 글 검색 결과를 표시한다.

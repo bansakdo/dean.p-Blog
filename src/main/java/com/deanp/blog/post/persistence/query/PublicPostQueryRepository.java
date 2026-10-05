@@ -35,6 +35,32 @@ public interface PublicPostQueryRepository {
      */
     List<PublicPostRow> findPublishedRows(String categorySlug, String seriesSlug, String tagSlug, String search);
 
+    /**
+     * 여러 태그 중 하나와 일치하는 공개 글을 다른 필터와 함께 조회한다.
+     * @param categorySlug 선택 카테고리
+     * @param seriesSlug 선택 시리즈
+     * @param tagSlugs OR 조건으로 선택한 태그 슬러그 목록
+     * @param search 검색어
+     * @return 조건에 맞는 공개 글의 전체 태그 행
+     */
+    List<PublicPostRow> findPublishedRowsWithAnyTags(String categorySlug, String seriesSlug, List<String> tagSlugs, String search);
+
+    /** @param rows 현재 페이지 글의 전체 태그 행 @param total 필터에 일치하는 전체 공개 글 수 */
+    record PublishedPage(List<PublicPostRow> rows, long total) { }
+
+    /**
+     * 글 식별자를 페이지 단위로 조회한 뒤 해당 글의 전체 태그 행을 반환한다.
+     * @param categorySlug 선택 카테고리
+     * @param seriesSlug 선택 시리즈
+     * @param tagSlugs OR 조건 태그 목록
+     * @param search 검색어
+     * @param offset 건너뛸 글 수
+     * @param limit 페이지당 글 수
+     * @return 태그를 보존한 페이지 행과 필터 결과 총 글 수
+     */
+    PublishedPage findPublishedPage(String categorySlug, String seriesSlug, List<String> tagSlugs,
+                                    String search, long offset, int limit);
+
     /** @return 미분류 글까지 포함한 전체 공개 글 수 */
     long countPublishedPosts();
 
@@ -43,6 +69,14 @@ public interface PublicPostQueryRepository {
 
     /** @return 공개 글에 사용된 태그 선택지 */
     List<PostFilterOption> findPublishedTags();
+
+    /**
+     * 공개 글 태그를 이름순으로 나누어 조회한다.
+     * @param offset 건너뛸 태그 수
+     * @param limit 조회할 최대 태그 수
+     * @return 요청 구간의 태그 선택지
+     */
+    List<PostFilterOption> findPublishedTags(long offset, int limit);
 
     /**
      * 공개 글이 있는 시리즈 선택지를 조회한다.

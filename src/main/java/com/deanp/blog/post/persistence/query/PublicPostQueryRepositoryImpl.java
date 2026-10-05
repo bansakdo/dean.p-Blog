@@ -18,6 +18,7 @@ import jakarta.persistence.EntityManager;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Querydsl로 공개 게시글과 태그 표시 행을 조회한다.
@@ -69,6 +70,12 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
      */
     @Override
     public List<PublicPostRow> findPublishedRows(String categorySlug, String seriesSlug, String tagSlug, String search) {
+        return findPublishedRowsWithAnyTags(categorySlug, seriesSlug, tagSlug == null || tagSlug.isBlank() ? List.of() : List.of(tagSlug), search);
+    }
+
+    /** @param categorySlug 선택 카테고리 @param seriesSlug 선택 시리즈 @param tagSlugs OR 태그 목록 @param search 검색어 @return 공개 글과 전체 태그 행 */
+    @Override
+    public List<PublicPostRow> findPublishedRowsWithAnyTags(String categorySlug, String seriesSlug, List<String> tagSlugs, String search) {
         // Querydsl Q 타입을 준비해 게시글, 카테고리, 태그 조인 대상을 명확히 한다.
         QPostDetail postDetail = QPostDetail.postDetail;
         QPostCategory category = QPostCategory.postCategory;
@@ -76,32 +83,9 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
         QPostTag postTag = QPostTag.postTag;
         QTag tag = QTag.tag;
 
-        // 공개 글 기본 쿼리에 카테고리 슬러그 조건이 있을 때만 추가한다.
-        JPAQuery<Tuple> query = fetchPublishedRows(postDetail, category, series, postTag, tag);
-        BooleanExpression categoryFilter = categorySlugMatches(category, categorySlug);
-        if (categoryFilter != null) {
-            query.where(categoryFilter);
-        }
-
-        // 시리즈 조건은 알 수 없는 slug여도 생략하지 않고 빈 결과로 이어지게 한다.
-        if (seriesSlug != null && !seriesSlug.isBlank()) {
-            query.where(series.slug.eq(seriesSlug));
-        }
-
-        // 별도 EXISTS 조건으로 필터링해 화면에 표시할 태그 조인 행은 줄이지 않는다.
-        if (tagSlug != null && !tagSlug.isBlank()) {
-            QPostTag matchingPostTag = new QPostTag("matchingPostTag");
-            QTag matchingTag = new QTag("matchingTag");
-            query.where(JPAExpressions.selectOne().from(matchingPostTag)
-                    .join(matchingTag).on(matchingTag.id.eq(matchingPostTag.id.tagId))
-                    .where(matchingPostTag.id.postDetailId.eq(postDetail.id), matchingTag.slug.eq(tagSlug))
-                    .exists());
-        }
-
-        BooleanExpression searchFilter = searchMatches(postDetail, search);
-        if (searchFilter != null) {
-            query.where(searchFilter);
-        }
+        // 공개 글 기본 쿼리에 카테고리·시리즈·태그·검색 조건을 적용한다.
+        JPAQuery<Tuple> query = applyFilters(fetchPublishedRows(postDetail, category, series, postTag, tag),
+                postDetail, category, series, categorySlug, seriesSlug, tagSlugs, search);
 
         // 정렬된 쿼리 결과를 공개 화면용 행 객체로 변환한다.
         if (seriesSlug != null && !seriesSlug.isBlank()) {
@@ -115,6 +99,73 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
                 .stream()
                 .map(row -> toPublicPostRow(row, postDetail, tag))
                 .toList();
+    }
+
+    /** @param categorySlug 선택 카테고리 @param seriesSlug 선택 시리즈 @param tagSlugs OR 태그 목록 @param search 검색어 @param offset 건너뛸 글 수 @param limit 페이지 크기 @return 글 단위 페이지와 전체 건수 */
+    @Override
+    public PublishedPage findPublishedPage(String categorySlug, String seriesSlug, List<String> tagSlugs,
+                                           String search, long offset, int limit) {
+        QPostDetail post = QPostDetail.postDetail;
+        QPostCategory category = QPostCategory.postCategory;
+        QPostSeries series = QPostSeries.postSeries;
+
+        // 태그 조인 중복 없이 동일 조건으로 전체 건수와 현재 페이지 글 식별자를 조회한다.
+        long total = applyFilters(queryFactory.select(post.id.count()).from(post)
+                        .leftJoin(category).on(category.id.eq(post.categoryId))
+                        .leftJoin(series).on(series.id.eq(post.seriesId), series.status.in("ACTIVE", "COMPLETED"))
+                        .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now())),
+                post, category, series, categorySlug, seriesSlug, tagSlugs, search).fetchOne();
+        if (offset >= total) return new PublishedPage(List.of(), total);
+        JPAQuery<UUID> idsQuery = applyFilters(queryFactory.select(post.id).from(post)
+                        .leftJoin(category).on(category.id.eq(post.categoryId))
+                        .leftJoin(series).on(series.id.eq(post.seriesId), series.status.in("ACTIVE", "COMPLETED"))
+                        .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now())),
+                post, category, series, categorySlug, seriesSlug, tagSlugs, search);
+        if (seriesSlug != null && !seriesSlug.isBlank()) {
+            idsQuery.orderBy(post.seriesOrder.asc(), post.publishedAt.desc(), post.id.asc());
+        } else {
+            idsQuery.orderBy(post.publishedAt.desc(), post.id.asc());
+        }
+        List<UUID> ids = idsQuery.offset(offset).limit(limit).fetch();
+        if (ids.isEmpty()) return new PublishedPage(List.of(), total);
+
+        // 선택한 글만 다시 태그와 조인해 표시용 전체 태그를 보존한다.
+        QPostTag postTag = QPostTag.postTag;
+        QTag tag = QTag.tag;
+        JPAQuery<Tuple> rows = fetchPublishedRows(post, category, series, postTag, tag).where(post.id.in(ids));
+        if (seriesSlug != null && !seriesSlug.isBlank()) {
+            rows.orderBy(post.seriesOrder.asc(), post.publishedAt.desc(), post.id.asc(), tag.name.asc());
+        } else {
+            rows.orderBy(post.publishedAt.desc(), post.id.asc(), tag.name.asc());
+        }
+        return new PublishedPage(rows.fetch().stream().map(row -> toPublicPostRow(row, post, tag)).toList(), total);
+    }
+
+    /**
+     * 페이지 건수·식별자·기존 글 조회에 같은 필터 조건을 적용한다.
+     * @param query 조건을 더할 조회
+     * @param post 글 Q 타입
+     * @param category 카테고리 Q 타입
+     * @param series 시리즈 Q 타입
+     * @param categorySlug 선택 카테고리
+     * @param seriesSlug 선택 시리즈
+     * @param tagSlugs OR 태그 목록
+     * @param search 검색어
+     * @return 필터가 적용된 조회
+     */
+    private <T> JPAQuery<T> applyFilters(JPAQuery<T> query, QPostDetail post, QPostCategory category,
+                                          QPostSeries series, String categorySlug, String seriesSlug,
+                                          List<String> tagSlugs, String search) {
+        BooleanExpression seriesFilter = seriesSlug == null || seriesSlug.isBlank() ? null : series.slug.eq(seriesSlug);
+        BooleanExpression tagFilter = null;
+        if (tagSlugs != null && !tagSlugs.isEmpty()) {
+            QPostTag matchingPostTag = new QPostTag("matchingPostTag");
+            QTag matchingTag = new QTag("matchingTag");
+            tagFilter = JPAExpressions.selectOne().from(matchingPostTag)
+                    .join(matchingTag).on(matchingTag.id.eq(matchingPostTag.id.tagId))
+                    .where(matchingPostTag.id.postDetailId.eq(post.id), matchingTag.slug.in(tagSlugs)).exists();
+        }
+        return query.where(categorySlugMatches(category, categorySlug), seriesFilter, tagFilter, searchMatches(post, search));
     }
 
     /** @return 미분류 글까지 포함하며 태그 조인에 중복되지 않는 공개 글 수 */
@@ -140,6 +191,17 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
     /** @return 공개 글에서 사용하는 태그만 이름순으로 반환한다. */
     @Override
     public List<PostFilterOption> findPublishedTags() {
+        return publishedTagsQuery().fetch();
+    }
+
+    /** @param offset 건너뛸 태그 수 @param limit 조회할 최대 태그 수 @return 공개 글 태그 구간 */
+    @Override
+    public List<PostFilterOption> findPublishedTags(long offset, int limit) {
+        return publishedTagsQuery().offset(offset).limit(limit).fetch();
+    }
+
+    /** @return 공개 글에서 사용하는 태그만 이름·슬러그 순으로 정렬한 조회 */
+    private JPAQuery<PostFilterOption> publishedTagsQuery() {
         QPostDetail post = QPostDetail.postDetail;
         QPostTag postTag = QPostTag.postTag;
         QTag tag = QTag.tag;
@@ -147,7 +209,7 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
                 .distinct().from(post).join(postTag).on(postTag.id.postDetailId.eq(post.id))
                 .join(tag).on(tag.id.eq(postTag.id.tagId))
                 .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()))
-                .orderBy(tag.name.asc(), tag.slug.asc()).fetch();
+                .orderBy(tag.name.asc(), tag.slug.asc());
     }
 
     /** 공개 글이 있는 시리즈만 선택지로 반환한다. */

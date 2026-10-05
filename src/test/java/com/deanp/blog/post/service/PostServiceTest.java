@@ -2,6 +2,7 @@ package com.deanp.blog.post.service;
 
 import com.deanp.blog.post.PostView;
 import com.deanp.blog.post.persistence.query.PublicPostRow;
+import com.deanp.blog.post.persistence.query.PublicPostQueryRepository.PublishedPage;
 import com.deanp.blog.post.persistence.repository.PostDetailRepository;
 import org.junit.jupiter.api.Test;
 
@@ -79,6 +80,23 @@ class PostServiceTest {
 
         assertThat(posts).extracting(PostView::slug).containsExactly("spring-post");
         verify(repository).findPublishedRows("spring", "boot", "java", "query");
+    }
+
+    /** 페이지의 글 수와 전체 건수를 분리하고 한 글의 전체 태그를 병합한다. */
+    @Test
+    void mapsPublishedPostPageWithoutCountingTagsAsPosts() {
+        UUID id = UUID.randomUUID();
+        when(repository.findPublishedPage("dev", null, List.of("java", "spring"), "query", 20, 20))
+                .thenReturn(new PublishedPage(List.of(
+                        row(id, "page-post", "Page Post", "요약", "본문", Instant.parse("2026-08-31T00:00:00Z"), "Java"),
+                        row(id, "page-post", "Page Post", "요약", "본문", Instant.parse("2026-08-31T00:00:00Z"), "Spring")), 21));
+
+        var page = service.findPage("dev", null, List.of("java", "spring"), "query", 2, 20);
+        assertThat(page.getTotalElements()).isEqualTo(21);
+        assertThat(page.getTotalPages()).isEqualTo(2);
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getContent().getFirst().tags()).containsExactly("Java", "Spring");
+        verify(repository).findPublishedPage("dev", null, List.of("java", "spring"), "query", 20, 20);
     }
 
     /** 태그 병합 후에도 실제 시리즈명과 저장된 연재 번호가 화면에 전달된다. */
