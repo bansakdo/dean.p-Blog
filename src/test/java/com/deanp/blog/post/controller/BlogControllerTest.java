@@ -357,6 +357,7 @@ class BlogControllerTest {
         mockMvc.perform(get("/posts/real-post"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("post"))
+                .andExpect(content().string(not(containsString("class=\"article-summary\""))))
                 .andExpect(content().string(containsString("<strong>Markdown</strong> 본문")));
 
         mockMvc.perform(get("/about"))
@@ -681,7 +682,8 @@ class BlogControllerTest {
                         )))
                 .andExpect(status().isOk())
                 .andExpect(view().name("post"))
-                .andExpect(content().string(containsString("PostgreSQL에서 읽은 글입니다.")));
+                .andExpect(content().string(not(containsString("class=\"article-summary\""))))
+                .andExpect(content().string(containsString("<strong>Markdown</strong> 본문")));
     }
 
     /**
