@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Pretendard Article";
+  src: url("/fonts/pretendard/PretendardVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --site-header-height: 74px;
   color-scheme: light;
@@ -129,12 +137,11 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .post-list article .post-meta { flex-direction: column; gap: 2px; }
 .post-list h2 { margin: 0; font-size: clamp(1.55rem, 3vw, 2.5rem); letter-spacing: -.04em; }
 .article { width: min(100% - 40px, 1120px); margin-inline: auto; padding: 90px 0 140px; }
-.article-header { width: min(100%, 850px); margin: 0 auto 65px; text-align: center; }
-.article-header .tag-list, .article-header .post-meta { justify-content: center; }
+.article-header { width: min(100%, 850px); margin: 0 auto 65px; text-align: left; }
+.article-header .tag-list, .article-header .post-meta { justify-content: flex-start; }
 .back-link { display: inline-block; margin-bottom: 50px; color: var(--muted); font-size: .9rem; }
-.article-header h1 { margin: 22px 0; font-size: clamp(2.6rem, 6vw, 5.4rem); line-height: 1.05; letter-spacing: -.06em; word-break: keep-all; }
-.article-summary { max-width: 700px; margin: 0 auto 26px; color: var(--muted); font-size: 1.18rem; }
-.article-body { width: min(100%, 740px); margin-inline: auto; font-family: Georgia, "Noto Serif KR", serif; font-size: clamp(1.08rem, 1.7vw, 1.2rem); line-height: 1.9; }
+.article-header h1 { margin: 22px 0; font-size: 40px; line-height: 1.3; letter-spacing: -.06em; word-break: keep-all; }
+.article-body { width: min(100%, 740px); margin-inline: auto; font-family: Georgia, "Noto Serif KR", serif; font-size: clamp(1rem, 1.5vw, 1.0625rem); line-height: 1.9; overflow-wrap: break-word; }
 .article-body p { margin: 0 0 1.75em; }
 .article-body img { display: block; max-width: 100%; height: auto; }
 .about-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 90px; align-items: start; }
@@ -183,6 +190,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
   .about-layout { grid-template-columns: 1fr; gap: 45px; }
   .article { padding-top: 60px; }
   .article-header { text-align: left; }
+  .article-header h1 { font-size: 32px; }
   .article-header .tag-list, .article-header .post-meta { justify-content: flex-start; }
   .site-footer { display: block; }
 }
@@ -191,14 +199,34 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
 }
 .empty-state { color: var(--muted); margin: 0; padding: 28px 0; }
-.article-body h2, .article-body h3 { font-family: Inter, Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.25; letter-spacing: -.03em; }
+/* Tailwind 기본 초기화가 제목의 크기·굵기를 본문과 같게 만들므로 본문 제목 단계를 모두 직접 지정한다. */
+.article-body h1, .article-body h2, .article-body h3, .article-body h4, .article-body h5, .article-body h6 { font-family: Inter, Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight: 700; line-height: 1.25; letter-spacing: -.03em; }
+.article-body h1 { margin: 2.4em 0 .8em; font-size: 2rem; }
 .article-body h2 { margin: 2.2em 0 .8em; font-size: 1.7rem; }
-.article-body h3 { margin: 1.8em 0 .7em; font-size: 1.35rem; }
+.article-body h3 { margin: 1.8em 0 .7em; font-size: 1.4rem; }
+.article-body h4, .article-body h5, .article-body h6 { margin: 1.6em 0 .6em; font-size: 1.2rem; }
 .article-body ul, .article-body ol { padding-left: 1.4em; margin: 0 0 1.75em; }
-.article-body blockquote { margin: 0 0 1.75em; padding-left: 1.2em; border-left: 3px solid var(--line); color: var(--muted); }
+/* Tailwind 기본 초기화가 목록 기호를 지우므로 본문 목록의 기호와 번호를 다시 지정한다. */
+.article-body ul { list-style: disc; }
+.article-body ol { list-style: decimal; }
+.article-body ul ul { list-style: circle; }
+.article-body ul ul ul { list-style: square; }
+.article-body li > ul, .article-body li > ol { margin-bottom: 0; }
+.article-body blockquote { margin: 0 0 1.75em; padding: .9em 1.2em; border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; background: var(--surface); }
+.article-body blockquote > :first-child { margin-top: 0; }
+.article-body blockquote > :last-child { margin-bottom: 0; }
+/* 표는 본문 폭을 넘으면 표 안에서만 가로로 스크롤한다. */
+.article-body table { display: block; width: max-content; max-width: 100%; overflow-x: auto; margin: 0 0 1.75em; border-collapse: collapse; font-size: .95em; line-height: 1.6; }
+.article-body th, .article-body td { padding: 8px 14px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+.article-body th { background: var(--surface); font-weight: 700; }
 .article-body code { font-family: "SFMono-Regular", Consolas, monospace; font-size: .9em; }
 .article-body pre { overflow-x: auto; padding: 1rem; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
 .article-body a { color: var(--accent); border-bottom: 1px solid currentColor; }
+.post-detail-page .article-header, .post-detail-page .article-body,
+.post-detail-page .article-body h1, .post-detail-page .article-body h2, .post-detail-page .article-body h3,
+.post-detail-page .article-body h4, .post-detail-page .article-body h5, .post-detail-page .article-body h6 {
+  font-family: "Pretendard Article", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
 
 /* Public archive: screenshot-aligned styles, isolated from home and article pages. */
 .posts-page .shell, .posts-page .site-footer { width: min(1160px, calc(100% - 40px)); }
@@ -212,27 +240,27 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .posts-page .browse-sidebar { position: static; align-self: stretch; border-right: 1px solid var(--line); padding-right: 26px; }
 .posts-page .browse-panel { padding: 0; border: 0; border-radius: 0; background: transparent; }
 .posts-page .browse-panel > summary { display: none; }
-.posts-page .filter-block { padding: 0 0 28px; }
-.posts-page .filter-block h2 { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); margin: 0 0 14px; font-weight: 600; }
-.posts-page .filter-links { gap: 4px; }
-.posts-page .filter-links a { font-size: 13px; border: 1px solid transparent; border-radius: 8px; color: var(--text); padding: 9px 11px; overflow-wrap: anywhere; }
-.posts-page .filter-links a:hover { color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
-.posts-page .category-links a { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.posts-page .filter-count { color: var(--muted); white-space: nowrap; font-size: 12px; }
-.posts-page .filter-links a.is-active { color: var(--accent); background: var(--accent-soft); font-weight: 700; }
-.posts-page .filter-links a.is-active .filter-count { color: inherit; }
-.posts-page .series-links a { display: block; }
-.posts-page .series-links a.is-active { border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
-.posts-page .series-name { display: block; line-height: 1.5; }
-.posts-page .series-meta { display: block; margin-top: 3px; font-size: 11px; color: var(--muted); font-weight: 400; }
-.posts-page .filter-help { color: var(--muted); font-size: 12px; margin: 12px 0 0; overflow-wrap: anywhere; }
-.posts-page .series-links + .filter-help { border-top: 1px solid var(--line); padding-top: 12px; }
-.posts-page .browse-hint { margin: 0; }
-.posts-page .tag-chip-links { gap: 7px; }
-.posts-page .tag-chip-links a { border-radius: 7px; background: var(--surface); color: var(--text); padding: 5px 11px; font-size: 12px; overflow-wrap: anywhere; max-width: 100%; }
-.posts-page .tag-chip-links a.is-active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
-.posts-page .tag-more { margin-top: 12px; padding: 6px 10px; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent); color: var(--bg); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
-.posts-page .tag-more[hidden] { display: none; }
+.sidebar-filters .filter-block { padding: 0 0 28px; }
+.sidebar-filters .filter-block h2 { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); margin: 0 0 14px; font-weight: 600; }
+.sidebar-filters .filter-links { gap: 4px; }
+.sidebar-filters .filter-links a { font-size: 13px; border: 1px solid transparent; border-radius: 8px; color: var(--text); padding: 9px 11px; overflow-wrap: anywhere; }
+.sidebar-filters .filter-links a:hover { color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
+.sidebar-filters .category-links a { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sidebar-filters .filter-count { color: var(--muted); white-space: nowrap; font-size: 12px; }
+.sidebar-filters .filter-links a.is-active { color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+.sidebar-filters .filter-links a.is-active .filter-count { color: inherit; }
+.sidebar-filters .series-links a { display: block; }
+.sidebar-filters .series-links a.is-active { border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.sidebar-filters .series-name { display: block; line-height: 1.5; }
+.sidebar-filters .series-meta { display: block; margin-top: 3px; font-size: 11px; color: var(--muted); font-weight: 400; }
+.sidebar-filters .filter-help { color: var(--muted); font-size: 12px; margin: 12px 0 0; overflow-wrap: anywhere; }
+.sidebar-filters .series-links + .filter-help { border-top: 1px solid var(--line); padding-top: 12px; }
+.sidebar-filters .browse-hint { margin: 0; }
+.sidebar-filters .tag-chip-links { gap: 7px; }
+.sidebar-filters .tag-chip-links a { border-radius: 7px; background: var(--surface); color: var(--text); padding: 5px 11px; font-size: 12px; overflow-wrap: anywhere; max-width: 100%; }
+.sidebar-filters .tag-chip-links a.is-active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.sidebar-filters .tag-more { margin-top: 12px; padding: 6px 10px; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent); color: var(--bg); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.sidebar-filters .tag-more[hidden] { display: none; }
 .posts-page .browse-results { min-width: 0; }
 .posts-page .browse-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .posts-page .active-filters { margin: 0; align-items: center; min-width: 0; }
@@ -251,14 +279,17 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .posts-page .results-count strong { color: var(--text); margin-right: 3px; }
 .posts-page .post-list-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 8px; }
 .posts-page .post-page-size { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.posts-page .post-page-size select, .posts-page .post-page-size button { min-height: 44px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; }
-.posts-page .post-page-size button { background: var(--accent-soft); cursor: pointer; }
+.posts-page .post-page-size select { min-height: 44px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; }
 .posts-page .post-pagination { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 26px 0 10px; }
 .posts-page .post-pagination a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 7px; font-size: 13px; }
 .posts-page .post-pagination a.is-active { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
 .posts-page .post-list { border-top: 0; }
 .posts-page .post-list article { display: block; padding: 24px 0 26px; overflow-wrap: anywhere; }
 .posts-page .post-list article .post-meta { flex-direction: row; flex-wrap: wrap; gap: 5px; letter-spacing: 0; font-size: 11px; margin-bottom: 10px; }
+/* 목록 썸네일: 고정 크기로, 비율이 다르면 채워서 가운데를 보여 준다. PC는 태그 없는 짧은 항목(본문 107px)만 썸네일 높이까지 늘어난다. */
+.posts-page .post-list article.has-thumbnail { display: flex; align-items: center; gap: 24px; }
+.posts-page .post-list-body { flex: 1; min-width: 0; }
+.posts-page .post-list-thumbnail { flex: none; width: 213px; height: 120px; border-radius: 8px; object-fit: cover; object-position: center; background: var(--surface); }
 .posts-page .post-category { color: var(--accent); margin-right: 7px; }
 .posts-page .post-list h2 { font-weight: 750; font-size: 23px; line-height: 1.45; letter-spacing: -.045em; }
 .posts-page .series-number { color: color-mix(in srgb, var(--accent) 55%, var(--muted)); }
@@ -284,6 +315,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
   .posts-page .browse-toolbar { align-items: start; gap: 10px; }
   .posts-page .series-intro { padding: 20px; }
   .posts-page .series-intro h2, .posts-page .post-list h2 { font-size: 21px; }
+  .posts-page .post-list article.has-thumbnail { gap: 14px; }
+  .posts-page .post-list-thumbnail { width: 104px; height: 65px; }
 }
 
 /* 공통 사이드 메뉴: 헤더 위치는 유지하고 테마 버튼은 스크롤 영역 밖 하단에 둔다. */
@@ -306,9 +339,14 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
   .site-header { position: sticky; top: 0; z-index: 101; background: var(--bg); }
   .site-sidebar { top: var(--site-header-height); height: calc(100dvh - var(--site-header-height)); }
   body.sidebar-open > main { margin-left: 280px; }
-  body.sidebar-open > main.shell, body.sidebar-open > main.article { width: min(1120px, calc(100% - 320px)); margin-left: 300px; margin-right: 20px; }
-  body.sidebar-open.posts-page > main.shell { width: min(1160px, calc(100% - 320px)); }
-  body.sidebar-open > .site-footer { width: min(1240px, calc(100% - 320px)); margin-left: 300px; margin-right: 20px; }
+  /* 메뉴가 열리면 본문과 푸터를 메뉴를 제외한 영역의 가운데에 둔다. 좁을 때는 양쪽 20px 여백만 남긴다. */
+  body.sidebar-open > main.shell, body.sidebar-open > main.article, body.sidebar-open > .site-footer {
+    --content-max: 1120px;
+    width: min(var(--content-max), calc(100% - 320px));
+    margin-left: calc(280px + max(20px, (100% - 280px - var(--content-max)) / 2));
+  }
+  body.sidebar-open > .site-footer { --content-max: 1240px; }
+  body.sidebar-open.posts-page > main.shell, body.sidebar-open.posts-page > .site-footer { --content-max: 1160px; }
 }
 @media (max-width: 720px) {
   html { overflow-x: clip; }

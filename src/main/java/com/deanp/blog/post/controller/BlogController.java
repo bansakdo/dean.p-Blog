@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -25,6 +26,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 /**
@@ -37,6 +39,7 @@ public class BlogController {
     private static final Logger log = LoggerFactory.getLogger(BlogController.class);
     private static final int TAG_BATCH_SIZE = 20;
     private static final List<Integer> PAGE_SIZES = List.of(10, 20, 50);
+    private static final int DEFAULT_PAGE_SIZE = 20;
 
     private final PostService postService;
     private final VisitorCookieIdentifier visitorCookieIdentifier;
@@ -86,50 +89,89 @@ public class BlogController {
         if (page < 1 || !PAGE_SIZES.contains(size)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
-        // 선택된 카테고리 조건과 조회 결과를 목록 템플릿 모델에 담는다.
+        // 선택된 필터 조건을 정규화하고 해당 페이지의 글을 조회한다.
         category = normalize(category);
         series = normalize(series);
-        var selectedTags = tag == null ? List.<String>of() : Arrays.stream(tag.split(","))
-                .map(String::strip).filter(value -> !value.isEmpty()).distinct().toList();
-        tag = selectedTags.isEmpty() ? null : String.join(",", selectedTags);
+        var selectedTags = selectedTags(tag);
         search = normalize(search);
         var postPage = postService.findPage(category, series, selectedTags, search, page, size);
         int totalPages = Math.max(1, postPage.getTotalPages());
         if (page > totalPages) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
+
+        // 조회 결과와 사이드바 필터 상태를 목록 템플릿 모델에 담는다.
         model.addAttribute("posts", postPage.getContent());
         model.addAttribute("matchingPostCount", postPage.getTotalElements());
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("pageNumbers", IntStream.rangeClosed(1, totalPages).boxed().toList());
-        model.addAttribute("pageSize", size);
+        addFilterModel(model, category, series, selectedTags, search, size);
+        model.addAttribute("selectedSeriesInfo", postService.findSeries(category, series).orElse(null));
+        model.addAttribute("hasFilters", category != null || series != null || !selectedTags.isEmpty() || search != null);
+
+        // 글 상세 링크에는 선택된 필터만 붙여 상세 화면의 사이드바가 같은 선택을 이어받게 한다.
+        model.addAttribute("postLinkQuery", UriComponentsBuilder.newInstance()
+                .queryParamIfPresent("category", Optional.ofNullable(category))
+                .queryParamIfPresent("series", Optional.ofNullable(series))
+                .queryParamIfPresent("tag", Optional.ofNullable(selectedTags.isEmpty() ? null : String.join(",", selectedTags)))
+                .queryParamIfPresent("q", Optional.ofNullable(search))
+                .build().encode().toUriString());
+        model.addAttribute("pageTitle", "글 — dean.p");
+
+        return "posts";
+    }
+
+    /**
+     * 쉼표로 구분한 태그 파라미터를 중복 없는 슬러그 목록으로 바꾼다.
+     *
+     * @param tag 쉼표로 구분한 태그 슬러그 문자열 또는 null
+     * @return 선택된 태그 슬러그 목록
+     */
+    private List<String> selectedTags(String tag) {
+        return tag == null ? List.of() : Arrays.stream(tag.split(","))
+                .map(String::strip).filter(value -> !value.isEmpty()).distinct().toList();
+    }
+
+    /**
+     * 글 목록과 글 상세가 함께 쓰는 사이드바 분류 필터의 선택지와 선택 상태를 모델에 담는다.
+     *
+     * @param model Thymeleaf 렌더링에 사용할 모델
+     * @param category 선택된 카테고리 슬러그 또는 null
+     * @param series 선택된 시리즈 슬러그 또는 null
+     * @param selectedTags 선택된 태그 슬러그 목록
+     * @param search 검색어 또는 null
+     * @param size 필터 링크가 유지할 페이지당 글 수
+     */
+    private void addFilterModel(Model model, String category, String series,
+                                List<String> selectedTags, String search, int size) {
+        // 카테고리와 시리즈 선택지를 현재 선택 상태와 함께 담는다.
         var categories = postService.findCategories();
+        model.addAttribute("categories", categories);
+        model.addAttribute("totalPosts", postService.countPublishedPosts());
+        model.addAttribute("selectedCategoryName", filterName(categories, category));
+        model.addAttribute("seriesOptions", postService.findSeries(category));
+
+        // 첫 태그 구간과, 그 구간 밖에 있는 선택 태그를 칩으로 만든다.
         var tags = postService.findTags(0, TAG_BATCH_SIZE + 1);
         var allTags = selectedTags.isEmpty() ? List.<PostFilterOption>of() : postService.findTags();
         var firstTags = tags.stream().limit(TAG_BATCH_SIZE).toList();
         var selectedChips = selectedTags.stream()
                 .map(slug -> tagChip(new PostFilterOption(slug, filterName(allTags, slug)), selectedTags)).toList();
-        model.addAttribute("categories", categories);
-        model.addAttribute("totalPosts", postService.countPublishedPosts());
-        model.addAttribute("selectedCategoryName", filterName(categories, category));
         model.addAttribute("selectedTagFilters", selectedChips);
         model.addAttribute("pinnedTagChips", selectedChips.stream()
                 .filter(chip -> firstTags.stream().noneMatch(option -> option.slug().equals(chip.slug()))).toList());
-        model.addAttribute("seriesOptions", postService.findSeries(category));
-        model.addAttribute("selectedSeriesInfo", postService.findSeries(category, series).orElse(null));
         model.addAttribute("tags", firstTags);
         model.addAttribute("tagChips", firstTags.stream()
                 .map(option -> tagChip(option, selectedTags)).toList());
         model.addAttribute("hasMoreTags", tags.size() > TAG_BATCH_SIZE);
+
+        // 필터 링크가 현재 조건을 이어 가도록 선택 값을 담는다.
         model.addAttribute("selectedCategory", category);
         model.addAttribute("selectedSeries", series);
-        model.addAttribute("selectedTag", tag);
+        model.addAttribute("selectedTag", selectedTags.isEmpty() ? null : String.join(",", selectedTags));
         model.addAttribute("search", search);
-        model.addAttribute("hasFilters", category != null || series != null || tag != null || search != null);
-        model.addAttribute("pageTitle", "글 — dean.p");
-
-        return "posts";
+        model.addAttribute("pageSize", size);
     }
 
     /** @param option 화면에 표시할 태그 @param selected 선택된 태그 목록 @return 클릭 시 해당 태그만 전환하는 링크 데이터 */
@@ -193,9 +235,13 @@ public class BlogController {
     }
 
     /**
-     * 슬러그로 공개 글 상세 화면을 렌더링한다.
+     * 슬러그로 공개 글 상세 화면을 렌더링하고, 목록에서 넘어온 필터 선택을 사이드바에 유지한다.
      *
      * @param slug 요청 경로에서 전달된 게시글 슬러그
+     * @param category 목록에서 선택했던 카테고리 슬러그, 없으면 전체 글
+     * @param series 목록에서 선택했던 시리즈 슬러그
+     * @param search 목록에서 사용했던 검색어
+     * @param tag 목록에서 선택했던 쉼표 구분 태그 슬러그
      * @param model Thymeleaf 렌더링에 사용할 모델
      * @param request 방문자 쿠키를 읽을 현재 HTTP 요청
      * @param response 방문자 쿠키를 설정할 현재 HTTP 응답
@@ -204,6 +250,10 @@ public class BlogController {
     @GetMapping("/posts/{slug}")
     public String post(
             @PathVariable String slug,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String series,
+            @RequestParam(required = false, name = "q") String search,
+            @RequestParam(required = false) String tag,
             Model model,
             HttpServletRequest request,
             HttpServletResponse response
@@ -227,8 +277,9 @@ public class BlogController {
             }
         }
 
-        // 상세 템플릿이 표시할 글과 브라우저 제목을 모델에 담는다.
+        // 상세 템플릿이 표시할 글, 사이드바 필터 상태, 브라우저 제목을 모델에 담는다.
         model.addAttribute("post", post);
+        addFilterModel(model, normalize(category), normalize(series), selectedTags(tag), normalize(search), DEFAULT_PAGE_SIZE);
         model.addAttribute("pageTitle", post.title() + " — dean.p");
 
         return "post";
