@@ -7,14 +7,15 @@
   <article class="article">
     <header class="article-header">
       <a class="back-link" th:href="@{/posts}">← 모든 글</a>
-      <ul class="tag-list"><li th:each="tag : ${post.tags}" th:text="${tag}">태그</li></ul>
       <h1 th:text="${post.title}">글 제목</h1>
 
       <div class="post-meta"><time th:text="${post.publishedAt}"></time><span th:text="|${post.readingMinutes}분 읽기|">5분 읽기</span></div>
+      <ul class="tag-list"><li th:each="tag : ${post.tags}" th:text="${tag}">태그</li></ul>
     </header>
     <div class="article-body" th:utext="${post.htmlContent}">본문</div>
   </article>
 </main>
 <footer th:replace="~{fragments/site :: footer}"></footer>
+<script defer th:src="@{/js/tag-more.js}"></script>
 </body>
 </html>

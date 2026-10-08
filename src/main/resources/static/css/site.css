@@ -224,27 +224,27 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .posts-page .browse-sidebar { position: static; align-self: stretch; border-right: 1px solid var(--line); padding-right: 26px; }
 .posts-page .browse-panel { padding: 0; border: 0; border-radius: 0; background: transparent; }
 .posts-page .browse-panel > summary { display: none; }
-.posts-page .filter-block { padding: 0 0 28px; }
-.posts-page .filter-block h2 { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); margin: 0 0 14px; font-weight: 600; }
-.posts-page .filter-links { gap: 4px; }
-.posts-page .filter-links a { font-size: 13px; border: 1px solid transparent; border-radius: 8px; color: var(--text); padding: 9px 11px; overflow-wrap: anywhere; }
-.posts-page .filter-links a:hover { color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
-.posts-page .category-links a { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.posts-page .filter-count { color: var(--muted); white-space: nowrap; font-size: 12px; }
-.posts-page .filter-links a.is-active { color: var(--accent); background: var(--accent-soft); font-weight: 700; }
-.posts-page .filter-links a.is-active .filter-count { color: inherit; }
-.posts-page .series-links a { display: block; }
-.posts-page .series-links a.is-active { border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
-.posts-page .series-name { display: block; line-height: 1.5; }
-.posts-page .series-meta { display: block; margin-top: 3px; font-size: 11px; color: var(--muted); font-weight: 400; }
-.posts-page .filter-help { color: var(--muted); font-size: 12px; margin: 12px 0 0; overflow-wrap: anywhere; }
-.posts-page .series-links + .filter-help { border-top: 1px solid var(--line); padding-top: 12px; }
-.posts-page .browse-hint { margin: 0; }
-.posts-page .tag-chip-links { gap: 7px; }
-.posts-page .tag-chip-links a { border-radius: 7px; background: var(--surface); color: var(--text); padding: 5px 11px; font-size: 12px; overflow-wrap: anywhere; max-width: 100%; }
-.posts-page .tag-chip-links a.is-active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
-.posts-page .tag-more { margin-top: 12px; padding: 6px 10px; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent); color: var(--bg); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
-.posts-page .tag-more[hidden] { display: none; }
+.sidebar-filters .filter-block { padding: 0 0 28px; }
+.sidebar-filters .filter-block h2 { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); margin: 0 0 14px; font-weight: 600; }
+.sidebar-filters .filter-links { gap: 4px; }
+.sidebar-filters .filter-links a { font-size: 13px; border: 1px solid transparent; border-radius: 8px; color: var(--text); padding: 9px 11px; overflow-wrap: anywhere; }
+.sidebar-filters .filter-links a:hover { color: var(--accent); background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
+.sidebar-filters .category-links a { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sidebar-filters .filter-count { color: var(--muted); white-space: nowrap; font-size: 12px; }
+.sidebar-filters .filter-links a.is-active { color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+.sidebar-filters .filter-links a.is-active .filter-count { color: inherit; }
+.sidebar-filters .series-links a { display: block; }
+.sidebar-filters .series-links a.is-active { border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.sidebar-filters .series-name { display: block; line-height: 1.5; }
+.sidebar-filters .series-meta { display: block; margin-top: 3px; font-size: 11px; color: var(--muted); font-weight: 400; }
+.sidebar-filters .filter-help { color: var(--muted); font-size: 12px; margin: 12px 0 0; overflow-wrap: anywhere; }
+.sidebar-filters .series-links + .filter-help { border-top: 1px solid var(--line); padding-top: 12px; }
+.sidebar-filters .browse-hint { margin: 0; }
+.sidebar-filters .tag-chip-links { gap: 7px; }
+.sidebar-filters .tag-chip-links a { border-radius: 7px; background: var(--surface); color: var(--text); padding: 5px 11px; font-size: 12px; overflow-wrap: anywhere; max-width: 100%; }
+.sidebar-filters .tag-chip-links a.is-active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.sidebar-filters .tag-more { margin-top: 12px; padding: 6px 10px; border: 1px solid var(--accent); border-radius: 7px; background: var(--accent); color: var(--bg); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.sidebar-filters .tag-more[hidden] { display: none; }
 .posts-page .browse-results { min-width: 0; }
 .posts-page .browse-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .posts-page .active-filters { margin: 0; align-items: center; min-width: 0; }
@@ -263,14 +263,17 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .posts-page .results-count strong { color: var(--text); margin-right: 3px; }
 .posts-page .post-list-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 8px; }
 .posts-page .post-page-size { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.posts-page .post-page-size select, .posts-page .post-page-size button { min-height: 44px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; }
-.posts-page .post-page-size button { background: var(--accent-soft); cursor: pointer; }
+.posts-page .post-page-size select { min-height: 44px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; }
 .posts-page .post-pagination { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 26px 0 10px; }
 .posts-page .post-pagination a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 7px; font-size: 13px; }
 .posts-page .post-pagination a.is-active { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
 .posts-page .post-list { border-top: 0; }
 .posts-page .post-list article { display: block; padding: 24px 0 26px; overflow-wrap: anywhere; }
 .posts-page .post-list article .post-meta { flex-direction: row; flex-wrap: wrap; gap: 5px; letter-spacing: 0; font-size: 11px; margin-bottom: 10px; }
+/* 목록 썸네일: 고정 크기로, 비율이 다르면 채워서 가운데를 보여 준다. PC는 태그 없는 짧은 항목(본문 107px)만 썸네일 높이까지 늘어난다. */
+.posts-page .post-list article.has-thumbnail { display: flex; align-items: center; gap: 24px; }
+.posts-page .post-list-body { flex: 1; min-width: 0; }
+.posts-page .post-list-thumbnail { flex: none; width: 213px; height: 120px; border-radius: 8px; object-fit: cover; object-position: center; background: var(--surface); }
 .posts-page .post-category { color: var(--accent); margin-right: 7px; }
 .posts-page .post-list h2 { font-weight: 750; font-size: 23px; line-height: 1.45; letter-spacing: -.045em; }
 .posts-page .series-number { color: color-mix(in srgb, var(--accent) 55%, var(--muted)); }
@@ -296,6 +299,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
   .posts-page .browse-toolbar { align-items: start; gap: 10px; }
   .posts-page .series-intro { padding: 20px; }
   .posts-page .series-intro h2, .posts-page .post-list h2 { font-size: 21px; }
+  .posts-page .post-list article.has-thumbnail { gap: 14px; }
+  .posts-page .post-list-thumbnail { width: 104px; height: 65px; }
 }
 
 /* 공통 사이드 메뉴: 헤더 위치는 유지하고 테마 버튼은 스크롤 영역 밖 하단에 둔다. */

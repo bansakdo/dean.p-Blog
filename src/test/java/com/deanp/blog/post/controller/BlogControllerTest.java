@@ -110,6 +110,40 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString("/posts/" + post.slug())));
     }
 
+    /** 목록에서 고른 분류가 글 링크로 전달되어 상세 사이드바에 유지되고, 상세의 태그는 날짜 아래에 표시된다. */
+    @Test
+    void postDetailKeepsSidebarFiltersAndShowsTagsBelowDate() throws Exception {
+        when(postService.findCategories()).thenReturn(List.of(
+                new com.deanp.blog.post.PostFilterOption("dev", "개발", 2),
+                new com.deanp.blog.post.PostFilterOption("life", "일상", 1)));
+        when(postService.findSeries("dev")).thenReturn(List.of());
+        when(postService.findPage("dev", null, List.of(), null, 1, 20))
+                .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(0, 20), 1));
+        when(postService.findBySlug("real-post")).thenReturn(Optional.of(postView()));
+
+        mockMvc.perform(get("/posts").param("category", "dev"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/posts/real-post?category=dev\"")));
+        mockMvc.perform(get("/posts"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("postLinkQuery", ""));
+
+        String detail = mockMvc.perform(get("/posts/real-post").param("category", "dev"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("selectedCategory", "dev"))
+                .andExpect(content().string(containsString("class=\"sidebar-filters\"")))
+                .andExpect(content().string(containsString("href=\"/posts?category=life&amp;tag=&amp;q=&amp;size=20\"")))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String activeCategory = detail.substring(detail.indexOf("aria-current=\"true\""));
+        org.junit.jupiter.api.Assertions.assertTrue(
+                activeCategory.indexOf("개발") < activeCategory.indexOf("</a>"), "선택한 카테고리가 활성 상태여야 한다");
+        org.junit.jupiter.api.Assertions.assertTrue(
+                detail.indexOf("class=\"post-meta\"") < detail.indexOf("class=\"tag-list\""), "태그는 날짜 아래에 있어야 한다");
+        Path output = Path.of("build/reports/ui-preview/post-detail.html");
+        Files.createDirectories(output.getParent());
+        Files.writeString(output, detail);
+    }
+
     /** 검색 페이지에는 공통 메뉴만 표시하고 글 분류는 표시하지 않는다. */
     @Test
     void searchSidebarOmitsPostFilters() throws Exception {
@@ -258,7 +292,9 @@ class BlogControllerTest {
         mockMvc.perform(get("/posts").param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("pageSize", 10))
-                .andExpect(content().string(containsString("size=10")));
+                .andExpect(content().string(containsString("size=10")))
+                .andExpect(content().string(containsString("name=\"size\" onchange=\"this.form.submit()\"")))
+                .andExpect(content().string(not(containsString("<button type=\"submit\">적용</button>"))));
         mockMvc.perform(get("/posts").param("page", "0")).andExpect(status().isBadRequest());
         mockMvc.perform(get("/posts").param("size", "30")).andExpect(status().isBadRequest());
         mockMvc.perform(get("/posts").param("page", "4")).andExpect(status().isNotFound());
@@ -300,7 +336,7 @@ class BlogControllerTest {
                 "설계한 데이터를 화면으로 연결합니다. 글 목록과 상세 페이지를 차근차근 만들어 봅니다.");
         var posts = IntStream.range(0, 3).mapToObj(i -> new PostView(new UUID(0, i + 100),
                 "preview-" + i, titles.get(i), summaries.get(i), LocalDate.of(2026, 9, 18).minusDays(i),
-                6, List.of("Java", i == 0 ? "Spring" : "PostgreSQL"), "", "/media/should-not-render.png",
+                6, List.of("Java", i == 0 ? "Spring" : "PostgreSQL"), "", i == 0 ? "/media/list-thumbnail.png" : null,
                 "개발", "spring-blog", selected.name(), i * 2 + 1)).toList();
         when(postService.findPage("dev", "spring-blog", List.of(), null, 1, 20))
                 .thenReturn(new PageImpl<>(posts, PageRequest.of(0, 20), 3));
@@ -314,7 +350,7 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString("aria-current=\"true\"")))
                 .andExpect(content().string(containsString("개발 ×")))
                 .andExpect(content().string(containsString("Spring으로 블로그 만들기 · 3편 →")))
-                .andExpect(content().string(not(containsString("should-not-render.png"))))
+                .andExpect(content().string(containsString("class=\"post-list-thumbnail\" src=\"/media/list-thumbnail.png\"")))
                 .andReturn();
         Path output = Path.of("build/reports/ui-preview/selected.html");
         Files.createDirectories(output.getParent());
