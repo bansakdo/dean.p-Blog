@@ -74,7 +74,7 @@ com.deanp.blog.<feature>
 - Vanilla JavaScript: 라이트/다크 테마 전환
 - PostgreSQL: Flyway가 `blog` 스키마 evolution을 소유하고 Hibernate는 `validate`로 매핑 호환성만 확인
 
-현재 게시글 화면은 샘플 fallback 없이 PostgreSQL `blog.post_detail`의 공개 발행 콘텐츠만 사용합니다. Markdown 원문은 서버에서 HTML로 변환하며, 템플릿에는 Entity가 아니라 `PostView`만 전달합니다. V8에서 추가한 시리즈와 기존 글은 유지하며, V10은 게시판 상위 테이블 `post`와 `post_id` 참조만 제거합니다. 카테고리·시리즈 slug는 전체에서 고유합니다.
+현재 게시글 화면은 샘플 fallback 없이 PostgreSQL `blog.post_detail`의 공개 발행 콘텐츠만 사용합니다. Markdown 원문은 서버에서 flexmark로 HTML로 변환하며(GFM 표·취소선·URL 자동 링크 사용, 문단 안 줄바꿈은 `<br>`로 표시, 본문 HTML은 이스케이프), 템플릿에는 Entity가 아니라 `PostView`만 전달합니다. V8에서 추가한 시리즈와 기존 글은 유지하며, V10은 게시판 상위 테이블 `post`와 `post_id` 참조만 제거합니다. 카테고리·시리즈 slug는 전체에서 고유합니다.
 
 ## Content Direction
 

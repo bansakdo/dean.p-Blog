@@ -41,6 +41,35 @@ class PostServiceTest {
         assertThat(post.htmlContent()).contains("<h1>제목</h1>", "<strong>강조</strong>");
     }
 
+    /** 본문에 글자로 적힌 &nbsp는 공백으로 바꾸되 코드 안의 표기는 그대로 둔다. */
+    @Test
+    void rendersLiteralNbspAsSpaceOutsideCode() {
+        String content = "첫 문단\n\n&nbsp\n\n둘째&nbsp;문단 &NBSP 끝\n\n`&nbsp` 설명\n\n```\na&nbsp;b &nbsp\n```\n";
+        when(repository.findPublishedRowsBySlug("nbsp-post")).thenReturn(List.of(
+                row(UUID.randomUUID(), "nbsp-post", "Nbsp Post", null, content, Instant.parse("2026-08-31T00:00:00Z"), null)
+        ));
+
+        String html = service.findBySlug("nbsp-post").orElseThrow().htmlContent();
+
+        assertThat(html).contains("<p>&nbsp;</p>", "둘째\u00a0문단 &nbsp; 끝");
+        assertThat(html).contains("<code>&amp;nbsp</code> 설명", "a&amp;nbsp;b &amp;nbsp\n</code></pre>");
+    }
+
+    /** 문단 안 줄바꿈, 인용문, 표, 취소선, URL 자동 링크를 GFM 방식으로 변환하고 HTML 이스케이프는 유지한다. */
+    @Test
+    void rendersGfmLineBreaksQuotesTablesStrikethroughAndAutolinks() {
+        String content = "첫 줄\n둘째 줄\n\n> 인용문\n\n| 이름 | 값 |\n|---|---|\n| a | 1 |\n\n~~취소~~ https://example.com/a <b>굵게</b>\n";
+        when(repository.findPublishedRowsBySlug("gfm-post")).thenReturn(List.of(
+                row(UUID.randomUUID(), "gfm-post", "Gfm Post", null, content, Instant.parse("2026-08-31T00:00:00Z"), null)
+        ));
+
+        String html = service.findBySlug("gfm-post").orElseThrow().htmlContent();
+
+        assertThat(html).contains("첫 줄<br />\n둘째 줄", "<blockquote>\n<p>인용문</p>\n</blockquote>");
+        assertThat(html).contains("<table>", "<th>이름</th>", "<td>1</td>", "<del>취소</del>");
+        assertThat(html).contains("<a href=\"https://example.com/a\">https://example.com/a</a>", "&lt;b&gt;굵게&lt;/b&gt;");
+    }
+
     @Test
     void escapesInlineHtmlBeforeTemplateRendersTrustedGeneratedMarkdownHtml() {
         UUID postId = UUID.randomUUID();
