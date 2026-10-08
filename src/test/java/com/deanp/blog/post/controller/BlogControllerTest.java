@@ -67,6 +67,18 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString(".sidebar-backdrop { top: var(--site-header-height); }")));
     }
 
+    /** 글 상세에 사용하는 웹폰트 파일과 글꼴 선언을 제공하는지 확인한다. */
+    @Test
+    void servesArticleFont() throws Exception {
+        mockMvc.perform(get("/fonts/pretendard/PretendardVariable.woff2"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/css/site.css"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("font-family: \"Pretendard Article\"")))
+                .andExpect(content().string(containsString(".post-detail-page .article-header")))
+                .andExpect(content().string(containsString("margin: 0 auto 65px; text-align: left;")));
+    }
+
     @Autowired
     private MockMvc mockMvc;
 
