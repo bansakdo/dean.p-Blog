@@ -65,6 +65,9 @@ tasks.register<Test>("e2eTest") {
 	testClassesDirs = sourceSets.test.get().output.classesDirs
 	classpath = sourceSets.test.get().runtimeClasspath
 	useJUnitPlatform { includeTags("e2e") }
+	// 서버·브라우저·외부 CDN에 따라 결과가 바뀌므로 매번 다시 돌리고, 지난 실패 화면은 지운다.
+	outputs.upToDateWhen { false }
+	doFirst { delete(layout.buildDirectory.dir("reports/e2e")) }
 }
 
 val ciDbPreflight = tasks.register<JavaExec>("ciDbPreflight") {
@@ -123,4 +126,6 @@ tasks.register<Test>("ciDbE2eTest") {
 	classpath = sourceSets.test.get().runtimeClasspath
 	systemProperty("blog.ci.db", "true")
 	useJUnitPlatform { includeTags("e2e") }
+	// 에이전트 이미지에 미리 넣은 브라우저만 쓴다. Playwright 버전이 이미지와 다르면 내려받지 않고 바로 실패한다.
+	environment("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1")
 }
