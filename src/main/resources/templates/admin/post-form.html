@@ -53,8 +53,9 @@
     <textarea id="post-content" class="admin-content" th:field="*{content}" rows="24" required></textarea>
 
     <label for="post-published-at">발행 시각</label>
-    <input id="post-published-at" type="datetime-local" th:field="*{publishedAt}" aria-describedby="post-published-at-help">
-    <p class="admin-help" id="post-published-at-help">한국 시간 기준입니다. 비워 두고 발행하면 지금 공개합니다. 미래 시각을 넣고 발행하면 그 시각에 공개되고(예약), 공개 중인 글은 저장만 해도 발행 시각이 바뀝니다.</p>
+    <input id="post-published-at" type="datetime-local" th:field="*{publishedAt}" aria-describedby="post-published-at-help"
+           th:attr="data-live=${post != null and post.published and !post.scheduled}">
+    <p class="admin-help" id="post-published-at-help">한국 시간 기준입니다. 초안은 발행할 때만 반영되며, 비워 두고 발행하면 지금 공개합니다. 미래 시각을 넣고 발행하면 그 시각에 공개되고(예약), 공개 중인 글은 저장만 해도 발행 시각이 바뀝니다.</p>
 
     <th:block th:if="${post != null}">
       <label for="post-representative-image">대표 이미지</label>

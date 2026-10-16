@@ -132,7 +132,7 @@ class PostEditorServiceTest {
     @Test
     void keepsSeriesCategory() {
         UUID postId = service.create(command("시리즈 글", "series-post", List.of(), PublishAction.KEEP), AUTHOR);
-        UUID seriesId = seriesService.createSeries(new PostSeriesCommand(id(10), "editor-series", "시리즈", null, 0));
+        UUID seriesId = seriesService.createSeries(new PostSeriesCommand(id(10), "editor-series", "시리즈", null, 0, null));
         seriesService.assignPost(seriesId, postId, 1);
         entityManager.flush();
         entityManager.clear();

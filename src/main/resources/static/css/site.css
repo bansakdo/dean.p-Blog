@@ -386,6 +386,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .admin-deleted-conflict { flex-basis: 100%; order: 3; font-weight: 650; }
 .admin-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-bottom: 20px; font-size: 14px; }
 .admin-filter input[type="search"] { flex: 1 1 220px; min-width: 0; }
+.admin-filter select { min-width: 0; max-width: 100%; }
 .admin-filter input[type="search"], .admin-filter select { min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 15px; }
 .admin-filter input:focus-visible, .admin-filter select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .admin-filter a { color: var(--accent); }
@@ -400,14 +401,14 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .admin-form { display: grid; gap: 6px; }
 .admin-fields { display: contents; }
 .admin-form label { margin-top: 14px; font-size: 13px; font-weight: 650; }
-.admin-form input[type="text"], .admin-form input[type="password"], .admin-form select, .admin-form textarea { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 15px; }
+.admin-form input[type="text"], .admin-form input[type="password"], .admin-form input[type="number"], .admin-form input[type="datetime-local"], .admin-form select, .admin-form textarea { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 15px; }
 .admin-form textarea { line-height: 1.6; resize: vertical; }
 .admin-form .admin-content { font-family: "SFMono-Regular", Consolas, monospace; font-size: 14px; }
 .admin-form input:focus-visible, .admin-form select:focus-visible, .admin-form textarea:focus-visible, .admin-images input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .admin-help { margin: 0; color: var(--muted); font-size: 12px; }
 .admin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 24px; font-size: 14px; }
 .admin-actions a { color: var(--accent); }
-.admin-images { margin-top: 40px; padding-top: 28px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.admin-images { margin-top: 40px; padding-top: 28px; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .admin-images h2 { margin: 0; font-size: 18px; font-weight: 750; }
 .admin-images label { font-size: 13px; font-weight: 650; }
 .admin-image-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 13px; }
@@ -418,8 +419,27 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .admin-revision dt { margin-top: 16px; color: var(--muted); font-size: 13px; font-weight: 650; }
 .admin-revision dd { margin: 0; overflow-wrap: anywhere; }
 .admin-revision-content { margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; max-height: 70vh; overflow: auto; font-family: "SFMono-Regular", Consolas, monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.admin-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; font-size: 14px; }
+.admin-nav a { padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+.admin-nav a:hover { color: var(--accent); }
+.admin-nav a[aria-current="page"] { border-color: var(--accent); color: var(--accent); font-weight: 650; }
+.admin-terms { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+.admin-term { padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 8px; }
+.admin-term-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 96px auto; align-items: end; gap: 10px; }
+.admin-term-form label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.admin-term-form input, .admin-order-input { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 15px; }
+.admin-order-input { width: 96px; }
+.admin-term-form input:focus-visible, .admin-order-input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.admin-member-form { grid-template-columns: 96px minmax(0, 1fr) auto auto; align-items: center; }
+.admin-member-form .admin-term-order { align-self: end; }
+.admin-member-title { font-weight: 650; overflow-wrap: anywhere; }
+.admin-member-form .admin-badge { justify-self: start; }
+.admin-term-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 13px; }
+.admin-link-button { padding: 0; border: 0; background: none; color: #c0392b; font: inherit; font-size: 13px; cursor: pointer; }
+.admin-link-button:hover { text-decoration: underline; }
 .login-box { max-width: 380px; margin-inline: auto; }
 .login-box h1 { margin: 0 0 20px; font-size: 28px; font-weight: 750; }
 @media (max-width: 720px) {
   .admin-heading { align-items: start; flex-direction: column; }
+  .admin-term-form, .admin-member-form { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
 }

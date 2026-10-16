@@ -5,17 +5,26 @@ document.querySelectorAll('form[data-confirm]').forEach((form) => {
   });
 });
 
-// 발행 시각이 미래이면 발행 버튼이 예약 발행임을 알 수 있게 이름을 바꾼다.
+// 발행 시각이 미래이면 발행 버튼이 예약 발행임을 알 수 있게 이름을 바꾸고, 공개 중인 글을 저장으로 예약 전환할 때는 한 번 더 묻는다.
 (() => {
   const input = document.querySelector('#post-published-at');
+  if (!input) return;
+  // 서버와 같이 한국 시간으로 해석한다.
+  const isFuture = () => Boolean(input.value) && new Date(`${input.value}:00+09:00`) > new Date();
   const button = document.querySelector('[data-publish-button]');
-  if (!input || !button) return;
-  const update = () => {
-    const at = input.value ? new Date(input.value) : null;
-    button.textContent = at && at > new Date() ? '예약 발행' : '발행';
-  };
-  input.addEventListener('input', update);
-  update();
+  if (button) {
+    const update = () => { button.textContent = isFuture() ? '예약 발행' : '발행'; };
+    input.addEventListener('input', update);
+    update();
+  }
+  if (input.dataset.live === 'true' && input.form) {
+    input.form.addEventListener('submit', (event) => {
+      if (event.submitter?.value === 'save' && isFuture()
+          && !window.confirm('발행 시각이 미래라서 저장하면 그 시각까지 공개 화면에서 내려갑니다. 저장할까요?')) {
+        event.preventDefault();
+      }
+    });
+  }
 })();
 
 (() => {

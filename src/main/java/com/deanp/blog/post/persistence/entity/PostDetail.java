@@ -89,27 +89,31 @@ public class PostDetail {
      */
     public void assignToSeries(PostSeries series, int seriesOrder) {
         this.seriesId = series.getId();
+        this.series = series;
         this.seriesOrder = seriesOrder;
         this.categoryId = series.getCategoryId();
+        this.category = null;
         this.updatedAt = Instant.now();
     }
 
     /**
-     * 시리즈 연결을 해제하고 현재 카테고리는 유지한다.
+     * 시리즈 연결을 해제하고 현재 카테고리는 유지한다. 시리즈를 지울 수 있도록 읽어 둔 연관도 비운다.
      */
     public void removeFromSeries() {
         this.seriesId = null;
+        this.series = null;
         this.seriesOrder = null;
         this.updatedAt = Instant.now();
     }
 
     /**
-     * 연결된 시리즈의 대표 카테고리 변경을 게시글에 반영한다.
+     * 게시글의 카테고리를 바꾼다. 이전 카테고리를 지울 수 있도록 읽어 둔 연관도 비운다.
      *
-     * @param categoryId 새 카테고리 식별자
+     * @param categoryId 새 카테고리 식별자 또는 null
      */
     public void changeCategory(UUID categoryId) {
         this.categoryId = categoryId;
+        this.category = null;
         this.updatedAt = Instant.now();
     }
 

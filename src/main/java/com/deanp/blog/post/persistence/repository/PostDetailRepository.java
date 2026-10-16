@@ -28,6 +28,42 @@ public interface PostDetailRepository extends JpaRepository<PostDetail, UUID>, P
     List<PostDetail> findBySeriesId(UUID seriesId);
 
     /**
+     * @param seriesId 시리즈 식별자
+     * @return 시리즈에 연결된 게시글을 시리즈 순서대로 나열한 목록
+     */
+    List<PostDetail> findBySeriesIdOrderBySeriesOrderAsc(UUID seriesId);
+
+    /**
+     * @param status 뺄 글 상태
+     * @return 시리즈에 속하지 않고 그 상태도 아닌 글을 제목순으로 나열한 목록
+     */
+    List<PostDetail> findBySeriesIdIsNullAndStatusNotOrderByTitleAsc(String status);
+
+    /**
+     * @param categoryId 카테고리 식별자
+     * @return 카테고리를 쓰는 모든 상태의 게시글
+     */
+    List<PostDetail> findByCategoryId(UUID categoryId);
+
+    /**
+     * @param status 뺄 글 상태
+     * @return 그 상태가 아닌 글을 카테고리별로 센 값
+     */
+    @Query("""
+            select new com.deanp.blog.post.persistence.repository.PostDetailRepository$KeyCount(p.categoryId, count(p))
+            from PostDetail p where p.status <> :status and p.categoryId is not null group by p.categoryId""")
+    List<KeyCount> countByCategoryExcludingStatus(String status);
+
+    /**
+     * @param status 뺄 글 상태
+     * @return 그 상태가 아닌 글을 시리즈별로 센 값
+     */
+    @Query("""
+            select new com.deanp.blog.post.persistence.repository.PostDetailRepository$KeyCount(p.seriesId, count(p))
+            from PostDetail p where p.status <> :status and p.seriesId is not null group by p.seriesId""")
+    List<KeyCount> countBySeriesExcludingStatus(String status);
+
+    /**
      * 같은 시리즈에서 특정 순서를 사용하는 다른 게시글이 있는지 확인한다.
      *
      * @param seriesId 시리즈 식별자
@@ -73,4 +109,13 @@ public interface PostDetailRepository extends JpaRepository<PostDetail, UUID>, P
      * @return 조건에 맞는 글 한 페이지
      */
     Page<PostDetail> findByStatusInAndTitleContainingIgnoreCase(Collection<String> statuses, String title, Pageable pageable);
+
+    /**
+     * 분류 식별자별 글 수다.
+     *
+     * @param id 카테고리 또는 시리즈 식별자
+     * @param count 글 수
+     */
+    record KeyCount(UUID id, long count) {
+    }
 }

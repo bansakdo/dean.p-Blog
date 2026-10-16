@@ -52,4 +52,16 @@ public class Tag {
         tag.updatedAt = now;
         return tag;
     }
+
+    /**
+     * 태그의 이름과 주소를 바꾼다.
+     *
+     * @param name 표시 이름
+     * @param slug URL 식별자
+     */
+    public void rename(String name, String slug) {
+        this.name = name;
+        this.slug = slug;
+        this.updatedAt = Instant.now();
+    }
 }
