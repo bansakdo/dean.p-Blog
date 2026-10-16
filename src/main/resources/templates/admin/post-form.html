@@ -15,6 +15,7 @@
   <p class="admin-notice" th:if="${param.restored}" role="status">복구했습니다. 초안 상태이므로 다시 발행해야 공개됩니다.</p>
   <div class="admin-notice admin-deleted" th:if="${post != null and post.deleted}" role="status">
     <p>삭제한 글입니다. 복구하면 초안으로 돌아가며, 그 전에는 고칠 수 없습니다.</p>
+    <p class="admin-deleted-conflict" th:if="${param.slugConflict}" role="alert">이 글의 주소(slug)를 다른 글이 쓰고 있어 복구하지 못했습니다. 그 글의 주소를 바꾼 뒤 다시 복구하세요.</p>
     <form method="post" th:action="@{/admin/posts/{id}/restore(id=${post.id})}">
       <button class="admin-button" type="submit">복구</button>
     </form>

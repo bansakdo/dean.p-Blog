@@ -216,6 +216,42 @@ class PostEditorServiceTest {
         assertThat(text("status", postId)).isEqualTo("DELETED");
     }
 
+    /** 삭제한 글의 주소는 새 글이 다시 쓸 수 있고, 그 뒤에는 겹치는 옛 글을 복구하지 않는다. */
+    @Test
+    void reusesSlugOfDeletedPostAndBlocksConflictingRestore() {
+        UUID oldId = service.create(command("옛 글", "reused-slug", List.of(), PublishAction.PUBLISH), AUTHOR);
+        service.delete(oldId);
+        entityManager.flush();
+
+        UUID newId = service.create(command("새 글", "reused-slug", List.of(), PublishAction.PUBLISH), AUTHOR);
+        entityManager.flush();
+        assertThat(posts.findPublishedRowsBySlug("reused-slug")).extracting(row -> row.title()).containsOnly("새 글");
+        assertThatThrownBy(() -> service.create(command("또 새 글", "reused-slug", List.of(), PublishAction.KEEP), AUTHOR))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> service.restore(oldId)).isInstanceOf(PostEditorService.SlugConflictException.class);
+        entityManager.flush();
+        assertThat(text("status", oldId)).isEqualTo("DELETED");
+
+        // 새 글의 주소를 바꾸면 옛 글을 복구할 수 있다.
+        service.update(newId, command("새 글", "renamed-slug", List.of(), PublishAction.KEEP));
+        service.restore(oldId);
+        entityManager.flush();
+        assertThat(text("status", oldId)).isEqualTo("DRAFT");
+    }
+
+    /** DB 인덱스도 삭제한 글끼리는 같은 주소를 허용하고, 삭제하지 않은 글끼리는 막는다. */
+    @Test
+    void enforcesSlugUniquenessOnlyAmongActivePosts() {
+        String insert = "INSERT INTO blog.post_detail (id, author_id, slug, title, content, status) VALUES (?, ?, 'db-slug', '제목', '본문', ?)";
+        jdbc.update(insert, id(50), id(1), "DELETED");
+        jdbc.update(insert, id(51), id(1), "DELETED");
+        jdbc.update(insert, id(52), id(1), "DRAFT");
+
+        assertThatThrownBy(() -> jdbc.update(insert, id(53), id(1), "PUBLISHED"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
     /** 상태 필터와 제목 검색어를 함께 적용하고, 검색어는 대소문자와 앞뒤 공백, LIKE 특수 문자를 그대로 다룬다. */
     @Test
     void filtersByStatusAndTitle() {

@@ -87,6 +87,7 @@ class BlogSchemaVerificationTest {
             Map.entry("uq_post_category_slug", new IndexExpectation("post_category", List.of("slug"))),
             Map.entry("uq_post_series_slug", new IndexExpectation("post_series", List.of("slug"))),
             Map.entry("ux_post_detail_series_order", new IndexExpectation("post_detail", List.of("series_id", "series_order"))),
+            Map.entry("ux_post_detail_slug_active", new IndexExpectation("post_detail", List.of("slug"))),
             Map.entry("idx_post_tag_tag", new IndexExpectation("post_tag", List.of("tag_id", "post_detail_id"))),
             Map.entry("idx_post_revision_detail_created", new IndexExpectation("post_revision", List.of("post_detail_id", "created_at"))),
             Map.entry("idx_publish_history_commit", new IndexExpectation("publish_history", List.of("commit_hash", "file_path"))),
@@ -140,7 +141,7 @@ class BlogSchemaVerificationTest {
         Map<String, String> appliedMigrations = jdbcTemplate.query("""
                 SELECT version, script
                 FROM blog.flyway_schema_history
-                WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10')
+                WHERE version IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11')
                   AND success
                 """, rs -> {
                     Map<String, String> migrations = new java.util.HashMap<>();
@@ -150,17 +151,18 @@ class BlogSchemaVerificationTest {
                     return migrations;
                 });
 
-        assertEquals(Map.of(
-                "1", "V1__create_blog_schema.sql",
-                "2", "V2__align_attached_files_checksum_char64.sql",
-                "3", "V3__align_network_and_country_column_types.sql",
-                "4", "V4__rename_board_tables_to_post.sql",
-                "5", "V5__add_visitor_daily_summary_unique_post_day.sql",
-                "6", "V6__reconcile_visitor_daily_summary_counts.sql",
-                "7", "V7__add_representative_image.sql",
-                "8", "V8__add_post_series.sql",
-                "9", "V9__align_varchar255_schema_drift.sql",
-                "10", "V10__remove_post_container.sql"
+        assertEquals(Map.ofEntries(
+                Map.entry("1", "V1__create_blog_schema.sql"),
+                Map.entry("2", "V2__align_attached_files_checksum_char64.sql"),
+                Map.entry("3", "V3__align_network_and_country_column_types.sql"),
+                Map.entry("4", "V4__rename_board_tables_to_post.sql"),
+                Map.entry("5", "V5__add_visitor_daily_summary_unique_post_day.sql"),
+                Map.entry("6", "V6__reconcile_visitor_daily_summary_counts.sql"),
+                Map.entry("7", "V7__add_representative_image.sql"),
+                Map.entry("8", "V8__add_post_series.sql"),
+                Map.entry("9", "V9__align_varchar255_schema_drift.sql"),
+                Map.entry("10", "V10__remove_post_container.sql"),
+                Map.entry("11", "V11__allow_post_slug_reuse_after_delete.sql")
         ), appliedMigrations);
     }
 

@@ -192,6 +192,18 @@ class AdminPostControllerTest {
                 .andExpect(status().isConflict());
     }
 
+    /** 복구하려는 글의 주소를 다른 글이 쓰고 있으면 안내를 띄울 수정 화면으로 보낸다. */
+    @Test
+    void redirectsWithNoticeOnRestoreSlugConflict() throws Exception {
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(true)));
+        doThrow(new PostEditorService.SlugConflictException("slug")).when(postEditor).restore(POST_ID);
+
+        mockMvc.perform(post("/admin/posts/{id}/restore", POST_ID).with(writer()).with(csrf()))
+                .andExpect(redirectedUrl("/admin/posts/" + POST_ID + "/edit?slugConflict"));
+        mockMvc.perform(get("/admin/posts/{id}/edit", POST_ID).param("slugConflict", "").with(writer()))
+                .andExpect(content().string(containsString("다른 글이 쓰고 있어 복구하지 못했습니다.")));
+    }
+
     /** 삭제한 글의 수정 화면은 입력을 잠그고 복구만 보여 주며, 삭제·이미지 영역을 숨긴다. */
     @Test
     void rendersDeletedPostReadOnly() throws Exception {

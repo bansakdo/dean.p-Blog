@@ -38,17 +38,21 @@ public interface PostDetailRepository extends JpaRepository<PostDetail, UUID>, P
     boolean existsBySeriesIdAndSeriesOrderAndIdNot(UUID seriesId, Integer seriesOrder, UUID id);
 
     /**
+     * slug 고유 인덱스가 삭제하지 않은 글에만 걸려 있으므로 제외할 상태를 함께 받는다.
+     *
      * @param slug URL 식별자
-     * @return 같은 slug의 글이 있으면 true
+     * @param status 검사에서 뺄 글 상태
+     * @return 그 상태가 아닌 글 중 같은 slug의 글이 있으면 true
      */
-    boolean existsBySlug(String slug);
+    boolean existsBySlugAndStatusNot(String slug, String status);
 
     /**
      * @param slug URL 식별자
+     * @param status 검사에서 뺄 글 상태
      * @param id 제외할 게시글 식별자
-     * @return 다른 글이 같은 slug를 쓰고 있으면 true
+     * @return 그 상태가 아닌 다른 글이 같은 slug를 쓰고 있으면 true
      */
-    boolean existsBySlugAndIdNot(String slug, UUID id);
+    boolean existsBySlugAndStatusNotAndIdNot(String slug, String status, UUID id);
 
     /**
      * 수정·삭제·복구가 서로의 상태 변경을 덮어쓰지 않도록 행을 잠그고 글을 읽는다.

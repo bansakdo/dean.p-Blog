@@ -381,6 +381,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .admin-danger-zone { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 32px; }
 .admin-deleted { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .admin-deleted p { margin: 0; }
+.admin-deleted-conflict { flex-basis: 100%; order: 3; font-weight: 650; }
 .admin-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-bottom: 20px; font-size: 14px; }
 .admin-filter input[type="search"] { flex: 1 1 220px; min-width: 0; }
 .admin-filter input[type="search"], .admin-filter select { min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 15px; }

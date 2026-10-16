@@ -8,6 +8,7 @@ import com.deanp.blog.post.service.PostEditCommand;
 import com.deanp.blog.post.service.PostEditCommand.PublishAction;
 import com.deanp.blog.post.service.PostEditorService;
 import com.deanp.blog.post.service.PostEditorService.PostEditView;
+import com.deanp.blog.post.service.PostEditorService.SlugConflictException;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -182,7 +183,8 @@ public class AdminPostController {
     }
 
     /**
-     * 삭제한 글을 초안으로 되돌리고 수정 화면으로 이동한다. 삭제 상태가 아니면 거부한다.
+     * 삭제한 글을 초안으로 되돌리고 수정 화면으로 이동한다. 삭제 상태가 아니면 거부하고,
+     * 다른 글이 같은 주소를 쓰고 있으면 복구하지 않고 안내를 띄운다.
      *
      * @param id 게시글 식별자
      * @return 수정 화면으로의 리다이렉트
@@ -193,6 +195,8 @@ public class AdminPostController {
         try {
             // 다른 요청이 먼저 복구했을 수 있으므로 잠근 행의 상태로 서비스가 판단한다.
             postEditor.restore(id);
+        } catch (SlugConflictException exception) {
+            return "redirect:/admin/posts/" + id + "/edit?slugConflict";
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage());
         }

@@ -130,8 +130,8 @@ public class PostEditorService {
         UUID authorId = users.findByLoginId(authorLoginId)
                 .orElseThrow(() -> new IllegalStateException("로그인한 사용자를 찾을 수 없습니다.")).getId();
         requireCategory(normalized.categoryId());
-        if (posts.existsBySlug(normalized.slug())) {
-            throw new IllegalArgumentException("이미 사용 중인 주소(slug)입니다. 삭제한 글도 주소를 계속 차지합니다.");
+        if (posts.existsBySlugAndStatusNot(normalized.slug(), DELETED)) {
+            throw new IllegalArgumentException("이미 사용 중인 주소(slug)입니다.");
         }
 
         // 초안으로 저장한 뒤 태그와 공개 상태를 반영한다. 새 글에는 아직 첨부 이미지가 없다.
@@ -159,9 +159,9 @@ public class PostEditorService {
         }
         PostEditCommand normalized = command.normalized();
 
-        // 다른 글과 주소가 겹치지 않을 때만 본문 값을 고친다.
-        if (posts.existsBySlugAndIdNot(normalized.slug(), id)) {
-            throw new IllegalArgumentException("이미 사용 중인 주소(slug)입니다. 삭제한 글도 주소를 계속 차지합니다.");
+        // 삭제하지 않은 다른 글과 주소가 겹치지 않을 때만 본문 값을 고친다.
+        if (posts.existsBySlugAndStatusNotAndIdNot(normalized.slug(), DELETED, id)) {
+            throw new IllegalArgumentException("이미 사용 중인 주소(slug)입니다.");
         }
         post.edit(normalized.slug(), normalized.title(), normalized.summary(), normalized.content());
 
@@ -198,9 +198,10 @@ public class PostEditorService {
     }
 
     /**
-     * 삭제한 글을 초안으로 되돌린다.
+     * 삭제한 글을 초안으로 되돌린다. 삭제한 사이에 다른 글이 같은 주소를 쓰기 시작했다면 복구하지 않는다.
      *
      * @param id 복구할 게시글 식별자
+     * @throws SlugConflictException 삭제하지 않은 다른 글이 같은 주소를 쓰고 있을 때
      */
     @Transactional
     public void restore(UUID id) {
@@ -208,6 +209,9 @@ public class PostEditorService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
         if (!DELETED.equals(post.getStatus())) {
             throw new IllegalArgumentException("삭제한 글만 복구할 수 있습니다.");
+        }
+        if (posts.existsBySlugAndStatusNotAndIdNot(post.getSlug(), DELETED, id)) {
+            throw new SlugConflictException(post.getSlug());
         }
         post.restore();
     }
@@ -275,6 +279,17 @@ public class PostEditorService {
             slug = base + "-" + suffix;
         }
         return tags.save(Tag.create(name, slug));
+    }
+
+    /**
+     * 복구하려는 글의 주소를 삭제하지 않은 다른 글이 쓰고 있어 복구할 수 없을 때 던진다.
+     */
+    public static final class SlugConflictException extends RuntimeException {
+
+        /** @param slug 겹친 주소 */
+        public SlugConflictException(String slug) {
+            super("주소(slug) '" + slug + "'를 다른 글이 쓰고 있어 복구할 수 없습니다. 그 글의 주소를 바꾼 뒤 다시 복구하세요.");
+        }
     }
 
     /**
