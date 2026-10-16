@@ -1,4 +1,4 @@
-// 목적: main 브랜치를 CI 전용 DB에서 검증하고 Mac mini에 자동 배포합니다.
+// 목적: main 브랜치를 CI 전용 DB에서 검증(통합 테스트와 Playwright 브라우저 E2E)하고 Mac mini에 자동 배포합니다.
 // 사용: Jenkins Pipeline을 Pipeline script from SCM으로 설정하고 이 파일을 지정합니다.
 // 설계: CI 검증 후 제한된 SSH 키로 main 커밋만 전달합니다. 관련 스크립트: gradlew, Mac mini deploy.py.
 pipeline {
@@ -16,10 +16,15 @@ pipeline {
     stage('Build and test') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dean-p-blog-ci-db', usernameVariable: 'CI_DB_USER', passwordVariable: 'CI_DB_PASSWORD')]) {
-          sh 'sh ./gradlew --no-daemon --max-workers=1 clean ciDbIntegrationTest bootJar'
+          sh 'sh ./gradlew --no-daemon --max-workers=1 clean ciDbIntegrationTest ciDbE2eTest bootJar'
         }
       }
-      post { always { junit allowEmptyResults: true, testResults: 'build/test-results/*/*.xml' } }
+      post {
+        always {
+          junit allowEmptyResults: true, testResults: 'build/test-results/*/*.xml'
+          archiveArtifacts allowEmptyArchive: true, artifacts: 'build/reports/e2e/*.png'
+        }
+      }
     }
     stage('Archive') {
       steps { archiveArtifacts artifacts: 'build/libs/*.jar', fingerprint: true }
