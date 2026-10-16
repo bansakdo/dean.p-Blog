@@ -242,7 +242,7 @@ class AdminPostControllerTest {
     @Test
     void rendersRowsAndKeepsFilterInPageLinks() throws Exception {
         var rows = List.of(
-                new PostEditorService.AdminPostRow(POST_ID, "deleted-slug", "지운 글", false, true,
+                new PostEditorService.AdminPostRow(POST_ID, "deleted-slug", "지운 글", false, true, false, null,
                         java.time.LocalDateTime.of(2026, 10, 16, 12, 0)));
         when(postEditor.findPage(eq(0), eq(AdminPostFilter.DELETED), eq("검색")))
                 .thenReturn(new PageImpl<>(rows, PageRequest.of(0, 50), 120));
@@ -345,6 +345,25 @@ class AdminPostControllerTest {
         verify(revisions, never()).revert(any(), anyInt(), any());
     }
 
+    /** 발행 시각 입력은 한국 시간으로 해석해 서비스에 넘기고, 예약 글은 예약 배지와 취소 버튼을 보여 준다. */
+    @Test
+    void passesPublishTimeAndRendersScheduledPost() throws Exception {
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(new PostEditView(POST_ID, "slug", "제목", null, "본문",
+                null, "", null, true, false, false, true, java.time.LocalDateTime.of(2026, 10, 20, 9, 0))));
+
+        mockMvc.perform(post("/admin/posts/{id}", POST_ID).with(writer()).with(csrf())
+                        .param("title", "제목").param("content", "본문").param("publishedAt", "2026-10-20T09:00")
+                        .param("action", "save"))
+                .andExpect(redirectedUrl("/admin/posts/" + POST_ID + "/edit?saved"));
+        verify(postEditor).update(eq(POST_ID), org.mockito.ArgumentMatchers.argThat(command ->
+                java.time.Instant.parse("2026-10-20T00:00:00Z").equals(command.publishAt())), any());
+
+        mockMvc.perform(get("/admin/posts/{id}/edit", POST_ID).with(writer()))
+                .andExpect(content().string(allOf(containsString("admin-badge is-scheduled"),
+                        containsString("2026.10.20 09:00에 공개"), containsString("예약 취소"),
+                        containsString("value=\"2026-10-20T09:00\""), not(containsString("공개 글 보기")))));
+    }
+
     /** @return 현재 글과 본문만 다른 버전 */
     private static RevisionView revisionView() {
         return new RevisionView(1, "작성", java.time.LocalDateTime.of(2026, 10, 1, 9, 0), "admin",
@@ -353,7 +372,7 @@ class AdminPostControllerTest {
 
     /** @param deleted 삭제 여부 @return 수정 화면에 쓰는 글 값 */
     private static PostEditView editView(boolean deleted) {
-        return new PostEditView(POST_ID, "slug", "제목", null, "본문", null, "", null, false, deleted, false);
+        return new PostEditView(POST_ID, "slug", "제목", null, "본문", null, "", null, false, deleted, false, false, null);
     }
 
     /** @return 글 관리 권한을 가진 로그인 사용자 */

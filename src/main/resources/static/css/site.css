@@ -375,6 +375,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .admin-error { border: 1px solid #c0392b; color: var(--text); list-style: none; }
 .admin-badge { display: inline-block; padding: 2px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 12px; white-space: nowrap; }
 .admin-badge.is-published { border-color: var(--accent); color: var(--accent); }
+.admin-badge.is-scheduled { border-color: var(--accent); border-style: dashed; color: var(--accent); }
+.admin-scheduled-at { margin-left: 6px; color: var(--muted); font-size: 12px; }
 .admin-badge.is-deleted { border-color: #c0392b; text-decoration: line-through; }
 .admin-button.danger { border-color: #c0392b; }
 .admin-button.danger:hover { background: #c0392b; color: #fff; }

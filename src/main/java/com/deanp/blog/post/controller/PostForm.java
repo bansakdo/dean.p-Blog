@@ -4,7 +4,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -31,4 +33,8 @@ public class PostForm {
     private String tags;
 
     private UUID representativeImageId;
+
+    /** 화면 표시 시간대 기준 발행 시각, 비우면 발행 버튼을 누른 시각 */
+    @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm")
+    private LocalDateTime publishedAt;
 }

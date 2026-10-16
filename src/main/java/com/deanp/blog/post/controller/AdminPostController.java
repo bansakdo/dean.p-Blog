@@ -30,6 +30,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.security.Principal;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +44,8 @@ import java.util.UUID;
 @RequestMapping("/admin/posts")
 @RequiredArgsConstructor
 public class AdminPostController {
+
+    private static final ZoneId DISPLAY_ZONE = ZoneId.of("Asia/Seoul");
 
     private final PostEditorService postEditor;
     private final PostImageService postImages;
@@ -141,6 +145,7 @@ public class AdminPostController {
         form.setCategoryId(post.categoryId());
         form.setTags(post.tags());
         form.setRepresentativeImageId(post.representativeImageId());
+        form.setPublishedAt(post.publishedAt());
         model.addAttribute("form", form);
         return form(model, post);
     }
@@ -331,7 +336,8 @@ public class AdminPostController {
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         };
         List<String> tagNames = form.getTags() == null ? List.of() : Arrays.asList(form.getTags().split(","));
+        Instant publishAt = form.getPublishedAt() == null ? null : form.getPublishedAt().atZone(DISPLAY_ZONE).toInstant();
         return new PostEditCommand(form.getTitle(), form.getSlug(), form.getSummary(), form.getContent(),
-                form.getCategoryId(), tagNames, form.getRepresentativeImageId(), publishAction);
+                form.getCategoryId(), tagNames, form.getRepresentativeImageId(), publishAction, publishAt);
     }
 }

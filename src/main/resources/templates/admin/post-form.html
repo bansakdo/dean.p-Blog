@@ -7,7 +7,7 @@
   <header class="admin-heading">
     <div>
       <h1 th:text="${post == null} ? '새 글' : '글 수정'">새 글</h1>
-      <p th:if="${post != null}">상태: <span class="admin-badge" th:classappend="${post.published} ? 'is-published' : (${post.deleted} ? 'is-deleted')" th:text="${post.published} ? '공개' : (${post.deleted} ? '삭제됨' : '초안')">초안</span></p>
+      <p th:if="${post != null}">상태: <span class="admin-badge" th:classappend="${post.scheduled} ? 'is-scheduled' : (${post.published} ? 'is-published' : (${post.deleted} ? 'is-deleted'))" th:text="${post.scheduled} ? '예약' : (${post.published} ? '공개' : (${post.deleted} ? '삭제됨' : '초안'))">초안</span><th:block th:if="${post.scheduled}"> · <time th:datetime="${post.publishedAt}" th:text="|${#temporals.format(post.publishedAt, 'yyyy.MM.dd HH:mm')}에 공개|">공개 예정</time></th:block></p>
     </div>
     <a th:href="@{/admin/posts}">← 글 관리</a>
   </header>
@@ -52,6 +52,10 @@
     <label for="post-content">본문 (Markdown)</label>
     <textarea id="post-content" class="admin-content" th:field="*{content}" rows="24" required></textarea>
 
+    <label for="post-published-at">발행 시각</label>
+    <input id="post-published-at" type="datetime-local" th:field="*{publishedAt}" aria-describedby="post-published-at-help">
+    <p class="admin-help" id="post-published-at-help">한국 시간 기준입니다. 비워 두고 발행하면 지금 공개합니다. 미래 시각을 넣고 발행하면 그 시각에 공개되고(예약), 공개 중인 글은 저장만 해도 발행 시각이 바뀝니다.</p>
+
     <th:block th:if="${post != null}">
       <label for="post-representative-image">대표 이미지</label>
       <select id="post-representative-image" th:field="*{representativeImageId}" aria-describedby="post-representative-image-help">
@@ -64,10 +68,10 @@
 
     <div class="admin-actions" th:unless="${post != null and post.deleted}">
       <button class="admin-button primary" type="submit" name="action" value="save" th:text="${post == null} ? '초안으로 저장' : '저장'">저장</button>
-      <button class="admin-button" type="submit" name="action" value="publish" th:if="${post == null or !post.published}">발행</button>
-      <button class="admin-button" type="submit" name="action" value="unpublish" th:if="${post != null and post.published}">비공개로 전환</button>
+      <button class="admin-button" type="submit" name="action" value="publish" th:if="${post == null or !post.published}" data-publish-button>발행</button>
+      <button class="admin-button" type="submit" name="action" value="unpublish" th:if="${post != null and post.published}" th:text="${post.scheduled} ? '예약 취소' : '비공개로 전환'">비공개로 전환</button>
       <a th:if="${post != null}" th:href="@{/admin/posts/{id}/preview(id=${post.id})}" target="_blank" rel="noopener">저장된 내용 미리보기</a>
-      <a th:if="${post != null and post.published}" th:href="@{/posts/{slug}(slug=${post.slug})}" target="_blank" rel="noopener">공개 글 보기</a>
+      <a th:if="${post != null and post.published and !post.scheduled}" th:href="@{/posts/{slug}(slug=${post.slug})}" target="_blank" rel="noopener">공개 글 보기</a>
     </div>
   </form>
 

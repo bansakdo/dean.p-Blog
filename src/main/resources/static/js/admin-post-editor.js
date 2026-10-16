@@ -5,6 +5,19 @@ document.querySelectorAll('form[data-confirm]').forEach((form) => {
   });
 });
 
+// 발행 시각이 미래이면 발행 버튼이 예약 발행임을 알 수 있게 이름을 바꾼다.
+(() => {
+  const input = document.querySelector('#post-published-at');
+  const button = document.querySelector('[data-publish-button]');
+  if (!input || !button) return;
+  const update = () => {
+    const at = input.value ? new Date(input.value) : null;
+    button.textContent = at && at > new Date() ? '예약 발행' : '발행';
+  };
+  input.addEventListener('input', update);
+  update();
+})();
+
 (() => {
   const input = document.querySelector('[data-image-upload]');
   const content = document.querySelector('#post-content');

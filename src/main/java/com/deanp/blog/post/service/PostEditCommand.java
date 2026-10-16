@@ -1,5 +1,6 @@
 package com.deanp.blog.post.service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -15,6 +16,7 @@ import java.util.regex.Pattern;
  * @param tagNames 태그 이름 목록
  * @param representativeImageId 대표 이미지 파일 식별자 또는 null
  * @param action 저장 후 공개 상태를 어떻게 할지
+ * @param publishAt 지정한 발행 시각 또는 null, 미래 시각이면 예약 발행
  */
 public record PostEditCommand(
         String title,
@@ -24,7 +26,8 @@ public record PostEditCommand(
         UUID categoryId,
         List<String> tagNames,
         UUID representativeImageId,
-        PublishAction action
+        PublishAction action,
+        Instant publishAt
 ) {
 
     private static final int MAX_TITLE_LENGTH = 300;
@@ -90,7 +93,8 @@ public record PostEditCommand(
                 categoryId,
                 normalizedTags,
                 representativeImageId,
-                action == null ? PublishAction.KEEP : action
+                action == null ? PublishAction.KEEP : action,
+                publishAt
         );
     }
 
