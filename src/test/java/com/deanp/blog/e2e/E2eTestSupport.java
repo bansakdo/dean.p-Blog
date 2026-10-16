@@ -3,6 +3,7 @@ package com.deanp.blog.e2e;
 import com.deanp.blog.persistence.TestPostgresql;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
@@ -25,6 +26,7 @@ import org.springframework.test.context.DynamicPropertySource;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -73,17 +75,25 @@ abstract class E2eTestSupport {
     @LocalServerPort
     private int port;
 
-    /** 실패한 테스트의 마지막 화면을 build/reports/e2e에 남긴다. */
+    /** 실패한 테스트의 마지막 화면을 build/reports/e2e에 남긴다. 브라우저가 이미 죽었으면 원래 실패만 남긴다. */
     @RegisterExtension
     final AfterTestExecutionCallback failureScreenshot = extension -> {
         if (extension.getExecutionException().isPresent() && page != null) {
-            page.screenshot(new Page.ScreenshotOptions().setFullPage(true)
-                    .setPath(FAILURE_SHOTS.resolve(extension.getRequiredTestClass().getSimpleName()
-                            + "-" + extension.getRequiredTestMethod().getName() + ".png")));
+            try {
+                page.screenshot(new Page.ScreenshotOptions().setFullPage(true)
+                        .setPath(FAILURE_SHOTS.resolve(extension.getRequiredTestClass().getSimpleName()
+                                + "-" + extension.getRequiredTestMethod().getName() + ".png")));
+            } catch (RuntimeException ignored) {
+                // 화면을 찍지 못해도 테스트 실패 원인을 가리지 않는다.
+            }
         }
     };
 
-    /** @param registry 테스트 DB, 관리자 계정, 미디어 저장 위치 설정 */
+    /**
+     * 테스트 DB, 관리자 계정, 미디어 저장 위치를 서버 설정에 넣는다.
+     *
+     * @param registry 동적 설정 저장소
+     */
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         DB.register(registry);
@@ -92,11 +102,15 @@ abstract class E2eTestSupport {
         registry.add("APP_MEDIA_STORAGE_ROOT", MEDIA_ROOT::toString);
     }
 
-    /** 클래스마다 헤드리스 Chromium을 한 번 띄운다. 처음 실행하면 Playwright가 브라우저를 내려받는다. */
+    /**
+     * 클래스마다 헤드리스 Chromium을 한 번 띄운다. 처음 실행하면 Playwright가 브라우저를 내려받는다.
+     * 컨테이너의 작은 /dev/shm(64MB) 때문에 화면이 죽지 않도록 공유 메모리 대신 임시 파일을 쓴다.
+     */
     @BeforeAll
     static void launchBrowser() {
         playwright = Playwright.create();
-        browser = playwright.chromium().launch();
+        browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
+                .setArgs(List.of("--disable-dev-shm-usage")));
     }
 
     /** 클래스가 끝나면 브라우저를 닫는다. */
@@ -140,6 +154,18 @@ abstract class E2eTestSupport {
     }
 
     /**
+     * 폼 제출 버튼을 누르고, 리다이렉트 뒤 새 화면이 다 뜰 때까지 기다린다.
+     * 저장할 때마다 같은 주소로 돌아오므로 주소 대신 새 문서 응답을 기다린다.
+     *
+     * @param selector 제출 버튼 선택자
+     */
+    protected void submit(String selector) {
+        page.waitForResponse(response -> response.request().isNavigationRequest()
+                && "GET".equals(response.request().method()), () -> page.click(selector));
+        page.waitForLoadState();
+    }
+
+    /**
      * 리다이렉트를 따라가지 않고 현재 로그인 상태로 요청한 응답 코드를 돌려준다.
      *
      * @param path 서버 경로
@@ -149,12 +175,20 @@ abstract class E2eTestSupport {
         return context.request().get(path, RequestOptions.create().setMaxRedirects(0)).status();
     }
 
-    /** @return 현재 화면의 가로 넘침 픽셀 수 */
+    /**
+     * 현재 화면이 가로로 넘친 정도를 잰다.
+     *
+     * @return 가로 넘침 픽셀 수
+     */
     protected int horizontalOverflow() {
         return ((Number) page.evaluate("document.documentElement.scrollWidth - window.innerWidth")).intValue();
     }
 
-    /** 모바일 폭(390px)으로 바꿔 주어진 화면들에 가로 넘침이 없는지 확인한다. @param paths 서버 경로 */
+    /**
+     * 모바일 폭(390px)으로 바꿔 주어진 화면들에 가로 넘침이 없는지 확인한다.
+     *
+     * @param paths 서버 경로
+     */
     protected void assertNoMobileOverflow(String... paths) {
         page.setViewportSize(390, 844);
         for (String path : paths) {
@@ -169,32 +203,59 @@ abstract class E2eTestSupport {
         assertThat(consoleErrors.stream().filter(error -> !error.contains("favicon"))).isEmpty();
     }
 
-    /** @return 현재 주소 /admin/{종류}/{id}/... 에서 꺼낸 식별자 */
+    /**
+     * 현재 주소 /admin/{종류}/{id}/... 에서 식별자를 꺼낸다.
+     *
+     * @return 식별자
+     */
     protected String idFromUrl() {
-        return Paths.get(java.net.URI.create(page.url()).getPath()).getName(2).toString();
+        return URI.create(page.url()).getPath().split("/")[3];
     }
 
-    /** @param instant 시각 @return 한국 시간 기준 datetime-local 입력값 */
+    /**
+     * 시각을 관리 화면의 발행 시각 입력값으로 바꾼다.
+     *
+     * @param instant 시각
+     * @return 한국 시간 기준 datetime-local 입력값
+     */
     protected static String localInput(Instant instant) {
         return LOCAL_INPUT.format(instant);
     }
 
-    /** @param regex 주소 정규식 @return 주소가 맞을 때까지 기다린 뒤 확인한다 */
+    /**
+     * 주소가 정규식과 맞을 때까지 기다린다.
+     *
+     * @param regex 주소 정규식
+     */
     protected void waitForUrl(String regex) {
         page.waitForURL(Pattern.compile(regex));
     }
 
-    /** @param locator 대상 @return 자동 대기하는 Playwright 단언 */
+    /**
+     * 조건을 만족할 때까지 다시 확인하는 Playwright 단언을 만든다.
+     *
+     * @param locator 대상 요소
+     * @return 자동 대기 단언
+     */
     protected static LocatorAssertions expect(Locator locator) {
         return PlaywrightAssertions.assertThat(locator);
     }
 
-    /** @param target 대상 탭 @return 자동 대기하는 Playwright 단언 */
+    /**
+     * 조건을 만족할 때까지 다시 확인하는 Playwright 단언을 만든다.
+     *
+     * @param target 대상 탭
+     * @return 자동 대기 단언
+     */
     protected static PageAssertions expect(Page target) {
         return PlaywrightAssertions.assertThat(target);
     }
 
-    /** @return 미디어 파일을 둘 임시 폴더 */
+    /**
+     * 미디어 파일을 둘 임시 폴더를 만든다.
+     *
+     * @return 임시 폴더
+     */
     private static Path temporaryDirectory() {
         try {
             return Files.createTempDirectory("blog-e2e-media");

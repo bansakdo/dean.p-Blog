@@ -31,18 +31,20 @@ class PostLifecycleE2eTest extends E2eTestSupport {
         page.fill("#post-title", "E2E 글 v1 " + stamp);
         page.fill("#post-slug", slug);
         page.fill("#post-content", "첫 번째 본문 <script>alert(1)</script>");
-        page.click("button[value=save]");
+        submit("button[value=save]");
         waitForUrl(".*/admin/posts/[^/]+/edit.*");
         String postId = idFromUrl();
         assertThat(historyTypes()).containsExactly("작성");
         assertThat(status("/posts/" + slug)).isEqualTo(404);
 
-        // 수정 후 같은 내용 저장은 이력을 늘리지 않고, 발행하면 공개된다.
+        // 수정해 저장하면 '저장'이 남고, 같은 내용으로 다시 저장하면 늘지 않으며, 발행하면 공개된다.
         page.fill("#post-title", "E2E 글 v2 " + stamp);
         page.fill("#post-content", "두 번째 본문");
-        page.click("button[value=save]");
-        page.click("button[value=save]");
-        page.click("button[value=publish]");
+        submit("button[value=save]");
+        assertThat(historyTypes()).containsExactly("저장", "작성");
+        submit("button[value=save]");
+        assertThat(historyTypes()).containsExactly("저장", "작성");
+        submit("button[value=publish]");
         expect(page.locator(".admin-heading .admin-badge")).hasText("공개");
         assertThat(historyTypes()).containsExactly("발행", "저장", "작성");
         assertThat(page.textContent(".admin-revisions tbody tr td:nth-child(4)").strip()).isEqualTo(ADMIN_LOGIN_ID);
@@ -64,7 +66,7 @@ class PostLifecycleE2eTest extends E2eTestSupport {
         publicPage.close();
 
         // 삭제하면 공개 화면과 기본 목록에서 사라지고, 삭제 목록에만 남는다.
-        page.click(".admin-danger-zone button");
+        submit(".admin-danger-zone button");
         waitForUrl(".*/admin/posts\\?deleted.*");
         assertThat(status("/posts/" + slug)).isEqualTo(404);
         page.navigate("/admin/posts?status=deleted&q=" + stamp);
@@ -97,19 +99,23 @@ class PostLifecycleE2eTest extends E2eTestSupport {
         page.fill("#post-content", "예약 본문");
         page.fill("#post-published-at", localInput(Instant.now().plus(Duration.ofDays(2))));
         expect(page.locator("[data-publish-button]")).hasText("예약 발행");
-        page.click("button[value=publish]");
+        submit("button[value=publish]");
         expect(page.locator(".admin-heading .admin-badge")).hasText("예약");
         expect(page.locator("button[value=unpublish]")).hasText("예약 취소");
         assertThat(status("/posts/" + slug)).isEqualTo(404);
 
         page.fill("#post-published-at", localInput(Instant.now().minus(Duration.ofHours(1))));
-        page.click("button[value=save]");
+        submit("button[value=save]");
         expect(page.locator(".admin-heading .admin-badge")).hasText("공개");
         assertThat(status("/posts/" + slug)).isEqualTo(200);
         assertNoConsoleErrors();
     }
 
-    /** @return 변경 이력 표의 종류 열, 최신순 */
+    /**
+     * 변경 이력 표의 종류 열을 읽는다.
+     *
+     * @return 최신순 종류 이름
+     */
     private List<String> historyTypes() {
         return page.locator(".admin-revisions tbody tr td:nth-child(2)").allTextContents().stream()
                 .map(String::strip).toList();

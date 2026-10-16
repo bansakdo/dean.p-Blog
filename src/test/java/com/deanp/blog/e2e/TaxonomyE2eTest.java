@@ -24,7 +24,7 @@ class TaxonomyE2eTest extends E2eTestSupport {
         Locator form = page.locator("section form.admin-term-form");
         form.locator("input[name=name]").fill(categoryName);
         form.locator("input[name=slug]").fill(categorySlug);
-        form.locator("input[name=sortOrder]").fill("-100");
+        form.locator("input[name=sortOrder]").fill("-1000000");
         form.locator("button").click();
         waitForUrl(".*saved.*");
         assertThat(page.inputValue(".admin-terms li:first-child input[name=slug]")).isEqualTo(categorySlug);
@@ -39,12 +39,12 @@ class TaxonomyE2eTest extends E2eTestSupport {
         page.fill("#post-tags", tagA + ", " + tagB);
         page.selectOption("#post-category", new SelectOption().setLabel(categoryName));
         page.fill("#post-content", "분류 본문");
-        page.click("button[value=publish]");
+        submit("button[value=publish]");
         expect(page.locator(".admin-heading .admin-badge")).hasText("공개");
         String postId = idFromUrl();
         Page publicPage = context.newPage();
         publicPage.navigate("/posts");
-        assertThat(publicPage.locator("a[href*='category=']").first().textContent()).contains(categoryName);
+        expect(publicPage.locator("a[href*='category=']:not([href*='series='])").first()).containsText(categoryName);
         publicPage.close();
 
         // 시리즈: 만들고 글을 넣어 순서를 바꾸며, 글이 있는 동안은 지울 수 없다.
@@ -57,7 +57,8 @@ class TaxonomyE2eTest extends E2eTestSupport {
         page.click("button:text('글 넣기')");
         expect(page.locator(".admin-member-title")).hasText("E2E 분류 글 " + stamp);
         page.fill(".admin-member-form input[name=seriesOrder]", "5");
-        page.click(".admin-member-form button");
+        submit(".admin-member-form button");
+        page.reload();
         expect(page.locator(".admin-member-form input[name=seriesOrder]")).hasValue("5");
         page.click("button.danger:text('시리즈 삭제')");
         expect(page.locator(".admin-error")).isVisible();
