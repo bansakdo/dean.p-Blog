@@ -222,6 +222,23 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .article-body code { font-family: "SFMono-Regular", Consolas, monospace; font-size: .9em; }
 .article-body pre { overflow-x: auto; padding: 1rem; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
 .article-body a { color: var(--accent); border-bottom: 1px solid currentColor; }
+/* 코드 블록: 언어 이름과 복사 버튼은 스크롤과 무관하게 오른쪽 위에 둔다. */
+.article-body .code-block { position: relative; margin: 0 0 1.75em; }
+.article-body .code-block pre { margin: 0; padding-top: 2.2rem; background: #0d1117; border-color: #30363d; }
+.article-body .code-block pre code.hljs { padding: 0; background: transparent; }
+.article-body .code-block .code-language { color: #8b949e; }
+.article-body .code-block .code-copy { border-color: #30363d; background: #161b22; color: #c9d1d9; }
+.article-body .code-language { position: absolute; top: .55rem; left: 1rem; color: var(--muted); font: 600 .72rem/1 "SFMono-Regular", Consolas, monospace; text-transform: lowercase; pointer-events: none; }
+.article-body .code-copy { position: absolute; top: .4rem; right: .5rem; padding: .25rem .6rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--muted); font: 600 .72rem/1.4 Pretendard, -apple-system, sans-serif; cursor: pointer; }
+.article-body .code-copy:hover, .article-body .code-copy:focus-visible { color: #fff; outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Mermaid: 그리기 전에는 원문을 코드처럼, 그린 뒤에는 가운데 정렬한 그림으로 보여 준다. */
+.article-body pre.mermaid { margin: 0 0 1.75em; text-align: center; white-space: pre; font-family: "SFMono-Regular", Consolas, monospace; font-size: .85em; line-height: 1.5; }
+.article-body pre.mermaid[data-processed] { white-space: normal; background: transparent; }
+.article-body pre.mermaid svg { max-width: 100%; height: auto; }
+/* Archify: 격리한 iframe으로 넣는다. 다이어그램이 높이를 알려 주지 않으므로 16:10 비율로 두고, 좁은 화면에서도 조작할 수 있는 최소 높이를 둔다. */
+.article-body .archify-embed { margin: 0 0 1.75em; }
+.article-body .archify-embed iframe { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; min-height: 240px; max-height: 80vh; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.article-body .archify-embed figcaption { margin-top: .5em; display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5em; color: var(--muted); font-size: .85em; }
 .post-detail-page .article-header, .post-detail-page .article-body,
 .post-detail-page .article-body h1, .post-detail-page .article-body h2, .post-detail-page .article-body h3,
 .post-detail-page .article-body h4, .post-detail-page .article-body h5, .post-detail-page .article-body h6 {
@@ -437,6 +454,12 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .admin-term-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 13px; }
 .admin-link-button { padding: 0; border: 0; background: none; color: #c0392b; font: inherit; font-size: 13px; cursor: pointer; }
 .admin-link-button:hover { text-decoration: underline; }
+.admin-text-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; }
+.admin-text-button:hover { text-decoration: underline; }
+.admin-editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.admin-editor-toolbar select { width: auto; min-width: 9rem; }
+.admin-editor-toolbar [aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.admin-preview { width: 100%; max-height: 70vh; overflow: auto; padding: 20px; border: 1px dashed var(--line); border-radius: 8px; }
 .login-box { max-width: 380px; margin-inline: auto; }
 .login-box h1 { margin: 0 0 20px; font-size: 28px; font-weight: 750; }
 @media (max-width: 720px) {

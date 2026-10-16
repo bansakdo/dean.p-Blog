@@ -1,5 +1,9 @@
 package com.deanp.blog.auth.controller;
 
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
+import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import com.deanp.blog.auth.service.BlogUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,7 +41,12 @@ public class SecurityConfiguration {
                         .failureHandler(loginFailureHandler()))
                 .logout(logout -> logout.logoutSuccessUrl("/"))
                 // 공개 화면의 정적 파일 캐시 동작을 바꾸지 않도록 캐시 금지 헤더는 관리 화면에서만 직접 붙인다.
-                .headers(headers -> headers.cacheControl(cache -> cache.disable()));
+                .headers(headers -> headers.cacheControl(cache -> cache.disable())
+                        // 다른 화면은 계속 iframe 삽입을 막고(DENY), Archify 다이어그램만 컨트롤러가 SAMEORIGIN과 CSP로 직접 정한다.
+                        .frameOptions(frame -> frame.disable())
+                        .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(
+                                new NegatedRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher("/media/diagrams/**")),
+                                new XFrameOptionsHeaderWriter(XFrameOptionsHeaderWriter.XFrameOptionsMode.DENY))));
         return http.build();
     }
 

@@ -22,6 +22,14 @@ Gradle toolchain이 Java 25를 사용하므로, 시스템 기본 Java가 Java 25
 
 브라우저에서 `http://localhost:8080`을 엽니다.
 
+## 글 작성: 코드 블록·Mermaid·Archify
+
+본문은 Markdown입니다. 편집기 위의 넣기 도구와 미리보기를 쓸 수 있습니다.
+
+- 코드 블록: ```` ```java ```` 처럼 언어를 적으면 공개 화면에서 강조하고 복사 버튼을 붙입니다.
+- Mermaid: ```` ```mermaid ```` 블록은 브라우저에서 다이어그램으로 그립니다.
+- Archify: [Archify](https://github.com/tt-a1i/archify) 스킬(v3.1.0)로 만든 HTML을 글 수정 화면의 ‘다이어그램’에서 올리면 ```` ```archify ```` 블록이 들어가고, 공개 화면에서 격리한 iframe으로 조작할 수 있습니다. 블록 첫 줄 `archify` 뒤에 적은 글은 캡션이 됩니다.
+
 ## 테스트
 
 ```bash

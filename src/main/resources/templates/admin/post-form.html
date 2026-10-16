@@ -50,7 +50,20 @@
     <p class="admin-help" id="post-tags-help">쉼표로 구분합니다. 없는 태그는 새로 만듭니다.</p>
 
     <label for="post-content">본문 (Markdown)</label>
-    <textarea id="post-content" class="admin-content" th:field="*{content}" rows="24" required></textarea>
+    <div class="admin-editor-toolbar" role="toolbar" aria-label="본문 넣기 도구" aria-controls="post-content">
+      <select id="post-code-language" aria-label="코드 블록 언어">
+        <option value="">언어 없음</option>
+        <option th:each="language : ${ {'java','kotlin','javascript','typescript','python','bash','sql','json','yaml','html','css','xml','go','dockerfile'} }"
+                th:value="${language}" th:text="${language}" th:selected="${language == 'java'}">java</option>
+      </select>
+      <button class="admin-button" type="button" data-insert="code">코드 블록</button>
+      <button class="admin-button" type="button" data-insert="mermaid">Mermaid</button>
+      <button class="admin-button" type="button" data-preview-toggle aria-pressed="false"
+              th:attr="data-preview-url=@{/admin/posts/preview-render},data-csrf-header=${_csrf.headerName},data-csrf-token=${_csrf.token}">미리보기</button>
+    </div>
+    <textarea id="post-content" class="admin-content" th:field="*{content}" rows="24" required aria-describedby="post-content-help"></textarea>
+    <p class="admin-help" id="post-content-help">코드는 <code>```언어</code>, 다이어그램은 <code>```mermaid</code> 블록으로 씁니다. Archify 다이어그램은 아래 ‘다이어그램’에서 올리면 <code>```archify</code> 블록이 들어갑니다. 미리보기는 저장하지 않은 본문을 공개 화면처럼 보여 줍니다.</p>
+    <section class="admin-preview article-body" data-preview hidden aria-label="본문 미리보기" aria-live="polite"></section>
 
     <label for="post-published-at">발행 시각</label>
     <input id="post-published-at" type="datetime-local" th:field="*{publishedAt}" aria-describedby="post-published-at-help"
@@ -91,6 +104,18 @@
     <p class="admin-help" data-image-status role="status">올리면 본문의 커서 위치에 이미지가 들어갑니다. 본문은 저장해야 반영됩니다.</p>
     <ul class="admin-image-list" data-image-list>
       <li th:each="image : ${images}"><span th:text="${image.name}">파일명</span> <code th:text="|![](${image.url})|">![](/media/posts/…)</code></li>
+    </ul>
+  </section>
+  <section class="admin-images" th:if="${post != null and !post.deleted}" aria-labelledby="post-diagrams-title">
+    <h2 id="post-diagrams-title">다이어그램 (Archify)</h2>
+    <label for="post-diagram-upload">Archify HTML 올리기 (.html · 5MB 이하)</label>
+    <input id="post-diagram-upload" type="file" accept=".html,.htm,text/html"
+           th:attr="data-diagram-upload=@{/admin/posts/{id}/diagrams(id=${post.id})},data-csrf-header=${_csrf.headerName},data-csrf-token=${_csrf.token}">
+    <p class="admin-help" data-diagram-status role="status">Archify 스킬로 만든 HTML을 올리면 본문의 커서 위치에 다이어그램 블록이 들어갑니다. 블록 첫 줄 <code>```archify</code> 뒤에 설명을 적으면 캡션이 됩니다.</p>
+    <ul class="admin-image-list" data-diagram-list>
+      <li th:each="diagram : ${diagrams}"><span th:text="${diagram.name}">파일명</span> <code th:text="${diagram.id}">id</code>
+        <button class="admin-text-button" type="button" th:attr="data-insert-diagram=${diagram.markdown()}">본문에 넣기</button>
+        <a th:href="@{/media/diagrams/{id}(id=${diagram.id})}" target="_blank" rel="noopener">열기</a></li>
     </ul>
   </section>
   <section class="admin-images admin-revisions" th:if="${post != null}" aria-labelledby="post-revisions-title">
