@@ -32,6 +32,13 @@ public final class TestPostgresql {
         registry.add("DB_USER", this::user);
         registry.add("DB_PASSWORD", this::password);
         registry.add("WAS_PORT", () -> "0");
+        if (container == null) {
+            // CI는 모든 테스트 클래스가 한 DB 서버를 함께 쓰고, Spring이 캐시해 둔 컨텍스트마다 연결 풀이 남는다.
+            // 기본 풀(연결 10개 유지)이 쌓이면 서버 연결 수를 넘으므로, 작게 잡고 쉬는 연결은 닫는다.
+            registry.add("spring.datasource.hikari.maximum-pool-size", () -> "4");
+            registry.add("spring.datasource.hikari.minimum-idle", () -> "0");
+            registry.add("spring.datasource.hikari.idle-timeout", () -> "10000");
+        }
     }
 
     /** @return JDBC URL */
