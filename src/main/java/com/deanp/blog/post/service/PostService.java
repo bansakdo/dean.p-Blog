@@ -39,7 +39,7 @@ public class PostService {
     private static final int READING_CHARS_PER_MINUTE = 500;
     /** 코드 영역(1번 그룹)은 건너뛰고, 렌더러가 글자로 이스케이프한 &nbsp만 찾는다. */
     private static final Pattern LITERAL_NBSP = Pattern.compile(
-            "(<pre>.*?</pre>|<code>.*?</code>)|&amp;nbsp;?", Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
+            "(<pre[^>]*>.*?</pre>|<code>.*?</code>)|&amp;nbsp;?", Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
 
     private final PostDetailRepository posts;
     private final Parser markdownParser;
@@ -64,7 +64,8 @@ public class PostService {
 
         // 동일한 옵션으로 파서와 렌더러를 구성해 이후 변환에서 재사용한다.
         this.markdownParser = Parser.builder(options).build();
-        this.htmlRenderer = HtmlRenderer.builder(options).build();
+        // ```mermaid 와 ```archify 블록은 다이어그램 자리로 바꾼다.
+        this.htmlRenderer = HtmlRenderer.builder(options).nodeRendererFactory(ignored -> new DiagramBlockRenderer()).build();
     }
 
     /**
@@ -233,12 +234,12 @@ public class PostService {
     }
 
     /**
-     * Markdown 본문을 HTML로 바꾸고, 글자로 노출되는 &nbsp를 공백으로 바꾼다.
+     * Markdown 본문을 HTML로 바꾸고, 글자로 노출되는 &nbsp를 공백으로 바꾼다. 관리 화면 실시간 미리보기도 이 변환을 쓴다.
      *
      * @param content Markdown 원문 본문
      * @return 화면에 그대로 출력할 본문 HTML
      */
-    private String renderHtml(String content) {
+    public String renderHtml(String content) {
         String html = htmlRenderer.render(markdownParser.parse(content));
 
         // 세미콜론 없이 적은 &nbsp는 엔티티로 인식되지 않아 글자로 보이므로, 코드 밖에서만 줄바꿈 없는 공백으로 바꾼다.

@@ -183,9 +183,11 @@ public class PostEditorService {
             post.changeCategory(normalized.categoryId());
         }
 
-        // 대표 이미지는 이 글에 첨부된 파일만 지정할 수 있다.
-        if (normalized.representativeImageId() != null && !postAttachedFiles.existsById(
-                new PostAttachedFileId(id, normalized.representativeImageId()))) {
+        // 대표 이미지는 이 글에 첨부된 이미지만 지정할 수 있다. 다이어그램 같은 이미지가 아닌 첨부는 거부한다.
+        if (normalized.representativeImageId() != null && postAttachedFiles
+                .findById(new PostAttachedFileId(id, normalized.representativeImageId()))
+                .filter(link -> link.getAttachedFile().isImage())
+                .isEmpty()) {
             throw new IllegalArgumentException("이 글에 첨부된 이미지만 대표 이미지로 지정할 수 있습니다.");
         }
         post.changeRepresentativeImage(normalized.representativeImageId());

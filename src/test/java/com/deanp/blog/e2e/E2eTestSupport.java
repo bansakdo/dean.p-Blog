@@ -198,9 +198,14 @@ abstract class E2eTestSupport {
         page.setViewportSize(1440, 1000);
     }
 
-    /** 지금까지 브라우저 콘솔에 오류가 없었는지 확인한다. 파비콘 404는 무시한다. */
-    protected void assertNoConsoleErrors() {
-        assertThat(consoleErrors.stream().filter(error -> !error.contains("favicon"))).isEmpty();
+    /**
+     * 지금까지 브라우저 콘솔에 오류가 없었는지 확인한다. 파비콘 404와, 테스트가 일부러 낸 오류 문구는 무시한다.
+     *
+     * @param expected 테스트가 일부러 낸 오류에 들어 있는 문구
+     */
+    protected void assertNoConsoleErrors(String... expected) {
+        assertThat(consoleErrors.stream().filter(error -> !error.contains("favicon"))
+                .filter(error -> java.util.Arrays.stream(expected).noneMatch(error::contains))).isEmpty();
     }
 
     /**
