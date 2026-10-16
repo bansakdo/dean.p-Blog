@@ -62,4 +62,35 @@ public class PostRevision {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "changed_by", insertable = false, updatable = false)
     private AppUser changedByUser;
+
+    /**
+     * 게시글의 제목·요약·본문 스냅샷을 만든다.
+     *
+     * @param postDetailId 게시글 식별자
+     * @param revisionNo 게시글 안에서 1부터 늘어나는 버전 번호
+     * @param title 제목
+     * @param summary 요약 또는 null
+     * @param content 본문
+     * @param contentFormat 본문 형식
+     * @param changedBy 변경한 사용자 식별자, 알 수 없으면 null
+     * @param changeType 변경 종류
+     * @param createdAt 기록 시각
+     * @return 저장할 리비전
+     */
+    public static PostRevision create(UUID postDetailId, int revisionNo, String title, String summary,
+                                      String content, String contentFormat, UUID changedBy, String changeType,
+                                      Instant createdAt) {
+        PostRevision revision = new PostRevision();
+        revision.id = UUID.randomUUID();
+        revision.postDetailId = postDetailId;
+        revision.revisionNo = revisionNo;
+        revision.title = title;
+        revision.summary = summary;
+        revision.content = content;
+        revision.contentFormat = contentFormat;
+        revision.changedBy = changedBy;
+        revision.changeType = changeType;
+        revision.createdAt = createdAt;
+        return revision;
+    }
 }

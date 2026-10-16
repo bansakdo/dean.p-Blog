@@ -9,6 +9,7 @@ import com.deanp.blog.post.service.PostEditCommand.PublishAction;
 import com.deanp.blog.post.service.PostEditorService;
 import com.deanp.blog.post.service.PostEditorService.PostEditView;
 import com.deanp.blog.post.service.PostEditorService.SlugConflictException;
+import com.deanp.blog.publishing.service.PostRevisionService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +36,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 글 관리 화면의 목록, 작성, 수정, 삭제·복구, 이미지 업로드, 미리보기 요청을 받는다.
+ * 글 관리 화면의 목록, 작성, 수정, 삭제·복구, 변경 이력, 이미지 업로드, 미리보기 요청을 받는다.
  */
 @Controller
 @RequestMapping("/admin/posts")
@@ -44,6 +45,7 @@ public class AdminPostController {
 
     private final PostEditorService postEditor;
     private final PostImageService postImages;
+    private final PostRevisionService revisions;
 
     /**
      * 초안과 로그인 사용자 정보가 브라우저 캐시에 남지 않도록 관리 화면 응답은 저장하지 않게 한다.
@@ -150,17 +152,18 @@ public class AdminPostController {
      * @param form 수정 폼 입력 값
      * @param bindingResult 입력 검증 결과
      * @param action 저장 후 공개 상태(save, publish, unpublish)
+     * @param principal 로그인한 사용자
      * @param model Thymeleaf 렌더링에 사용할 모델
      * @return 수정 화면으로의 리다이렉트 또는 오류가 표시된 수정 폼
      */
     @PostMapping("/{id}")
     public String update(@PathVariable UUID id, @Valid @ModelAttribute("form") PostForm form,
                          BindingResult bindingResult, @RequestParam(defaultValue = "save") String action,
-                         Model model) {
+                         Principal principal, Model model) {
         PostEditView post = requirePost(id);
         if (!bindingResult.hasErrors()) {
             try {
-                postEditor.update(id, command(form, action));
+                postEditor.update(id, command(form, action), principal.getName());
                 return "redirect:/admin/posts/" + id + "/edit?saved";
             } catch (IllegalArgumentException exception) {
                 bindingResult.reject("post", exception.getMessage());
@@ -173,12 +176,13 @@ public class AdminPostController {
      * 글을 삭제 상태로 바꾸고 목록으로 돌아간다.
      *
      * @param id 게시글 식별자
+     * @param principal 로그인한 사용자
      * @return 삭제 안내를 띄울 목록으로의 리다이렉트
      */
     @PostMapping("/{id}/delete")
-    public String delete(@PathVariable UUID id) {
+    public String delete(@PathVariable UUID id, Principal principal) {
         requirePost(id);
-        postEditor.delete(id);
+        postEditor.delete(id, principal.getName());
         return "redirect:/admin/posts?deleted";
     }
 
@@ -187,20 +191,63 @@ public class AdminPostController {
      * 다른 글이 같은 주소를 쓰고 있으면 복구하지 않고 안내를 띄운다.
      *
      * @param id 게시글 식별자
+     * @param principal 로그인한 사용자
      * @return 수정 화면으로의 리다이렉트
      */
     @PostMapping("/{id}/restore")
-    public String restore(@PathVariable UUID id) {
+    public String restore(@PathVariable UUID id, Principal principal) {
         requirePost(id);
         try {
             // 다른 요청이 먼저 복구했을 수 있으므로 잠근 행의 상태로 서비스가 판단한다.
-            postEditor.restore(id);
+            postEditor.restore(id, principal.getName());
         } catch (SlugConflictException exception) {
             return "redirect:/admin/posts/" + id + "/edit?slugConflict";
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage());
         }
         return "redirect:/admin/posts/" + id + "/edit?restored";
+    }
+
+    /**
+     * 글의 한 버전 내용과 현재 글과 다른 항목을 보여 준다.
+     *
+     * @param id 게시글 식별자
+     * @param revisionNo 버전 번호
+     * @param model Thymeleaf 렌더링에 사용할 모델
+     * @return 버전 보기 템플릿 이름
+     */
+    @GetMapping("/{id}/revisions/{revisionNo}")
+    public String revision(@PathVariable UUID id, @PathVariable int revisionNo, Model model) {
+        PostEditView post = requirePost(id);
+        var revision = revisions.find(id, revisionNo)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        model.addAttribute("post", post);
+        model.addAttribute("revision", revision);
+        model.addAttribute("pageTitle", "버전 " + revisionNo + ": " + post.title() + " — dean.p");
+        return "admin/post-revision";
+    }
+
+    /**
+     * 글의 제목·요약·본문을 지정한 버전으로 되돌리고 수정 화면으로 이동한다. 삭제한 글이면 거부한다.
+     *
+     * @param id 게시글 식별자
+     * @param revisionNo 되돌릴 버전 번호
+     * @param principal 로그인한 사용자
+     * @return 되돌림 안내를 띄울 수정 화면으로의 리다이렉트
+     */
+    @PostMapping("/{id}/revisions/{revisionNo}/revert")
+    public String revert(@PathVariable UUID id, @PathVariable int revisionNo, Principal principal) {
+        requirePost(id);
+        if (revisions.find(id, revisionNo).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        try {
+            // 다른 요청이 그사이 글을 삭제했을 수 있으므로 잠근 행의 상태로 서비스가 판단한다.
+            revisions.revert(id, revisionNo, principal.getName());
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage());
+        }
+        return "redirect:/admin/posts/" + id + "/edit?reverted=" + revisionNo;
     }
 
     /**
@@ -256,6 +303,7 @@ public class AdminPostController {
         model.addAttribute("categoryChoices", postEditor.findCategoryChoices());
         model.addAttribute("post", post);
         model.addAttribute("images", post == null ? List.of() : postImages.findByPost(post.id()));
+        model.addAttribute("revisions", post == null ? List.of() : revisions.findHistory(post.id()));
         model.addAttribute("pageTitle", (post == null ? "새 글" : "글 수정") + " — dean.p");
         return "admin/post-form";
     }

@@ -106,11 +106,11 @@ class PostEditorServiceTest {
 
         assertThatThrownBy(() -> service.create(command("셋", "same-slug", List.of(), PublishAction.KEEP), AUTHOR))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.update(second, command("둘", "same-slug", List.of(), PublishAction.KEEP)))
+        assertThatThrownBy(() -> service.update(second, command("둘", "same-slug", List.of(), PublishAction.KEEP), AUTHOR))
                 .isInstanceOf(IllegalArgumentException.class);
 
         // 자기 주소를 그대로 저장하는 것은 허용한다.
-        service.update(first, command("하나 수정", "same-slug", List.of(), PublishAction.KEEP));
+        service.update(first, command("하나 수정", "same-slug", List.of(), PublishAction.KEEP), AUTHOR);
         entityManager.flush();
         assertThat(text("title", first)).isEqualTo("하나 수정");
     }
@@ -120,7 +120,7 @@ class PostEditorServiceTest {
     void replacesTagLinks() {
         UUID postId = service.create(command("태그 교체", "tag-replace", List.of("old", "keep"), PublishAction.KEEP), AUTHOR);
 
-        service.update(postId, command("태그 교체", "tag-replace", List.of("keep", "new"), PublishAction.KEEP));
+        service.update(postId, command("태그 교체", "tag-replace", List.of("keep", "new"), PublishAction.KEEP), AUTHOR);
         entityManager.flush();
 
         assertThat(tagNames(postId)).containsExactlyInAnyOrder("keep", "new");
@@ -135,7 +135,7 @@ class PostEditorServiceTest {
         entityManager.flush();
         entityManager.clear();
 
-        service.update(postId, new PostEditCommand("시리즈 글", "series-post", null, "본문", id(11), List.of(), null, PublishAction.KEEP));
+        service.update(postId, new PostEditCommand("시리즈 글", "series-post", null, "본문", id(11), List.of(), null, PublishAction.KEEP), AUTHOR);
         entityManager.flush();
 
         assertThat(jdbc.queryForObject("SELECT category_id FROM blog.post_detail WHERE id = ?", UUID.class, postId)).isEqualTo(id(10));
@@ -150,11 +150,11 @@ class PostEditorServiceTest {
         jdbc.update("INSERT INTO blog.attached_files (id, original_name, stored_name, storage_path) VALUES (?, 'a.png', 'a.png', 'posts/a.png')", id(40));
         jdbc.update("INSERT INTO blog.post_attached_file (post_detail_id, attached_file_id) VALUES (?, ?)", otherId, id(40));
 
-        assertThatThrownBy(() -> service.update(postId, cover(id(40))))
+        assertThatThrownBy(() -> service.update(postId, cover(id(40)), AUTHOR))
                 .isInstanceOf(IllegalArgumentException.class);
 
         jdbc.update("INSERT INTO blog.post_attached_file (post_detail_id, attached_file_id) VALUES (?, ?)", postId, id(40));
-        service.update(postId, cover(id(40)));
+        service.update(postId, cover(id(40)), AUTHOR);
         entityManager.flush();
         assertThat(jdbc.queryForObject("SELECT representative_image_id FROM blog.post_detail WHERE id = ?", UUID.class, postId)).isEqualTo(id(40));
     }
@@ -168,11 +168,11 @@ class PostEditorServiceTest {
         assertThat(text("status", postId)).isEqualTo("PUBLISHED");
         assertThat(firstPublishedAt).isNotNull();
 
-        service.update(postId, command("발행", "publish-post", List.of(), PublishAction.UNPUBLISH));
+        service.update(postId, command("발행", "publish-post", List.of(), PublishAction.UNPUBLISH), AUTHOR);
         entityManager.flush();
         assertThat(text("status", postId)).isEqualTo("DRAFT");
 
-        service.update(postId, command("발행", "publish-post", List.of(), PublishAction.PUBLISH));
+        service.update(postId, command("발행", "publish-post", List.of(), PublishAction.PUBLISH), AUTHOR);
         entityManager.flush();
         assertThat(jdbc.queryForObject("SELECT published_at FROM blog.post_detail WHERE id = ?", Timestamp.class, postId))
                 .isEqualTo(firstPublishedAt);
@@ -186,7 +186,7 @@ class PostEditorServiceTest {
         assertThat(posts.findPublishedRowsBySlug("delete-post")).isNotEmpty();
 
         // 다음 요청처럼 새로 읽도록 영속성 컨텍스트를 비운다.
-        service.delete(postId);
+        service.delete(postId, AUTHOR);
         entityManager.flush();
         entityManager.clear();
         assertThat(text("status", postId)).isEqualTo("DELETED");
@@ -196,7 +196,7 @@ class PostEditorServiceTest {
         assertThat(service.findForEdit(postId).orElseThrow().deleted()).isTrue();
         assertThat(tagNames(postId)).containsExactly("남는 태그");
 
-        service.restore(postId);
+        service.restore(postId, AUTHOR);
         entityManager.flush();
         assertThat(text("status", postId)).isEqualTo("DRAFT");
         assertThat(posts.findPublishedRowsBySlug("delete-post")).isEmpty();
@@ -206,10 +206,10 @@ class PostEditorServiceTest {
     @Test
     void guardsDeletedState() {
         UUID postId = service.create(command("보호", "guard-post", List.of(), PublishAction.KEEP), AUTHOR);
-        assertThatThrownBy(() -> service.restore(postId)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.restore(postId, AUTHOR)).isInstanceOf(IllegalArgumentException.class);
 
-        service.delete(postId);
-        assertThatThrownBy(() -> service.update(postId, command("고침", "guard-post", List.of(), PublishAction.PUBLISH)))
+        service.delete(postId, AUTHOR);
+        assertThatThrownBy(() -> service.update(postId, command("고침", "guard-post", List.of(), PublishAction.PUBLISH), AUTHOR))
                 .isInstanceOf(IllegalArgumentException.class);
         entityManager.flush();
         assertThat(text("title", postId)).isEqualTo("보호");
@@ -220,7 +220,7 @@ class PostEditorServiceTest {
     @Test
     void reusesSlugOfDeletedPostAndBlocksConflictingRestore() {
         UUID oldId = service.create(command("옛 글", "reused-slug", List.of(), PublishAction.PUBLISH), AUTHOR);
-        service.delete(oldId);
+        service.delete(oldId, AUTHOR);
         entityManager.flush();
 
         UUID newId = service.create(command("새 글", "reused-slug", List.of(), PublishAction.PUBLISH), AUTHOR);
@@ -229,13 +229,13 @@ class PostEditorServiceTest {
         assertThatThrownBy(() -> service.create(command("또 새 글", "reused-slug", List.of(), PublishAction.KEEP), AUTHOR))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        assertThatThrownBy(() -> service.restore(oldId)).isInstanceOf(PostEditorService.SlugConflictException.class);
+        assertThatThrownBy(() -> service.restore(oldId, AUTHOR)).isInstanceOf(PostEditorService.SlugConflictException.class);
         entityManager.flush();
         assertThat(text("status", oldId)).isEqualTo("DELETED");
 
         // 새 글의 주소를 바꾸면 옛 글을 복구할 수 있다.
-        service.update(newId, command("새 글", "renamed-slug", List.of(), PublishAction.KEEP));
-        service.restore(oldId);
+        service.update(newId, command("새 글", "renamed-slug", List.of(), PublishAction.KEEP), AUTHOR);
+        service.restore(oldId, AUTHOR);
         entityManager.flush();
         assertThat(text("status", oldId)).isEqualTo("DRAFT");
     }

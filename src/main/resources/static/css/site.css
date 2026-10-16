@@ -410,6 +410,12 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .admin-images label { font-size: 13px; font-weight: 650; }
 .admin-image-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 13px; }
 .admin-image-list code { font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.admin-revisions .admin-table { margin-top: 8px; }
+.admin-revisions .admin-table td:first-child { min-width: 0; white-space: nowrap; }
+.admin-revision { margin: 0; display: grid; gap: 8px; font-size: 14px; }
+.admin-revision dt { margin-top: 16px; color: var(--muted); font-size: 13px; font-weight: 650; }
+.admin-revision dd { margin: 0; overflow-wrap: anywhere; }
+.admin-revision-content { margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; max-height: 70vh; overflow: auto; font-family: "SFMono-Regular", Consolas, monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .login-box { max-width: 380px; margin-inline: auto; }
 .login-box h1 { margin: 0 0 20px; font-size: 28px; font-weight: 750; }
 @media (max-width: 720px) {
