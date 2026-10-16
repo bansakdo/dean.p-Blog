@@ -109,7 +109,7 @@
   <section class="admin-images" th:if="${post != null and !post.deleted}" aria-labelledby="post-diagrams-title">
     <h2 id="post-diagrams-title">다이어그램 (Archify)</h2>
     <label for="post-diagram-upload">Archify HTML 올리기 (.html · 5MB 이하)</label>
-    <input id="post-diagram-upload" type="file" accept=".html,.htm,text/html"
+    <input id="post-diagram-upload" type="file" accept=".html,text/html"
            th:attr="data-diagram-upload=@{/admin/posts/{id}/diagrams(id=${post.id})},data-csrf-header=${_csrf.headerName},data-csrf-token=${_csrf.token}">
     <p class="admin-help" data-diagram-status role="status">Archify 스킬로 만든 HTML을 올리면 본문의 커서 위치에 다이어그램 블록이 들어갑니다. 블록 첫 줄 <code>```archify</code> 뒤에 설명을 적으면 캡션이 됩니다.</p>
     <ul class="admin-image-list" data-diagram-list>

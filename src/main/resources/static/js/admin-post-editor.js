@@ -181,11 +181,28 @@ document.querySelectorAll('form[data-confirm]').forEach((form) => {
       const html = await response.text();
       // 늦게 도착한 이전 응답이 최신 미리보기를 덮지 않게 한다. 서버가 본문 HTML을 이스케이프해 돌려준다.
       if (request !== latest) return;
-      preview.innerHTML = html;
+      update(html);
       window.deanpEnhanceContent?.(preview);
     } catch {
       if (request === latest) preview.textContent = '미리보기를 만들지 못했습니다.';
     }
+  };
+  // 바뀐 블록만 갈아 끼운다. 같은 자리의 같은 Archify 다이어그램은 그대로 두어 입력할 때마다 다시 내려받지 않게 한다.
+  const update = (html) => {
+    const next = document.createElement('template');
+    next.innerHTML = html;
+    const oldNodes = [...preview.childNodes];
+    const newNodes = [...next.content.childNodes];
+    const sameDiagram = (a, b) => a?.nodeType === 1 && b?.nodeType === 1
+      && a.matches('figure.archify-embed') && b.matches('figure.archify-embed')
+      && a.querySelector('iframe')?.dataset.archifySrc === b.querySelector('iframe')?.dataset.archifySrc
+      && a.querySelector('figcaption')?.isEqualNode(b.querySelector('figcaption'));
+    newNodes.forEach((node, index) => {
+      const old = oldNodes[index];
+      if (old && sameDiagram(old, node)) return;
+      if (old) old.replaceWith(node); else preview.append(node);
+    });
+    oldNodes.slice(newNodes.length).forEach((node) => node.remove());
   };
   toggle.addEventListener('click', () => {
     const on = toggle.getAttribute('aria-pressed') !== 'true';

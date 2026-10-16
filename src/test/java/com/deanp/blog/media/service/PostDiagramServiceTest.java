@@ -69,7 +69,7 @@ class PostDiagramServiceTest {
     /** 확장자, Archify 생성 표시, UTF-8, 크기가 맞지 않으면 저장하지 않는다. */
     @Test
     void rejectsFilesThatAreNotArchifyHtml() {
-        assertThatThrownBy(() -> service.upload(POST_ID, html("flow.svg", ARCHIFY_HTML)))
+        assertThatThrownBy(() -> service.upload(POST_ID, html("flow.htm", ARCHIFY_HTML)))
                 .isInstanceOf(MediaValidationException.class).hasMessageContaining(".html");
         assertThatThrownBy(() -> service.upload(POST_ID, html("page.html", "<html><head><title>x</title></head></html>")))
                 .isInstanceOf(MediaValidationException.class).hasMessageContaining("Archify로 만든 HTML이 아닙니다");
@@ -91,7 +91,7 @@ class PostDiagramServiceTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    /** 읽기는 diagrams 영역의 HTML 첨부만 돌려주고, 이미지 첨부나 없는 식별자는 빈 값이다. */
+    /** 찾기는 diagrams 영역에 실제 파일이 있는 HTML 첨부만 돌려주고, 이미지 첨부·없는 식별자·사라진 파일은 빈 값이다. */
     @Test
     void readsOnlyDiagramAttachments() throws Exception {
         var diagram = service.upload(POST_ID, html("flow.html", ARCHIFY_HTML));
@@ -104,10 +104,14 @@ class PostDiagramServiceTest {
         when(attachedFiles.findById(imageId)).thenReturn(Optional.of(
                 AttachedFile.create(imageId, "a.png", "a.png", "posts/a.png", "image/png", 3, null)));
 
-        assertThat(service.read(diagram.id())).hasValueSatisfying(bytes ->
-                assertThat(new String(bytes, StandardCharsets.UTF_8)).isEqualTo(ARCHIFY_HTML));
-        assertThat(service.read(imageId)).isEmpty();
-        assertThat(service.read(new UUID(0, 9))).isEmpty();
+        assertThat(service.find(diagram.id())).hasValueSatisfying(file -> {
+            assertThat(file.path()).isEqualTo(root.resolve(saved.getValue().getStoragePath()));
+            assertThat(file.checksum()).hasSize(64);
+        });
+        assertThat(service.find(imageId)).isEmpty();
+        assertThat(service.find(new UUID(0, 9))).isEmpty();
+        Files.delete(root.resolve(saved.getValue().getStoragePath()));
+        assertThat(service.find(diagram.id())).isEmpty();
     }
 
     /**

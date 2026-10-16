@@ -68,7 +68,7 @@ class ContentBlocksE2eTest extends E2eTestSupport {
         expect(publicPage.locator(".code-block .code-copy")).hasText("복사");
         expect(publicPage.locator("pre.mermaid svg")).isVisible();
         FrameLocator diagram = publicPage.frameLocator(".archify-embed iframe");
-        expect(diagram.locator("#state")).containsText("archify-ok parent-blocked cookie-blocked theme=");
+        expect(diagram.locator("#state")).hasText(java.util.regex.Pattern.compile("archify-ok parent-blocked cookie-blocked theme=(light|dark)"));
         assertThat(publicPage.locator(".archify-embed iframe").getAttribute("sandbox")).doesNotContain("allow-same-origin");
 
         String diagramUrl = publicPage.locator(".archify-embed a").getAttribute("href");

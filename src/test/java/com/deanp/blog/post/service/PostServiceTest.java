@@ -55,14 +55,14 @@ class PostServiceTest {
     @Test
     void rendersArchifyBlockAsSandboxedIframe() {
         UUID id = UUID.fromString("0f8fad5b-d9cb-469f-a165-70867728950e");
-        String html = service.renderHtml("```archify 서비스 <b>구조</b>\n" + id + "\n```\n\n```archify\n../../etc/passwd\n```\n");
+        String html = service.renderHtml("```archify 서비스 <b>구조</b> \"x\" onload='y' &nbsp\n" + id + "\n```\n\n```archify\n../../etc/passwd\n```\n");
 
-        assertThat(html).contains("<iframe src=\"/media/diagrams/" + id + "?embed=1\" data-archify-src=\"/media/diagrams/" + id + "\"",
+        assertThat(html).contains("<iframe data-archify-src=\"/media/diagrams/" + id + "\"",
                 "sandbox=\"allow-scripts allow-downloads allow-popups\"",
-                "title=\"서비스 &lt;b&gt;구조&lt;/b&gt;\"",
-                "<span>서비스 &lt;b&gt;구조&lt;/b&gt;</span>",
+                "title=\"서비스 &lt;b&gt;구조&lt;/b&gt; &quot;x&quot; onload='y' &nbsp;\"",
+                "<span>서비스 &lt;b&gt;구조&lt;/b&gt; &quot;x&quot; onload='y' &nbsp;</span>",
                 "<a href=\"/media/diagrams/" + id + "\" target=\"_blank\" rel=\"noopener\">새 창에서 크게 보기</a>");
-        assertThat(html).doesNotContain("allow-same-origin", "<b>");
+        assertThat(html).doesNotContain("allow-same-origin", "<b>", " src=", "\"x\"");
         assertThat(html).contains("<pre><code class=\"language-archify\">../../etc/passwd\n</code></pre>");
     }
 

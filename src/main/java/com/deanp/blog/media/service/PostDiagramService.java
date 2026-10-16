@@ -21,6 +21,7 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
@@ -42,8 +43,13 @@ public class PostDiagramService {
     public static final String CONTENT_TYPE = "text/html";
     /** 다이어그램 HTML 최대 크기(5MB). Archify 결과물은 보통 1MB 안팎이다. */
     static final long MAX_SIZE = 5L * 1024 * 1024;
+    /**
+     * Archify가 head에 넣는 생성기 표시. 다른 파일을 잘못 올리는 실수를 막는 확인일 뿐, 보안 장치는 아니다.
+     * 다이어그램 격리는 {@code DiagramController}의 CSP sandbox가 맡는다.
+     */
     private static final Pattern GENERATOR = Pattern.compile(
             "<meta\\s+name=[\"']generator[\"']\\s+content=[\"']archify\\s+[0-9][^\"']*[\"']", Pattern.CASE_INSENSITIVE);
+    /** 생성기 표시를 찾을 파일 앞부분 길이 */
     private static final int GENERATOR_SCAN_LIMIT = 4096;
 
     private final MediaStorageService storage;
@@ -115,22 +121,24 @@ public class PostDiagramService {
     }
 
     /**
-     * 공개 경로로 내보낼 다이어그램 HTML을 읽는다. 다이어그램이 아닌 첨부는 찾지 않은 것으로 본다.
+     * 공개 경로로 내보낼 다이어그램 파일 위치와 체크섬을 찾는다. 다이어그램이 아니거나 파일이 없으면 빈 값이다.
+     * 파일 내용은 트랜잭션 밖에서 응답으로 흘려보내도록 위치만 돌려준다.
      *
      * @param fileId 첨부 파일 식별자
-     * @return 다이어그램 HTML 내용 또는 빈 값
+     * @return 다이어그램 파일 정보 또는 빈 값
      */
     @Transactional(readOnly = true)
-    public Optional<byte[]> read(UUID fileId) {
+    public Optional<DiagramFile> find(UUID fileId) {
         return attachedFiles.findById(fileId)
                 .filter(PostDiagramService::isDiagram)
                 .map(file -> {
                     try {
-                        return Files.readAllBytes(storage.resolve(file.getStoragePath()));
+                        return new DiagramFile(storage.resolve(file.getStoragePath()), file.getChecksum());
                     } catch (IOException exception) {
-                        throw new UncheckedIOException("다이어그램을 읽지 못했습니다.", exception);
+                        throw new UncheckedIOException("다이어그램 경로가 올바르지 않습니다.", exception);
                     }
-                });
+                })
+                .filter(file -> Files.isRegularFile(file.path()));
     }
 
     /**
@@ -150,7 +158,7 @@ public class PostDiagramService {
      */
     private byte[] validate(MultipartFile file) {
         String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
-        if (!name.endsWith(".html") && !name.endsWith(".htm")) {
+        if (!name.endsWith(".html")) {
             throw new MediaValidationException("Archify로 만든 .html 파일만 올릴 수 있습니다.");
         }
         if (file.isEmpty() || file.getSize() > MAX_SIZE) {
@@ -188,6 +196,15 @@ public class PostDiagramService {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", exception);
         }
+    }
+
+    /**
+     * 내보낼 다이어그램 파일이다.
+     *
+     * @param path 저장소 안의 절대 경로
+     * @param checksum 내용의 SHA-256(ETag로 쓴다), 없으면 null
+     */
+    public record DiagramFile(Path path, String checksum) {
     }
 
     /**

@@ -55,7 +55,8 @@ final class DiagramBlockRenderer implements NodeRenderer {
     }
 
     /**
-     * 격리한 iframe과 새 창 링크로 Archify 다이어그램을 넣는다.
+     * 격리한 iframe과 새 창 링크로 Archify 다이어그램을 넣는다. 블로그 테마를 붙인 주소는 브라우저 스크립트가
+     * 한 번만 넣으므로(두 번 내려받지 않도록) src는 비워 둔다. 스크립트가 없으면 새 창 링크로 볼 수 있다.
      *
      * @param id 다이어그램 첨부 파일 식별자
      * @param caption 언어 표시 뒤에 적은 설명, 없으면 빈 문자열
@@ -65,7 +66,7 @@ final class DiagramBlockRenderer implements NodeRenderer {
         String url = "/media/diagrams/" + id;
         String title = caption.isEmpty() ? "Archify 다이어그램" : caption;
         html.line().raw("<figure class=\"archify-embed\">")
-                .raw("<iframe src=\"" + url + "?embed=1\" data-archify-src=\"" + url + "\"")
+                .raw("<iframe data-archify-src=\"" + url + "\"")
                 .raw(" title=\"" + Escaping.escapeHtml(title, false) + "\"")
                 .raw(" sandbox=\"" + IFRAME_SANDBOX + "\" allowfullscreen loading=\"lazy\" referrerpolicy=\"no-referrer\"></iframe>")
                 .raw("<figcaption>");

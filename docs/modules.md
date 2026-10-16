@@ -141,7 +141,7 @@ com.deanp.blog.post.persistence.query
 
 ### `com.deanp.blog.media`
 
-첨부파일 메타데이터와 게시글 연결을 담당합니다. 실제 파일 바이트는 외부 저장소의 `posts/{게시글 ID}/{파일명}`에 둡니다. `media.controller.PublicMediaConfiguration`은 `/media/posts/**`만 해당 `posts/` 디렉터리에서 제공합니다. Archify 다이어그램 HTML(`media.service.PostDiagramService`)은 `<meta name="generator" content="archify …">`가 있는 UTF-8 `.html`(5MB 이하)만 받아 `diagrams/{게시글 ID}/{파일 ID}.html`에 두고 `attached_files`에 `text/html`로 기록합니다(스키마 변경 없음). 스크립트를 담은 파일이므로 정적 경로로 공개하지 않고, `media.controller.DiagramController`가 `/media/diagrams/{id}`에서 CSP `sandbox allow-scripts allow-downloads allow-popups`(같은 출처 권한 없음, 네트워크·폼 차단)와 `X-Frame-Options: SAMEORIGIN`을 붙여 내보냅니다. 나머지 화면은 계속 `X-Frame-Options: DENY`입니다. 이미지 목록과 대표 이미지 후보에서는 다이어그램을 뺍니다.
+첨부파일 메타데이터와 게시글 연결을 담당합니다. 실제 파일 바이트는 외부 저장소의 `posts/{게시글 ID}/{파일명}`에 둡니다. `media.controller.PublicMediaConfiguration`은 `/media/posts/**`만 해당 `posts/` 디렉터리에서 제공합니다. Archify 다이어그램 HTML(`media.service.PostDiagramService`)은 `<meta name="generator" content="archify …">`가 있는 UTF-8 `.html`(5MB 이하)만 받아 `diagrams/{게시글 ID}/{파일 ID}.html`에 두고 `attached_files`에 `text/html`로 기록합니다(스키마 변경 없음). 스크립트를 담은 파일이므로 정적 경로로 공개하지 않고, `media.controller.DiagramController`가 `/media/diagrams/{id}`에서 CSP `sandbox allow-scripts allow-downloads allow-popups`(같은 출처 권한 없음, 네트워크·폼 차단)와 `X-Frame-Options: SAMEORIGIN`을 붙여 파일을 흘려보냅니다(업로드마다 새 ID라 1년 `immutable` 캐시, 체크섬 ETag로 304). 생성기 표시 확인은 잘못된 파일을 막는 용도이며 격리는 CSP sandbox가 맡습니다. 나머지 응답(오류 화면·정적 파일 포함)은 컨트롤러가 정하지 않은 한 `X-Frame-Options: DENY`입니다. 이미지와 마찬가지로 다이어그램도 글의 공개 여부와 관계없이 ID로 열립니다. 이미지 목록과 대표 이미지 후보에서는 다이어그램을 뺍니다.
 
 바라보는 테이블:
 

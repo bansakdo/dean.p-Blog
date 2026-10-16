@@ -91,20 +91,12 @@ public class PostImageService {
     @Transactional(readOnly = true)
     public List<PostImage> findByPost(UUID postDetailId) {
         return postAttachedFiles.findByIdPostDetailIdOrderBySortOrderAsc(postDetailId).stream()
-                .filter(link -> isImage(link.getAttachedFile()))
+                .filter(link -> link.getAttachedFile().isImage())
                 .map(link -> new PostImage(
                         link.getAttachedFile().getId(),
                         link.getAttachedFile().getOriginalName(),
                         url(postDetailId, link.getAttachedFile().getStoredName())))
                 .toList();
-    }
-
-    /**
-     * @param file 첨부 파일 메타데이터
-     * @return 이미지 첨부인지 여부. 형식을 기록하지 않은 예전 첨부는 이미지로 본다.
-     */
-    public static boolean isImage(AttachedFile file) {
-        return file.getContentType() == null || file.getContentType().startsWith("image/");
     }
 
     /**

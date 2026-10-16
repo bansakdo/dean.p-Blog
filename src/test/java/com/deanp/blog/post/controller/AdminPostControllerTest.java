@@ -168,6 +168,8 @@ class AdminPostControllerTest {
 
         mockMvc.perform(post("/admin/posts/preview-render").param("content", "# 제목").with(csrf()))
                 .andExpect(status().is3xxRedirection());
+        mockMvc.perform(post("/admin/posts/preview-render").param("content", "# 제목").with(writer()))
+                .andExpect(status().isForbidden());
         mockMvc.perform(post("/admin/posts/preview-render").param("content", "# 제목").with(writer()).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(content().string("<h1>제목</h1>"))

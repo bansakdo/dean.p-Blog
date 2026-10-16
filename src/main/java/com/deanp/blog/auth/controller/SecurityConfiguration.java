@@ -1,9 +1,5 @@
 package com.deanp.blog.auth.controller;
 
-import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
-import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
-import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
-import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import com.deanp.blog.auth.service.BlogUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +17,9 @@ import java.util.Map;
  */
 @Configuration
 public class SecurityConfiguration {
+
+    /** 화면을 다른 페이지의 iframe에 넣을 수 있는지 정하는 응답 헤더 */
+    private static final String X_FRAME_OPTIONS = "X-Frame-Options";
 
     /**
      * 요청 경로별 접근 규칙과 폼 로그인을 구성한다.
@@ -42,11 +41,14 @@ public class SecurityConfiguration {
                 .logout(logout -> logout.logoutSuccessUrl("/"))
                 // 공개 화면의 정적 파일 캐시 동작을 바꾸지 않도록 캐시 금지 헤더는 관리 화면에서만 직접 붙인다.
                 .headers(headers -> headers.cacheControl(cache -> cache.disable())
-                        // 다른 화면은 계속 iframe 삽입을 막고(DENY), Archify 다이어그램만 컨트롤러가 SAMEORIGIN과 CSP로 직접 정한다.
+                        // 모든 응답(오류 화면 포함)은 iframe 삽입을 막되(DENY), 컨트롤러가 직접 정한 값은 덮어쓰지 않는다.
+                        // Archify 다이어그램 응답만 SAMEORIGIN과 CSP를 직접 붙인다.
                         .frameOptions(frame -> frame.disable())
-                        .addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(
-                                new NegatedRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher("/media/diagrams/**")),
-                                new XFrameOptionsHeaderWriter(XFrameOptionsHeaderWriter.XFrameOptionsMode.DENY))));
+                        .addHeaderWriter((request, response) -> {
+                            if (!response.containsHeader(X_FRAME_OPTIONS)) {
+                                response.setHeader(X_FRAME_OPTIONS, "DENY");
+                            }
+                        }));
         return http.build();
     }
 

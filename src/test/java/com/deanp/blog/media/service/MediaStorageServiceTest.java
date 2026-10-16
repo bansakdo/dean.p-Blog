@@ -1,8 +1,10 @@
 package com.deanp.blog.media.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,5 +53,29 @@ class MediaStorageServiceTest {
         service.delete(stored);
 
         assertThat(Files.exists(stored.path())).isFalse();
+    }
+
+    /** 다이어그램은 diagrams 영역에 저장하고, 알 수 없는 영역 이름은 거부한다. */
+    @Test
+    void 지정한_영역에만_저장한다() throws Exception {
+        MediaStorageService service = new MediaStorageService(tempDirectory);
+        UUID postId = UUID.randomUUID();
+
+        var stored = service.store(MediaStorageService.DIAGRAMS_AREA, postId, ".html",
+                new ByteArrayInputStream("<html></html>".getBytes(StandardCharsets.UTF_8)));
+
+        assertThat(stored.path().getParent()).isEqualTo(tempDirectory.resolve("diagrams").resolve(postId.toString()));
+        assertThatThrownBy(() -> service.store("../outside", postId, ".html", new ByteArrayInputStream(new byte[0])))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /** 상대 경로는 저장소 안으로만 풀고, 루트를 벗어나는 경로는 거부한다. */
+    @Test
+    void 저장소_밖_경로는_풀지_않는다() throws Exception {
+        MediaStorageService service = new MediaStorageService(tempDirectory);
+
+        assertThat(service.resolve("diagrams/a/b.html")).isEqualTo(tempDirectory.toAbsolutePath().normalize().resolve("diagrams/a/b.html"));
+        assertThatThrownBy(() -> service.resolve("../secret")).isInstanceOf(IOException.class);
+        assertThatThrownBy(() -> service.resolve("diagrams/../../secret")).isInstanceOf(IOException.class);
     }
 }

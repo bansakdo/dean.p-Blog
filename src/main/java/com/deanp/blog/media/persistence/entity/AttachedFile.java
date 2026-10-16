@@ -48,6 +48,15 @@ public class AttachedFile {
     private Instant createdAt;
 
     /**
+     * 이미지 첨부인지 확인한다. 형식을 기록하지 않은 예전 첨부는 이미지로 본다.
+     *
+     * @return 이미지 첨부 여부
+     */
+    public boolean isImage() {
+        return contentType == null || contentType.startsWith("image/");
+    }
+
+    /**
      * 외부 저장소에 저장을 마친 파일의 메타데이터를 만든다.
      *
      * @param id 파일 식별자

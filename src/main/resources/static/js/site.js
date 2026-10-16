@@ -1,8 +1,11 @@
 (() => {
   const MERMAID_URL = 'https://cdn.jsdelivr.net/npm/mermaid@12.1.0/dist/mermaid.min.js';
+  // CDN 파일이 바뀌면 실행하지 않는다(관리 화면 미리보기에서도 쓰므로).
+  const MERMAID_INTEGRITY = 'sha384-EbBpjO7rlR6eqZEcG7GaPpyk9H9WrMyPWX4d3KvPYltgt8Z8l0z6R56B1qP40pR4';
   const root = document.documentElement;
   const theme = () => (root.dataset.theme === 'dark' ? 'dark' : 'light');
   let mermaidLoading;
+  let mermaidQueue = Promise.resolve();
 
   // Mermaid는 무거우므로 본문에 다이어그램이 있을 때만 한 번 불러온다.
   const loadMermaid = () => {
@@ -10,6 +13,8 @@
     mermaidLoading ??= new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = MERMAID_URL;
+      script.integrity = MERMAID_INTEGRITY;
+      script.crossOrigin = 'anonymous';
       script.async = true;
       script.onload = () => resolve(window.mermaid);
       script.onerror = () => { mermaidLoading = undefined; reject(new Error('Mermaid를 불러오지 못했습니다.')); };
@@ -19,7 +24,12 @@
   };
 
   // 원문은 처음 본 글자를 data-source에 보관해 두고, 테마가 바뀌면 원문에서 다시 그린다.
-  const renderMermaid = async (scope) => {
+  // 그리는 중에 다시 부르면(테마 전환 등) 앞 작업이 끝난 뒤 차례로 그린다.
+  const renderMermaid = (scope) => {
+    mermaidQueue = mermaidQueue.then(() => drawMermaid(scope));
+    return mermaidQueue;
+  };
+  const drawMermaid = async (scope) => {
     const nodes = [...scope.querySelectorAll('pre.mermaid')];
     if (nodes.length === 0) return;
     nodes.forEach((node) => {
@@ -37,7 +47,7 @@
     }
   };
 
-  // Archify iframe은 블로그 테마를 따라가도록 주소의 theme 값을 맞춘다.
+  // Archify iframe은 블로그 테마를 따라가도록 주소의 theme 값을 맞춘다. 서버는 src를 비워 두므로 여기서 한 번 넣는다.
   const syncArchify = (scope) => {
     scope.querySelectorAll('iframe[data-archify-src]').forEach((frame) => {
       const src = `${frame.dataset.archifySrc}?embed=1&theme=${theme()}`;

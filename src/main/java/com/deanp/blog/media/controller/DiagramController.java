@@ -1,7 +1,10 @@
 package com.deanp.blog.media.controller;
 
 import com.deanp.blog.media.service.PostDiagramService;
+import com.deanp.blog.media.service.PostDiagramService.DiagramFile;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -24,30 +27,36 @@ import java.util.UUID;
 public class DiagramController {
 
     /**
-     * 다이어그램이 쓰는 인라인 스크립트·스타일과 data: 폰트·이미지만 허용하고, 네트워크 요청과 폼 전송은 막는다.
+     * 다이어그램이 쓰는 인라인 스크립트·스타일과 data:/blob: 폰트·이미지·영상만 허용하고, 네트워크 요청과 폼 전송은 막는다.
      * 같은 블로그 화면 안의 iframe에만 넣을 수 있다.
      */
     static final String CONTENT_SECURITY_POLICY = "sandbox allow-scripts allow-downloads allow-popups; "
             + "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
-            + "img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; "
+            + "img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none'; "
             + "base-uri 'none'; frame-ancestors 'self'";
 
     private final PostDiagramService diagrams;
 
     /**
+     * 다이어그램 파일을 흘려보낸다. 업로드마다 새 식별자를 쓰므로 내용이 바뀌지 않아 오래 캐시하고,
+     * 체크섬을 ETag로 붙여 다시 요청하면 304로 답한다.
+     *
      * @param id 다이어그램 첨부 파일 식별자
      * @return 격리 헤더를 붙인 다이어그램 HTML, 없으면 404
      */
     @GetMapping("/media/diagrams/{id}")
-    public ResponseEntity<byte[]> diagram(@PathVariable UUID id) {
-        byte[] html = diagrams.read(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        return ResponseEntity.ok()
+    public ResponseEntity<Resource> diagram(@PathVariable UUID id) {
+        DiagramFile file = diagrams.find(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok()
                 .contentType(new MediaType(MediaType.TEXT_HTML, StandardCharsets.UTF_8))
-                .cacheControl(CacheControl.maxAge(Duration.ofHours(1)).cachePublic())
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable())
                 .header("Content-Security-Policy", CONTENT_SECURITY_POLICY)
                 .header("X-Frame-Options", "SAMEORIGIN")
                 .header("X-Content-Type-Options", "nosniff")
-                .header("Referrer-Policy", "no-referrer")
-                .body(html);
+                .header("Referrer-Policy", "no-referrer");
+        if (file.checksum() != null) {
+            response.eTag("\"" + file.checksum().strip() + "\"");
+        }
+        return response.body(new FileSystemResource(file.path()));
     }
 }
