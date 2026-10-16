@@ -12,7 +12,7 @@
     <a th:href="@{/admin/posts}">← 글 관리</a>
   </header>
   <p class="admin-notice" th:if="${param.saved}" role="status">저장했습니다.</p>
-  <p class="admin-notice" th:if="${param.reverted != null and #strings.isNumeric(param.reverted[0])}" role="status" th:text="|버전 ${param.reverted}의 제목·요약·본문으로 되돌렸습니다.|">되돌렸습니다.</p>
+  <p class="admin-notice" th:if="${param.reverted != null and param.reverted[0].matches('[0-9]{1,9}')}" role="status" th:text="|버전 ${param.reverted}의 제목·요약·본문으로 되돌렸습니다.|">되돌렸습니다.</p>
   <p class="admin-notice" th:if="${param.restored}" role="status">복구했습니다. 초안 상태이므로 다시 발행해야 공개됩니다.</p>
   <div class="admin-notice admin-deleted" th:if="${post != null and post.deleted}" role="status">
     <p>삭제한 글입니다. 복구하면 초안으로 돌아가며, 그 전에는 고칠 수 없습니다.</p>

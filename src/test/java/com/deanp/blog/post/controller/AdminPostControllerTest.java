@@ -285,6 +285,19 @@ class AdminPostControllerTest {
                         containsString(">기록 시작 전<"))));
     }
 
+    /** 되돌린 뒤 수정 화면은 숫자 버전 번호만 안내 문구에 넣는다. */
+    @Test
+    void rendersRevertNoticeOnlyForNumericVersion() throws Exception {
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(false)));
+
+        mockMvc.perform(get("/admin/posts/{id}/edit", POST_ID).param("reverted", "3").with(writer()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("버전 3의 제목·요약·본문으로 되돌렸습니다.")));
+        mockMvc.perform(get("/admin/posts/{id}/edit", POST_ID).param("reverted", "가짜 안내").with(writer()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("가짜 안내"))));
+    }
+
     /** 버전 보기는 현재와 다른 항목을 표시하고, 삭제한 글이면 되돌리기 버튼을 숨긴다. */
     @Test
     void rendersRevisionAndHidesRevertForDeletedPost() throws Exception {
