@@ -30,7 +30,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * 글 관리 화면의 목록 조회, 작성, 수정, 공개 상태 전환을 트랜잭션으로 조합한다.
+ * 글 관리 화면의 목록 조회, 작성, 수정, 공개 상태 전환, 삭제·복구를 트랜잭션으로 조합한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -38,6 +38,7 @@ public class PostEditorService {
 
     private static final int PAGE_SIZE = 50;
     private static final String PUBLISHED = "PUBLISHED";
+    private static final String DELETED = "DELETED";
     private static final String ACTIVE = "ACTIVE";
     private static final ZoneId DISPLAY_ZONE = ZoneId.of("Asia/Seoul");
 
@@ -50,16 +51,22 @@ public class PostEditorService {
     private final PostService postService;
 
     /**
-     * 초안을 포함한 모든 글을 최근 수정순으로 조회한다.
+     * 상태 필터와 제목 검색어에 맞는 글을 최근 수정순으로 조회한다.
      *
      * @param page 0부터 시작하는 페이지 번호
+     * @param filter 포함할 글 상태
+     * @param query 제목 검색어, 비어 있으면 모든 제목
      * @return 관리 목록 한 페이지
      */
     @Transactional(readOnly = true)
-    public Page<AdminPostRow> findPage(int page) {
-        return posts.findAll(PageRequest.of(page, PAGE_SIZE, Sort.by(Sort.Direction.DESC, "updatedAt")))
+    public Page<AdminPostRow> findPage(int page, AdminPostFilter filter, String query) {
+        // 같은 시각에 수정한 글도 페이지마다 순서가 바뀌지 않도록 식별자로 한 번 더 정렬한다.
+        Sort sort = Sort.by(Sort.Direction.DESC, "updatedAt").and(Sort.by("id"));
+        String title = query == null ? "" : query.strip();
+        return posts.findByStatusInAndTitleContainingIgnoreCase(filter.getStatuses(), title,
+                        PageRequest.of(page, PAGE_SIZE, sort))
                 .map(post -> new AdminPostRow(post.getId(), post.getSlug(), post.getTitle(),
-                        PUBLISHED.equals(post.getStatus()),
+                        PUBLISHED.equals(post.getStatus()), DELETED.equals(post.getStatus()),
                         LocalDateTime.ofInstant(post.getUpdatedAt(), DISPLAY_ZONE)));
     }
 
@@ -91,6 +98,7 @@ public class PostEditorService {
                 String.join(", ", tagNames(post.getId())),
                 post.getRepresentativeImageId(),
                 PUBLISHED.equals(post.getStatus()),
+                DELETED.equals(post.getStatus()),
                 post.getSeriesId() != null
         ));
     }
@@ -122,7 +130,7 @@ public class PostEditorService {
         UUID authorId = users.findByLoginId(authorLoginId)
                 .orElseThrow(() -> new IllegalStateException("로그인한 사용자를 찾을 수 없습니다.")).getId();
         requireCategory(normalized.categoryId());
-        if (posts.existsBySlug(normalized.slug())) {
+        if (posts.existsBySlugAndStatusNot(normalized.slug(), DELETED)) {
             throw new IllegalArgumentException("이미 사용 중인 주소(slug)입니다.");
         }
 
@@ -144,12 +152,15 @@ public class PostEditorService {
      */
     @Transactional
     public void update(UUID id, PostEditCommand command) {
-        PostDetail post = posts.findById(id)
+        PostDetail post = posts.findForUpdateById(id)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+        if (DELETED.equals(post.getStatus())) {
+            throw new IllegalArgumentException("삭제한 글은 복구한 뒤에 고칠 수 있습니다.");
+        }
         PostEditCommand normalized = command.normalized();
 
-        // 다른 글과 주소가 겹치지 않을 때만 본문 값을 고친다.
-        if (posts.existsBySlugAndIdNot(normalized.slug(), id)) {
+        // 삭제하지 않은 다른 글과 주소가 겹치지 않을 때만 본문 값을 고친다.
+        if (posts.existsBySlugAndStatusNotAndIdNot(normalized.slug(), DELETED, id)) {
             throw new IllegalArgumentException("이미 사용 중인 주소(slug)입니다.");
         }
         post.edit(normalized.slug(), normalized.title(), normalized.summary(), normalized.content());
@@ -174,6 +185,35 @@ public class PostEditorService {
         } else if (normalized.action() == PublishAction.UNPUBLISH) {
             post.unpublish();
         }
+    }
+
+    /**
+     * 글을 삭제 상태로 바꾼다. 공개 중이던 글도 바로 공개 화면에서 내려간다.
+     *
+     * @param id 삭제할 게시글 식별자
+     */
+    @Transactional
+    public void delete(UUID id) {
+        posts.findForUpdateById(id).orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다.")).delete();
+    }
+
+    /**
+     * 삭제한 글을 초안으로 되돌린다. 삭제한 사이에 다른 글이 같은 주소를 쓰기 시작했다면 복구하지 않는다.
+     *
+     * @param id 복구할 게시글 식별자
+     * @throws SlugConflictException 삭제하지 않은 다른 글이 같은 주소를 쓰고 있을 때
+     */
+    @Transactional
+    public void restore(UUID id) {
+        PostDetail post = posts.findForUpdateById(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+        if (!DELETED.equals(post.getStatus())) {
+            throw new IllegalArgumentException("삭제한 글만 복구할 수 있습니다.");
+        }
+        if (posts.existsBySlugAndStatusNotAndIdNot(post.getSlug(), DELETED, id)) {
+            throw new SlugConflictException(post.getSlug());
+        }
+        post.restore();
     }
 
     /**
@@ -242,15 +282,28 @@ public class PostEditorService {
     }
 
     /**
+     * 복구하려는 글의 주소를 삭제하지 않은 다른 글이 쓰고 있어 복구할 수 없을 때 던진다.
+     */
+    public static final class SlugConflictException extends RuntimeException {
+
+        /** @param slug 겹친 주소 */
+        public SlugConflictException(String slug) {
+            super("주소(slug) '" + slug + "'를 다른 글이 쓰고 있어 복구할 수 없습니다. 그 글의 주소를 바꾼 뒤 다시 복구하세요.");
+        }
+    }
+
+    /**
      * 관리 목록의 글 한 줄이다.
      *
      * @param id 게시글 식별자
      * @param slug URL 식별자
      * @param title 제목
      * @param published 공개 여부
+     * @param deleted 삭제 여부
      * @param updatedAt 화면 표시 시간대로 바꾼 마지막 수정 시각
      */
-    public record AdminPostRow(UUID id, String slug, String title, boolean published, LocalDateTime updatedAt) {
+    public record AdminPostRow(UUID id, String slug, String title, boolean published, boolean deleted,
+                               LocalDateTime updatedAt) {
     }
 
     /**
@@ -274,10 +327,11 @@ public class PostEditorService {
      * @param tags 쉼표로 이은 태그 이름
      * @param representativeImageId 대표 이미지 파일 식별자 또는 null
      * @param published 공개 여부
+     * @param deleted 삭제 여부
      * @param inSeries 시리즈에 속해 카테고리를 바꿀 수 없는지 여부
      */
     public record PostEditView(UUID id, String slug, String title, String summary, String content,
                                UUID categoryId, String tags, UUID representativeImageId,
-                               boolean published, boolean inSeries) {
+                               boolean published, boolean deleted, boolean inSeries) {
     }
 }

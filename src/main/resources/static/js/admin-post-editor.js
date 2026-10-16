@@ -1,3 +1,10 @@
+// 삭제처럼 되돌리기 번거로운 요청은 제출 전에 한 번 더 묻는다.
+document.querySelectorAll('form[data-confirm]').forEach((form) => {
+  form.addEventListener('submit', (event) => {
+    if (!window.confirm(form.dataset.confirm)) event.preventDefault();
+  });
+});
+
 (() => {
   const input = document.querySelector('[data-image-upload]');
   const content = document.querySelector('#post-content');

@@ -7,17 +7,26 @@
   <header class="admin-heading">
     <div>
       <h1 th:text="${post == null} ? '새 글' : '글 수정'">새 글</h1>
-      <p th:if="${post != null}">상태: <span class="admin-badge" th:classappend="${post.published} ? 'is-published'" th:text="${post.published} ? '공개' : '초안'">초안</span></p>
+      <p th:if="${post != null}">상태: <span class="admin-badge" th:classappend="${post.published} ? 'is-published' : (${post.deleted} ? 'is-deleted')" th:text="${post.published} ? '공개' : (${post.deleted} ? '삭제됨' : '초안')">초안</span></p>
     </div>
     <a th:href="@{/admin/posts}">← 글 관리</a>
   </header>
   <p class="admin-notice" th:if="${param.saved}" role="status">저장했습니다.</p>
+  <p class="admin-notice" th:if="${param.restored}" role="status">복구했습니다. 초안 상태이므로 다시 발행해야 공개됩니다.</p>
+  <div class="admin-notice admin-deleted" th:if="${post != null and post.deleted}" role="status">
+    <p>삭제한 글입니다. 복구하면 초안으로 돌아가며, 그 전에는 고칠 수 없습니다.</p>
+    <p class="admin-deleted-conflict" th:if="${param.slugConflict}" role="alert">이 글의 주소(slug)를 다른 글이 쓰고 있어 복구하지 못했습니다. 그 글의 주소를 바꾼 뒤 다시 복구하세요.</p>
+    <form method="post" th:action="@{/admin/posts/{id}/restore(id=${post.id})}">
+      <button class="admin-button" type="submit">복구</button>
+    </form>
+  </div>
   <form class="admin-form" method="post" th:object="${form}"
         th:action="${post == null} ? @{/admin/posts} : @{/admin/posts/{id}(id=${post.id})}">
     <ul class="admin-error" th:if="${#fields.hasAnyErrors()}" role="alert">
       <li th:each="error : ${#fields.allErrors()}" th:text="${error}">오류</li>
     </ul>
 
+    <fieldset class="admin-fields" th:disabled="${post != null and post.deleted}">
     <label for="post-title">제목</label>
     <input id="post-title" type="text" th:field="*{title}" maxlength="300" required>
 
@@ -50,8 +59,9 @@
       </select>
       <p class="admin-help" id="post-representative-image-help">이 글에 올린 이미지 중에서 고릅니다. 홈과 글 목록의 썸네일로 쓰입니다.</p>
     </th:block>
+    </fieldset>
 
-    <div class="admin-actions">
+    <div class="admin-actions" th:unless="${post != null and post.deleted}">
       <button class="admin-button primary" type="submit" name="action" value="save" th:text="${post == null} ? '초안으로 저장' : '저장'">저장</button>
       <button class="admin-button" type="submit" name="action" value="publish" th:if="${post == null or !post.published}">발행</button>
       <button class="admin-button" type="submit" name="action" value="unpublish" th:if="${post != null and post.published}">비공개로 전환</button>
@@ -60,7 +70,14 @@
     </div>
   </form>
 
-  <section class="admin-images" th:if="${post != null}" aria-labelledby="post-images-title">
+  <form class="admin-danger-zone" method="post" th:if="${post != null and !post.deleted}"
+        th:action="@{/admin/posts/{id}/delete(id=${post.id})}"
+        data-confirm="이 글을 삭제할까요? 공개 중이면 바로 내려가며, 글 관리 목록의 ‘삭제됨’에서 복구할 수 있습니다.">
+    <button class="admin-button danger" type="submit">글 삭제</button>
+    <p class="admin-help">저장하지 않은 수정 내용은 사라집니다.</p>
+  </form>
+
+  <section class="admin-images" th:if="${post != null and !post.deleted}" aria-labelledby="post-images-title">
     <h2 id="post-images-title">이미지</h2>
     <label for="post-image-upload">이미지 올리기 (JPG, PNG, WebP · 10MB 이하)</label>
     <input id="post-image-upload" type="file" accept="image/jpeg,image/png,image/webp"

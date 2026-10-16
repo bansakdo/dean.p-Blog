@@ -187,4 +187,20 @@ public class PostDetail {
         this.status = "DRAFT";
         this.updatedAt = Instant.now();
     }
+
+    /**
+     * 글을 삭제 상태로 바꿔 공개 화면과 기본 관리 목록에서 숨긴다. 행과 첨부, 태그 연결은 복구할 수 있도록 남긴다.
+     */
+    public void delete() {
+        this.status = "DELETED";
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * 삭제한 글을 초안으로 되돌린다. 복구하자마자 공개되지 않도록 다시 발행해야 공개된다.
+     */
+    public void restore() {
+        this.status = "DRAFT";
+        this.updatedAt = Instant.now();
+    }
 }

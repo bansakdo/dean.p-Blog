@@ -88,6 +88,7 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 - V9는 과거 개발 스키마에서 문자 컬럼이 일괄 `varchar(255)`로 생성된 드리프트만 V1-V8 migration의 명시 타입으로 복구합니다. 축소되는 컬럼은 `char_length` 최대값을 먼저 검사하며, 실패 오류에는 테이블·컬럼·최대 길이만 포함하고 실제 값은 노출하지 않습니다.
 - V9 적용 전 운영 백업을 확보하고 Flyway validation을 통과시켜야 합니다. V6 checksum repair는 별도 운영 절차이며 애플리케이션이나 migration에서 validation을 자동 우회하지 않습니다.
 - V10은 상위 게시판 `post`를 제거합니다. 적용 전 스키마 백업과 카테고리·시리즈 slug 중복 여부를 확인해야 하며, 중복 시 데이터 변경 없이 중단합니다. `post_detail`·카테고리·시리즈·태그·방문 이력은 보존합니다. 기존 애플리케이션은 V10 스키마와 호환되지 않으므로 적용과 코드 교체를 함께 계획해야 합니다.
+- V11은 `post_detail_slug_key` 고유 제약을 `status <> 'DELETED'`인 행에만 거는 부분 고유 인덱스 `ux_post_detail_slug_active`로 바꿉니다. 데이터는 바꾸지 않습니다. 되돌릴 때는 삭제한 글끼리 slug가 겹치지 않는지 먼저 확인해야 원래 제약을 다시 만들 수 있습니다.
 
 ## Admin Account
 

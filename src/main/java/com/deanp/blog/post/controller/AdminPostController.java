@@ -3,10 +3,12 @@ package com.deanp.blog.post.controller;
 import com.deanp.blog.media.service.MediaImageValidationService.MediaValidationException;
 import com.deanp.blog.media.service.PostImageService;
 import com.deanp.blog.media.service.PostImageService.PostImage;
+import com.deanp.blog.post.service.AdminPostFilter;
 import com.deanp.blog.post.service.PostEditCommand;
 import com.deanp.blog.post.service.PostEditCommand.PublishAction;
 import com.deanp.blog.post.service.PostEditorService;
 import com.deanp.blog.post.service.PostEditorService.PostEditView;
+import com.deanp.blog.post.service.PostEditorService.SlugConflictException;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +35,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 글 관리 화면의 목록, 작성, 수정, 이미지 업로드, 미리보기 요청을 받는다.
+ * 글 관리 화면의 목록, 작성, 수정, 삭제·복구, 이미지 업로드, 미리보기 요청을 받는다.
  */
 @Controller
 @RequestMapping("/admin/posts")
@@ -54,18 +56,27 @@ public class AdminPostController {
     }
 
     /**
-     * 초안을 포함한 글 목록을 최근 수정순으로 보여 준다.
+     * 초안을 포함한 글 목록을 상태와 제목 검색어로 걸러 최근 수정순으로 보여 준다.
      *
      * @param page 1부터 시작하는 페이지 번호
+     * @param status 상태 필터(빈 값, draft, published, deleted)
+     * @param q 제목 검색어
      * @param model Thymeleaf 렌더링에 사용할 모델
      * @return 글 관리 목록 템플릿 이름
      */
     @GetMapping
-    public String list(@RequestParam(defaultValue = "1") int page, Model model) {
+    public String list(@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "") String status,
+                       @RequestParam(defaultValue = "") String q, Model model) {
+        AdminPostFilter filter = AdminPostFilter.fromParam(status)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
         if (page < 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
-        var postPage = postEditor.findPage(page - 1);
+        String query = q.strip();
+        var postPage = postEditor.findPage(page - 1, filter, query);
+        model.addAttribute("status", filter.getParam());
+        model.addAttribute("q", query);
+        model.addAttribute("filtered", filter != AdminPostFilter.ALL || !query.isEmpty());
         model.addAttribute("posts", postPage.getContent());
         model.addAttribute("totalPosts", postPage.getTotalElements());
         model.addAttribute("currentPage", page);
@@ -159,7 +170,41 @@ public class AdminPostController {
     }
 
     /**
-     * 글에 이미지를 올리고 본문에 넣을 주소를 응답한다.
+     * 글을 삭제 상태로 바꾸고 목록으로 돌아간다.
+     *
+     * @param id 게시글 식별자
+     * @return 삭제 안내를 띄울 목록으로의 리다이렉트
+     */
+    @PostMapping("/{id}/delete")
+    public String delete(@PathVariable UUID id) {
+        requirePost(id);
+        postEditor.delete(id);
+        return "redirect:/admin/posts?deleted";
+    }
+
+    /**
+     * 삭제한 글을 초안으로 되돌리고 수정 화면으로 이동한다. 삭제 상태가 아니면 거부하고,
+     * 다른 글이 같은 주소를 쓰고 있으면 복구하지 않고 안내를 띄운다.
+     *
+     * @param id 게시글 식별자
+     * @return 수정 화면으로의 리다이렉트
+     */
+    @PostMapping("/{id}/restore")
+    public String restore(@PathVariable UUID id) {
+        requirePost(id);
+        try {
+            // 다른 요청이 먼저 복구했을 수 있으므로 잠근 행의 상태로 서비스가 판단한다.
+            postEditor.restore(id);
+        } catch (SlugConflictException exception) {
+            return "redirect:/admin/posts/" + id + "/edit?slugConflict";
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage());
+        }
+        return "redirect:/admin/posts/" + id + "/edit?restored";
+    }
+
+    /**
+     * 글에 이미지를 올리고 본문에 넣을 주소를 응답한다. 삭제한 글에는 올릴 수 없다.
      *
      * @param id 게시글 식별자
      * @param file 업로드한 이미지 파일
@@ -168,7 +213,9 @@ public class AdminPostController {
     @PostMapping("/{id}/images")
     @ResponseBody
     public PostImage uploadImage(@PathVariable UUID id, @RequestParam("file") MultipartFile file) {
-        requirePost(id);
+        if (requirePost(id).deleted()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
+        }
         return postImages.upload(id, file);
     }
 

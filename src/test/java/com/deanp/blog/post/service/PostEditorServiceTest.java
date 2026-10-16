@@ -1,6 +1,8 @@
 package com.deanp.blog.post.service;
 
 import com.deanp.blog.persistence.TestPostgresql;
+import com.deanp.blog.post.persistence.repository.PostDetailRepository;
+import com.deanp.blog.post.service.PostEditorService.AdminPostRow;
 import com.deanp.blog.post.service.PostEditCommand.PublishAction;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.AfterAll;
@@ -34,6 +36,8 @@ class PostEditorServiceTest {
     private PostEditorService service;
     @Autowired
     private PostSeriesService seriesService;
+    @Autowired
+    private PostDetailRepository posts;
     @Autowired
     private EntityManager entityManager;
     @Autowired
@@ -172,6 +176,101 @@ class PostEditorServiceTest {
         entityManager.flush();
         assertThat(jdbc.queryForObject("SELECT published_at FROM blog.post_detail WHERE id = ?", Timestamp.class, postId))
                 .isEqualTo(firstPublishedAt);
+    }
+
+    /** 삭제하면 공개 화면과 기본 목록에서 빠지고, 복구하면 공개되지 않은 초안으로 돌아온다. */
+    @Test
+    void deletesAndRestores() {
+        UUID postId = service.create(command("삭제", "delete-post", List.of("남는 태그"), PublishAction.PUBLISH), AUTHOR);
+        entityManager.flush();
+        assertThat(posts.findPublishedRowsBySlug("delete-post")).isNotEmpty();
+
+        // 다음 요청처럼 새로 읽도록 영속성 컨텍스트를 비운다.
+        service.delete(postId);
+        entityManager.flush();
+        entityManager.clear();
+        assertThat(text("status", postId)).isEqualTo("DELETED");
+        assertThat(posts.findPublishedRowsBySlug("delete-post")).isEmpty();
+        assertThat(titles(AdminPostFilter.ALL, "")).doesNotContain("삭제");
+        assertThat(titles(AdminPostFilter.DELETED, "")).containsExactly("삭제");
+        assertThat(service.findForEdit(postId).orElseThrow().deleted()).isTrue();
+        assertThat(tagNames(postId)).containsExactly("남는 태그");
+
+        service.restore(postId);
+        entityManager.flush();
+        assertThat(text("status", postId)).isEqualTo("DRAFT");
+        assertThat(posts.findPublishedRowsBySlug("delete-post")).isEmpty();
+    }
+
+    /** 삭제한 글은 복구하기 전에는 고칠 수 없고, 삭제하지 않은 글은 복구할 수 없다. */
+    @Test
+    void guardsDeletedState() {
+        UUID postId = service.create(command("보호", "guard-post", List.of(), PublishAction.KEEP), AUTHOR);
+        assertThatThrownBy(() -> service.restore(postId)).isInstanceOf(IllegalArgumentException.class);
+
+        service.delete(postId);
+        assertThatThrownBy(() -> service.update(postId, command("고침", "guard-post", List.of(), PublishAction.PUBLISH)))
+                .isInstanceOf(IllegalArgumentException.class);
+        entityManager.flush();
+        assertThat(text("title", postId)).isEqualTo("보호");
+        assertThat(text("status", postId)).isEqualTo("DELETED");
+    }
+
+    /** 삭제한 글의 주소는 새 글이 다시 쓸 수 있고, 그 뒤에는 겹치는 옛 글을 복구하지 않는다. */
+    @Test
+    void reusesSlugOfDeletedPostAndBlocksConflictingRestore() {
+        UUID oldId = service.create(command("옛 글", "reused-slug", List.of(), PublishAction.PUBLISH), AUTHOR);
+        service.delete(oldId);
+        entityManager.flush();
+
+        UUID newId = service.create(command("새 글", "reused-slug", List.of(), PublishAction.PUBLISH), AUTHOR);
+        entityManager.flush();
+        assertThat(posts.findPublishedRowsBySlug("reused-slug")).extracting(row -> row.title()).containsOnly("새 글");
+        assertThatThrownBy(() -> service.create(command("또 새 글", "reused-slug", List.of(), PublishAction.KEEP), AUTHOR))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> service.restore(oldId)).isInstanceOf(PostEditorService.SlugConflictException.class);
+        entityManager.flush();
+        assertThat(text("status", oldId)).isEqualTo("DELETED");
+
+        // 새 글의 주소를 바꾸면 옛 글을 복구할 수 있다.
+        service.update(newId, command("새 글", "renamed-slug", List.of(), PublishAction.KEEP));
+        service.restore(oldId);
+        entityManager.flush();
+        assertThat(text("status", oldId)).isEqualTo("DRAFT");
+    }
+
+    /** DB 인덱스도 삭제한 글끼리는 같은 주소를 허용하고, 삭제하지 않은 글끼리는 막는다. */
+    @Test
+    void enforcesSlugUniquenessOnlyAmongActivePosts() {
+        String insert = "INSERT INTO blog.post_detail (id, author_id, slug, title, content, status) VALUES (?, ?, 'db-slug', '제목', '본문', ?)";
+        jdbc.update(insert, id(50), id(1), "DELETED");
+        jdbc.update(insert, id(51), id(1), "DELETED");
+        jdbc.update(insert, id(52), id(1), "DRAFT");
+
+        assertThatThrownBy(() -> jdbc.update(insert, id(53), id(1), "PUBLISHED"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
+    /** 상태 필터와 제목 검색어를 함께 적용하고, 검색어는 대소문자와 앞뒤 공백, LIKE 특수 문자를 그대로 다룬다. */
+    @Test
+    void filtersByStatusAndTitle() {
+        service.create(command("Spring 초안", "filter-draft", List.of(), PublishAction.KEEP), AUTHOR);
+        service.create(command("spring 공개", "filter-published", List.of(), PublishAction.PUBLISH), AUTHOR);
+        service.create(command("100% 일상", "filter-percent", List.of(), PublishAction.KEEP), AUTHOR);
+        service.create(command("snake_case 정리", "filter-underscore", List.of(), PublishAction.KEEP), AUTHOR);
+        entityManager.flush();
+
+        assertThat(titles(AdminPostFilter.ALL, " SPRING ")).containsExactlyInAnyOrder("Spring 초안", "spring 공개");
+        assertThat(titles(AdminPostFilter.DRAFT, "spring")).containsExactly("Spring 초안");
+        assertThat(titles(AdminPostFilter.PUBLISHED, "")).containsExactly("spring 공개");
+        assertThat(titles(AdminPostFilter.ALL, "%")).containsExactly("100% 일상");
+        assertThat(titles(AdminPostFilter.ALL, "_")).containsExactly("snake_case 정리");
+    }
+
+    /** @param filter 상태 필터 @param query 제목 검색어 @return 첫 페이지 글 제목 */
+    private List<String> titles(AdminPostFilter filter, String query) {
+        return service.findPage(0, filter, query).map(AdminPostRow::title).getContent();
     }
 
     /**
