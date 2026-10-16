@@ -3,13 +3,17 @@ package com.deanp.blog.post.controller;
 import com.deanp.blog.auth.controller.SecurityConfiguration;
 import com.deanp.blog.auth.service.BlogUserDetailsService;
 import com.deanp.blog.media.service.PostImageService;
+import com.deanp.blog.post.service.AdminPostFilter;
 import com.deanp.blog.post.service.PostEditorService;
+import com.deanp.blog.post.service.PostEditorService.PostEditView;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -17,11 +21,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,6 +36,10 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -54,7 +64,7 @@ class AdminPostControllerTest {
     /** 빈 목록과 선택지를 돌려주도록 준비한다. */
     @BeforeEach
     void defaults() {
-        when(postEditor.findPage(anyInt())).thenReturn(Page.empty());
+        when(postEditor.findPage(anyInt(), any(), any())).thenReturn(Page.empty());
         when(postEditor.findCategoryChoices()).thenReturn(List.of());
     }
 
@@ -111,6 +121,139 @@ class AdminPostControllerTest {
                 .andExpect(status().isForbidden());
 
         verify(postImages, never()).upload(any(), any());
+    }
+
+    /** 상태 필터와 앞뒤 공백을 지운 제목 검색어를 서비스에 넘긴다. */
+    @Test
+    void passesFilterAndQueryToService() throws Exception {
+        mockMvc.perform(get("/admin/posts").with(writer()).param("status", "deleted").param("q", "  스프링 "))
+                .andExpect(status().isOk());
+
+        verify(postEditor).findPage(0, AdminPostFilter.DELETED, "스프링");
+    }
+
+    /** 모르는 상태 필터는 거부한다. */
+    @Test
+    void rejectsUnknownStatusFilter() throws Exception {
+        mockMvc.perform(get("/admin/posts").with(writer()).param("status", "DELETED"))
+                .andExpect(status().isBadRequest());
+    }
+
+    /** 삭제 요청도 CSRF 토큰이 없으면 거부한다. */
+    @Test
+    void rejectsDeleteWithoutCsrf() throws Exception {
+        mockMvc.perform(post("/admin/posts/{id}/delete", POST_ID).with(writer()))
+                .andExpect(status().isForbidden());
+
+        verify(postEditor, never()).delete(any());
+    }
+
+    /** 글 관리 권한이 없으면 삭제할 수 없다. */
+    @Test
+    void forbidsDeleteWithoutPostWrite() throws Exception {
+        mockMvc.perform(post("/admin/posts/{id}/delete", POST_ID).with(user("reader")).with(csrf()))
+                .andExpect(status().isForbidden());
+
+        verify(postEditor, never()).delete(any());
+    }
+
+    /** 삭제하면 안내를 띄울 목록으로 보낸다. */
+    @Test
+    void deletesPost() throws Exception {
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(false)));
+
+        mockMvc.perform(post("/admin/posts/{id}/delete", POST_ID).with(writer()).with(csrf()))
+                .andExpect(redirectedUrl("/admin/posts?deleted"));
+
+        verify(postEditor).delete(POST_ID);
+    }
+
+    /** 없는 글은 삭제하지 않고 404로 응답한다. */
+    @Test
+    void returnsNotFoundForMissingPost() throws Exception {
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/admin/posts/{id}/delete", POST_ID).with(writer()).with(csrf()))
+                .andExpect(status().isNotFound());
+
+        verify(postEditor, never()).delete(any());
+    }
+
+    /** 삭제한 글은 복구해 수정 화면으로 보내고, 서비스가 삭제 상태가 아니라고 거부하면 409로 응답한다. */
+    @Test
+    void restoresOnlyDeletedPost() throws Exception {
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(true)));
+        mockMvc.perform(post("/admin/posts/{id}/restore", POST_ID).with(writer()).with(csrf()))
+                .andExpect(redirectedUrl("/admin/posts/" + POST_ID + "/edit?restored"));
+        verify(postEditor).restore(POST_ID);
+
+        doThrow(new IllegalArgumentException("삭제한 글만 복구할 수 있습니다.")).when(postEditor).restore(POST_ID);
+        mockMvc.perform(post("/admin/posts/{id}/restore", POST_ID).with(writer()).with(csrf()))
+                .andExpect(status().isConflict());
+    }
+
+    /** 삭제한 글의 수정 화면은 입력을 잠그고 복구만 보여 주며, 삭제·이미지 영역을 숨긴다. */
+    @Test
+    void rendersDeletedPostReadOnly() throws Exception {
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(true)));
+
+        mockMvc.perform(get("/admin/posts/{id}/edit", POST_ID).with(writer()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(allOf(
+                        containsString("<fieldset class=\"admin-fields\" disabled=\"disabled\">"),
+                        containsString("/admin/posts/" + POST_ID + "/restore"),
+                        containsString("삭제됨"),
+                        not(containsString("/admin/posts/" + POST_ID + "/delete")),
+                        not(containsString("data-image-upload")))));
+    }
+
+    /** 삭제하지 않은 글의 수정 화면은 입력을 열어 두고 삭제 버튼을 보여 준다. */
+    @Test
+    void rendersActivePostEditable() throws Exception {
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(false)));
+
+        mockMvc.perform(get("/admin/posts/{id}/edit", POST_ID).with(writer()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(allOf(
+                        containsString("<fieldset class=\"admin-fields\">"),
+                        containsString("/admin/posts/" + POST_ID + "/delete"),
+                        not(containsString("/admin/posts/" + POST_ID + "/restore")))));
+    }
+
+    /** 목록 행은 상태 배지를 보여 주고, 페이지 링크는 상태 필터와 검색어를 유지한다. */
+    @Test
+    void rendersRowsAndKeepsFilterInPageLinks() throws Exception {
+        var rows = List.of(
+                new PostEditorService.AdminPostRow(POST_ID, "deleted-slug", "지운 글", false, true,
+                        java.time.LocalDateTime.of(2026, 10, 16, 12, 0)));
+        when(postEditor.findPage(eq(0), eq(AdminPostFilter.DELETED), eq("검색")))
+                .thenReturn(new PageImpl<>(rows, PageRequest.of(0, 50), 120));
+
+        mockMvc.perform(get("/admin/posts").with(writer()).param("status", "deleted").param("q", "검색"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(allOf(
+                        containsString("admin-badge is-deleted"),
+                        containsString(">삭제됨<"),
+                        containsString("page=2&amp;status=deleted&amp;q="),
+                        not(containsString("/posts/deleted-slug")))));
+    }
+
+    /** 삭제한 글에는 이미지를 올릴 수 없다. */
+    @Test
+    void rejectsImageUploadToDeletedPost() throws Exception {
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(true)));
+
+        mockMvc.perform(multipart("/admin/posts/{id}/images", POST_ID)
+                        .file(new MockMultipartFile("file", "a.png", "image/png", new byte[] {1}))
+                        .with(writer()).with(csrf()))
+                .andExpect(status().isConflict());
+
+        verify(postImages, never()).upload(any(), any());
+    }
+
+    /** @param deleted 삭제 여부 @return 수정 화면에 쓰는 글 값 */
+    private static PostEditView editView(boolean deleted) {
+        return new PostEditView(POST_ID, "slug", "제목", null, "본문", null, "", null, false, deleted, false);
     }
 
     /** @return 글 관리 권한을 가진 로그인 사용자 */

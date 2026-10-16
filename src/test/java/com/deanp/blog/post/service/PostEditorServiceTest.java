@@ -1,6 +1,8 @@
 package com.deanp.blog.post.service;
 
 import com.deanp.blog.persistence.TestPostgresql;
+import com.deanp.blog.post.persistence.repository.PostDetailRepository;
+import com.deanp.blog.post.service.PostEditorService.AdminPostRow;
 import com.deanp.blog.post.service.PostEditCommand.PublishAction;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.AfterAll;
@@ -34,6 +36,8 @@ class PostEditorServiceTest {
     private PostEditorService service;
     @Autowired
     private PostSeriesService seriesService;
+    @Autowired
+    private PostDetailRepository posts;
     @Autowired
     private EntityManager entityManager;
     @Autowired
@@ -172,6 +176,65 @@ class PostEditorServiceTest {
         entityManager.flush();
         assertThat(jdbc.queryForObject("SELECT published_at FROM blog.post_detail WHERE id = ?", Timestamp.class, postId))
                 .isEqualTo(firstPublishedAt);
+    }
+
+    /** 삭제하면 공개 화면과 기본 목록에서 빠지고, 복구하면 공개되지 않은 초안으로 돌아온다. */
+    @Test
+    void deletesAndRestores() {
+        UUID postId = service.create(command("삭제", "delete-post", List.of("남는 태그"), PublishAction.PUBLISH), AUTHOR);
+        entityManager.flush();
+        assertThat(posts.findPublishedRowsBySlug("delete-post")).isNotEmpty();
+
+        // 다음 요청처럼 새로 읽도록 영속성 컨텍스트를 비운다.
+        service.delete(postId);
+        entityManager.flush();
+        entityManager.clear();
+        assertThat(text("status", postId)).isEqualTo("DELETED");
+        assertThat(posts.findPublishedRowsBySlug("delete-post")).isEmpty();
+        assertThat(titles(AdminPostFilter.ALL, "")).doesNotContain("삭제");
+        assertThat(titles(AdminPostFilter.DELETED, "")).containsExactly("삭제");
+        assertThat(service.findForEdit(postId).orElseThrow().deleted()).isTrue();
+        assertThat(tagNames(postId)).containsExactly("남는 태그");
+
+        service.restore(postId);
+        entityManager.flush();
+        assertThat(text("status", postId)).isEqualTo("DRAFT");
+        assertThat(posts.findPublishedRowsBySlug("delete-post")).isEmpty();
+    }
+
+    /** 삭제한 글은 복구하기 전에는 고칠 수 없고, 삭제하지 않은 글은 복구할 수 없다. */
+    @Test
+    void guardsDeletedState() {
+        UUID postId = service.create(command("보호", "guard-post", List.of(), PublishAction.KEEP), AUTHOR);
+        assertThatThrownBy(() -> service.restore(postId)).isInstanceOf(IllegalArgumentException.class);
+
+        service.delete(postId);
+        assertThatThrownBy(() -> service.update(postId, command("고침", "guard-post", List.of(), PublishAction.PUBLISH)))
+                .isInstanceOf(IllegalArgumentException.class);
+        entityManager.flush();
+        assertThat(text("title", postId)).isEqualTo("보호");
+        assertThat(text("status", postId)).isEqualTo("DELETED");
+    }
+
+    /** 상태 필터와 제목 검색어를 함께 적용하고, 검색어는 대소문자와 앞뒤 공백, LIKE 특수 문자를 그대로 다룬다. */
+    @Test
+    void filtersByStatusAndTitle() {
+        service.create(command("Spring 초안", "filter-draft", List.of(), PublishAction.KEEP), AUTHOR);
+        service.create(command("spring 공개", "filter-published", List.of(), PublishAction.PUBLISH), AUTHOR);
+        service.create(command("100% 일상", "filter-percent", List.of(), PublishAction.KEEP), AUTHOR);
+        service.create(command("snake_case 정리", "filter-underscore", List.of(), PublishAction.KEEP), AUTHOR);
+        entityManager.flush();
+
+        assertThat(titles(AdminPostFilter.ALL, " SPRING ")).containsExactlyInAnyOrder("Spring 초안", "spring 공개");
+        assertThat(titles(AdminPostFilter.DRAFT, "spring")).containsExactly("Spring 초안");
+        assertThat(titles(AdminPostFilter.PUBLISHED, "")).containsExactly("spring 공개");
+        assertThat(titles(AdminPostFilter.ALL, "%")).containsExactly("100% 일상");
+        assertThat(titles(AdminPostFilter.ALL, "_")).containsExactly("snake_case 정리");
+    }
+
+    /** @param filter 상태 필터 @param query 제목 검색어 @return 첫 페이지 글 제목 */
+    private List<String> titles(AdminPostFilter filter, String query) {
+        return service.findPage(0, filter, query).map(AdminPostRow::title).getContent();
     }
 
     /**
