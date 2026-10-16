@@ -48,9 +48,9 @@ DB_PASSWORD
 
 ## CI database tests
 
-로컬 `./gradlew test`는 기존처럼 Testcontainers의 일회용 PostgreSQL을 사용합니다. Jenkinsfile은 외부 CI 전용 DB 작업 `./gradlew --no-daemon --max-workers=1 ciDbIntegrationTest bootJar`를 호출합니다. Jenkins 작업 매개변수로 CI DB 접속 주소·서버 기대값을 주입하고, 별도 Credential ID `dean-p-blog-ci-db`로 `CI_DB_USER`, `CI_DB_PASSWORD`를 바인딩합니다. 암호를 소스·로그·명령 인수로 전달하지 마세요.
+로컬 `./gradlew test`는 기존처럼 Testcontainers의 일회용 PostgreSQL을 사용합니다. Jenkinsfile은 외부 CI 전용 DB 작업 `./gradlew --no-daemon --max-workers=1 ciDbIntegrationTest ciDbE2eTest bootJar`를 호출합니다. Jenkins 작업 매개변수로 CI DB 접속 주소·서버 기대값을 주입하고, 별도 Credential ID `dean-p-blog-ci-db`로 `CI_DB_USER`, `CI_DB_PASSWORD`를 바인딩합니다. 암호를 소스·로그·명령 인수로 전달하지 마세요.
 
-CI 작업은 별도 JVM에서 접속 사전 검증 → V3~V10 드리프트 재현 테스트(테스트마다 `blog` 스키마 clean) → `blog` 스키마 clean 및 최신 마이그레이션 적용 → 스키마 검증 → 일반 테스트 순으로 진행합니다. `CI_DB_ALLOWED_HOST`, `CI_DB_ALLOWED_PORT`는 허용할 접속 대상(URL과 정확히 일치해야 함), `CI_DB_SERVER_ADDR`, `CI_DB_SERVER_PORT`는 독립적으로 확인한 PostgreSQL 서버의 `inet_server_addr()`·`inet_server_port()` 기대값으로 Jenkins의 비밀 아닌 환경설정에 각각 주입합니다. 모두 필수이며 기본값은 없습니다. NAT가 있으면 외부 접속 주소·포트와 실제 서버가 보고하는 내부 주소·포트가 다를 수 있으므로 후자를 복사해 외부값으로 가정하지 마세요. 기대값을 확인할 수 없으면 CI 작업을 실행하지 않습니다.
+CI 작업은 별도 JVM에서 접속 사전 검증 → V3~V10 드리프트 재현 테스트(테스트마다 `blog` 스키마 clean) → `blog` 스키마 clean 및 최신 마이그레이션 적용 → 스키마 검증 → 일반 테스트 → 브라우저 E2E 테스트(`ciDbE2eTest`, 데이터를 커밋하므로 마지막) 순으로 진행합니다. E2E 실패 화면은 빌드 산출물 `build/reports/e2e/*.png`로 보관합니다. `CI_DB_ALLOWED_HOST`, `CI_DB_ALLOWED_PORT`는 허용할 접속 대상(URL과 정확히 일치해야 함), `CI_DB_SERVER_ADDR`, `CI_DB_SERVER_PORT`는 독립적으로 확인한 PostgreSQL 서버의 `inet_server_addr()`·`inet_server_port()` 기대값으로 Jenkins의 비밀 아닌 환경설정에 각각 주입합니다. 모두 필수이며 기본값은 없습니다. NAT가 있으면 외부 접속 주소·포트와 실제 서버가 보고하는 내부 주소·포트가 다를 수 있으므로 후자를 복사해 외부값으로 가정하지 마세요. 기대값을 확인할 수 없으면 CI 작업을 실행하지 않습니다.
 
 사전 검증은 접속 URL·계정과 실제 연결의 `current_database()`(`dean_p_blog_ci`), `current_user`(`dean_p_blog_app_ci`), 서버 주소·포트, 계정 관리자 권한을 확인합니다. URL과 허용 대상을 동일한 잘못된 값으로 설정하면 두 입력의 일치만으로 안전을 보증하지 못합니다. 허용 대상과 서버 기대값은 서로 다른 근거로 확인하고, DB명·계정·권한 검사를 추가 방어선으로 유지합니다. 계정의 다른 DB 접속 권한 제한도 별도로 유지해야 합니다.
 

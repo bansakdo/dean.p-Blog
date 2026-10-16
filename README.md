@@ -28,6 +28,12 @@ Gradle toolchain이 Java 25를 사용하므로, 시스템 기본 Java가 Java 25
 ./gradlew test
 ```
 
+브라우저 E2E 테스트(`src/test/java/com/deanp/blog/e2e`, `@Tag("e2e")`)는 기본 `test`에서 빠져 있습니다. 실제 서버를 무작위 포트로 띄우고, Testcontainers의 일회용 PostgreSQL과 헤드리스 Chromium(Playwright Java)으로 로그인·작성·발행·이력·예약·삭제·복구·분류 관리 흐름을 확인합니다. 처음 실행할 때 Playwright가 Chromium을 내려받습니다(약 150 MB). 실패한 테스트의 마지막 화면은 `build/reports/e2e/`에 남습니다.
+
+```bash
+./gradlew e2eTest
+```
+
 ## DB 프로필 실행
 
 DB 환경변수는 루트의 `.env.dev` 또는 `.env.prod`에서 관리합니다. 두 파일은 Git에서 제외되어 있으므로 운영 비밀번호를 저장소에 커밋하지 않습니다.
