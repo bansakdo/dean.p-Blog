@@ -1,4 +1,4 @@
-// 목적: dev 브랜치를 CI 전용 DB에서 검증하고 개발 서버에 자동 배포합니다.
+// 목적: dev 브랜치를 CI 전용 DB에서 검증(통합 테스트와 Playwright 브라우저 E2E)하고 개발 서버에 자동 배포합니다.
 // 사용: Jenkins Pipeline script from SCM의 브랜치를 dev, 스크립트 경로를 Jenkinsfile.dev로 지정합니다.
 // 설계: java25 에이전트의 단일 executor에서 main 작업과 CI DB 사용을 직렬화한 뒤 별도 제한 SSH 키로 dev만 배포합니다. 관련 스크립트: gradlew, Mac mini dean-p-blog-dev/deploy.py.
 pipeline {
@@ -16,10 +16,15 @@ pipeline {
     stage('Build and test') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dean-p-blog-ci-db', usernameVariable: 'CI_DB_USER', passwordVariable: 'CI_DB_PASSWORD')]) {
-          sh 'JAVA_TOOL_OPTIONS="-Xmx256m -XX:MaxMetaspaceSize=192m" sh ./gradlew --no-daemon --max-workers=1 clean ciDbIntegrationTest bootJar'
+          sh 'JAVA_TOOL_OPTIONS="-Xmx256m -XX:MaxMetaspaceSize=192m" sh ./gradlew --no-daemon --max-workers=1 clean ciDbIntegrationTest ciDbE2eTest bootJar'
         }
       }
-      post { always { junit allowEmptyResults: true, testResults: 'build/test-results/*/*.xml' } }
+      post {
+        always {
+          junit allowEmptyResults: true, testResults: 'build/test-results/*/*.xml'
+          archiveArtifacts allowEmptyArchive: true, artifacts: 'build/reports/e2e/*.png'
+        }
+      }
     }
     stage('Archive') {
       steps { archiveArtifacts artifacts: 'build/libs/*.jar', fingerprint: true }

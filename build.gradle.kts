@@ -46,11 +46,28 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-testcontainers")
 	testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 	testImplementation("org.testcontainers:testcontainers-postgresql")
+	testImplementation("com.microsoft.playwright:playwright:1.63.0")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+// 브라우저 E2E 테스트(@Tag("e2e"))는 느리므로 기본 test와 CI 통합 테스트에서 빼고 e2eTest·ciDbE2eTest로만 돌린다.
+tasks.test {
+	useJUnitPlatform { excludeTags("e2e") }
+}
+
+tasks.register<Test>("e2eTest") {
+	group = "verification"
+	description = "일회용 PostgreSQL 컨테이너와 Chromium으로 브라우저 E2E 테스트를 돌린다."
+	testClassesDirs = sourceSets.test.get().output.classesDirs
+	classpath = sourceSets.test.get().runtimeClasspath
+	useJUnitPlatform { includeTags("e2e") }
+	// 서버·브라우저·외부 CDN에 따라 결과가 바뀌므로 매번 다시 돌리고, 지난 실패 화면은 지운다.
+	outputs.upToDateWhen { false }
+	doFirst { delete(layout.buildDirectory.dir("reports/e2e")) }
 }
 
 val ciDbPreflight = tasks.register<JavaExec>("ciDbPreflight") {
@@ -87,14 +104,28 @@ val ciDbSchemaTest = tasks.register<Test>("ciDbSchemaTest") {
 	filter { includeTestsMatching("*BlogSchemaVerificationTest") }
 }
 
-tasks.register<Test>("ciDbIntegrationTest") {
+val ciDbIntegrationTest = tasks.register<Test>("ciDbIntegrationTest") {
 	group = "verification"
 	dependsOn(ciDbSchemaTest)
 	testClassesDirs = sourceSets.test.get().output.classesDirs
 	classpath = sourceSets.test.get().runtimeClasspath
 	systemProperty("blog.ci.db", "true")
+	useJUnitPlatform { excludeTags("e2e") }
 	filter {
 		excludeTestsMatching("*BlogSchemaDriftMigrationTest")
 		excludeTestsMatching("*BlogSchemaVerificationTest")
 	}
+}
+
+// CI 전용 DB에서 브라우저 E2E 테스트를 돌린다. 데이터를 커밋하므로 통합 테스트가 끝난 뒤에 실행한다.
+tasks.register<Test>("ciDbE2eTest") {
+	group = "verification"
+	dependsOn(ciDbSchemaTest)
+	mustRunAfter(ciDbIntegrationTest)
+	testClassesDirs = sourceSets.test.get().output.classesDirs
+	classpath = sourceSets.test.get().runtimeClasspath
+	systemProperty("blog.ci.db", "true")
+	useJUnitPlatform { includeTags("e2e") }
+	// 에이전트 이미지에 미리 넣은 브라우저만 쓴다. Playwright 버전이 이미지와 다르면 내려받지 않고 바로 실패한다.
+	environment("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1")
 }
