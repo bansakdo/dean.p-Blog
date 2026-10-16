@@ -1,0 +1,283 @@
+package com.deanp.blog.post.service;
+
+import com.deanp.blog.auth.persistence.repository.AppUserRepository;
+import com.deanp.blog.media.persistence.entity.PostAttachedFileId;
+import com.deanp.blog.media.persistence.repository.PostAttachedFileRepository;
+import com.deanp.blog.post.PostView;
+import com.deanp.blog.post.persistence.entity.PostDetail;
+import com.deanp.blog.post.persistence.repository.PostCategoryRepository;
+import com.deanp.blog.post.persistence.repository.PostDetailRepository;
+import com.deanp.blog.post.service.PostEditCommand.PublishAction;
+import com.deanp.blog.tag.persistence.entity.PostTag;
+import com.deanp.blog.tag.persistence.entity.PostTagId;
+import com.deanp.blog.tag.persistence.entity.Tag;
+import com.deanp.blog.tag.persistence.repository.PostTagRepository;
+import com.deanp.blog.tag.persistence.repository.TagRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+/**
+ * 글 관리 화면의 목록 조회, 작성, 수정, 공개 상태 전환을 트랜잭션으로 조합한다.
+ */
+@Service
+@RequiredArgsConstructor
+public class PostEditorService {
+
+    private static final int PAGE_SIZE = 50;
+    private static final String PUBLISHED = "PUBLISHED";
+    private static final String ACTIVE = "ACTIVE";
+    private static final ZoneId DISPLAY_ZONE = ZoneId.of("Asia/Seoul");
+
+    private final PostDetailRepository posts;
+    private final PostCategoryRepository categories;
+    private final TagRepository tags;
+    private final PostTagRepository postTags;
+    private final PostAttachedFileRepository postAttachedFiles;
+    private final AppUserRepository users;
+    private final PostService postService;
+
+    /**
+     * 초안을 포함한 모든 글을 최근 수정순으로 조회한다.
+     *
+     * @param page 0부터 시작하는 페이지 번호
+     * @return 관리 목록 한 페이지
+     */
+    @Transactional(readOnly = true)
+    public Page<AdminPostRow> findPage(int page) {
+        return posts.findAll(PageRequest.of(page, PAGE_SIZE, Sort.by(Sort.Direction.DESC, "updatedAt")))
+                .map(post -> new AdminPostRow(post.getId(), post.getSlug(), post.getTitle(),
+                        PUBLISHED.equals(post.getStatus()),
+                        LocalDateTime.ofInstant(post.getUpdatedAt(), DISPLAY_ZONE)));
+    }
+
+    /**
+     * @return 글에 지정할 수 있는 활성 카테고리 목록
+     */
+    @Transactional(readOnly = true)
+    public List<CategoryChoice> findCategoryChoices() {
+        return categories.findByStatusOrderBySortOrderAscNameAsc(ACTIVE).stream()
+                .map(category -> new CategoryChoice(category.getId(), category.getName()))
+                .toList();
+    }
+
+    /**
+     * 수정 화면에 채울 글의 현재 값을 조회한다.
+     *
+     * @param id 게시글 식별자
+     * @return 글의 현재 값, 없으면 빈 값
+     */
+    @Transactional(readOnly = true)
+    public Optional<PostEditView> findForEdit(UUID id) {
+        return posts.findById(id).map(post -> new PostEditView(
+                post.getId(),
+                post.getSlug(),
+                post.getTitle(),
+                post.getSummary(),
+                post.getContent(),
+                post.getCategoryId(),
+                String.join(", ", tagNames(post.getId())),
+                post.getRepresentativeImageId(),
+                PUBLISHED.equals(post.getStatus()),
+                post.getSeriesId() != null
+        ));
+    }
+
+    /**
+     * 저장된 글을 공개 여부와 관계없이 공개 화면과 같은 모양으로 변환한다.
+     *
+     * @param id 게시글 식별자
+     * @return 미리보기용 표시 데이터, 없으면 빈 값
+     */
+    @Transactional(readOnly = true)
+    public Optional<PostView> findPreview(UUID id) {
+        return posts.findById(id).map(post -> postService.preview(post.getId(), post.getSlug(), post.getTitle(),
+                post.getSummary(), post.getContent(), post.getPublishedAt(), tagNames(post.getId())));
+    }
+
+    /**
+     * 새 글을 만든다.
+     *
+     * @param command 작성할 글 값
+     * @param authorLoginId 작성자의 로그인 아이디
+     * @return 만들어진 게시글 식별자
+     */
+    @Transactional
+    public UUID create(PostEditCommand command, String authorLoginId) {
+        PostEditCommand normalized = command.normalized();
+
+        // 작성자와 카테고리, 주소 중복을 확인한다.
+        UUID authorId = users.findByLoginId(authorLoginId)
+                .orElseThrow(() -> new IllegalStateException("로그인한 사용자를 찾을 수 없습니다.")).getId();
+        requireCategory(normalized.categoryId());
+        if (posts.existsBySlug(normalized.slug())) {
+            throw new IllegalArgumentException("이미 사용 중인 주소(slug)입니다.");
+        }
+
+        // 초안으로 저장한 뒤 태그와 공개 상태를 반영한다. 새 글에는 아직 첨부 이미지가 없다.
+        PostDetail post = posts.save(PostDetail.createDraft(authorId, normalized.categoryId(), normalized.slug(),
+                normalized.title(), normalized.summary(), normalized.content()));
+        replaceTags(post.getId(), normalized.tagNames());
+        if (normalized.action() == PublishAction.PUBLISH) {
+            post.publish();
+        }
+        return post.getId();
+    }
+
+    /**
+     * 기존 글의 내용과 분류, 대표 이미지, 공개 상태를 고친다.
+     *
+     * @param id 고칠 게시글 식별자
+     * @param command 고칠 글 값
+     */
+    @Transactional
+    public void update(UUID id, PostEditCommand command) {
+        PostDetail post = posts.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+        PostEditCommand normalized = command.normalized();
+
+        // 다른 글과 주소가 겹치지 않을 때만 본문 값을 고친다.
+        if (posts.existsBySlugAndIdNot(normalized.slug(), id)) {
+            throw new IllegalArgumentException("이미 사용 중인 주소(slug)입니다.");
+        }
+        post.edit(normalized.slug(), normalized.title(), normalized.summary(), normalized.content());
+
+        // 시리즈에 속한 글의 카테고리는 시리즈 대표 카테고리를 따르므로 여기서 바꾸지 않는다.
+        if (post.getSeriesId() == null) {
+            requireCategory(normalized.categoryId());
+            post.changeCategory(normalized.categoryId());
+        }
+
+        // 대표 이미지는 이 글에 첨부된 파일만 지정할 수 있다.
+        if (normalized.representativeImageId() != null && !postAttachedFiles.existsById(
+                new PostAttachedFileId(id, normalized.representativeImageId()))) {
+            throw new IllegalArgumentException("이 글에 첨부된 이미지만 대표 이미지로 지정할 수 있습니다.");
+        }
+        post.changeRepresentativeImage(normalized.representativeImageId());
+
+        // 태그 연결을 맞추고 요청한 공개 상태로 전환한다.
+        replaceTags(id, normalized.tagNames());
+        if (normalized.action() == PublishAction.PUBLISH) {
+            post.publish();
+        } else if (normalized.action() == PublishAction.UNPUBLISH) {
+            post.unpublish();
+        }
+    }
+
+    /**
+     * @param postDetailId 게시글 식별자
+     * @return 게시글에 붙은 태그 이름을 이름순으로 나열한 목록
+     */
+    private List<String> tagNames(UUID postDetailId) {
+        return postTags.findByIdPostDetailId(postDetailId).stream()
+                .map(postTag -> postTag.getTag().getName())
+                .sorted()
+                .toList();
+    }
+
+    /**
+     * 카테고리를 지정했다면 실제로 있는지 확인한다.
+     *
+     * @param categoryId 카테고리 식별자 또는 null
+     */
+    private void requireCategory(UUID categoryId) {
+        if (categoryId != null && !categories.existsById(categoryId)) {
+            throw new IllegalArgumentException("존재하지 않는 카테고리입니다.");
+        }
+    }
+
+    /**
+     * 게시글의 태그 연결을 요청한 이름 목록과 같게 맞춘다. 없는 태그는 새로 만든다.
+     *
+     * @param postDetailId 게시글 식별자
+     * @param tagNames 정규화된 태그 이름 목록
+     */
+    private void replaceTags(UUID postDetailId, List<String> tagNames) {
+        // 이름으로 태그를 찾고 없으면 만든다.
+        Set<UUID> wanted = tagNames.stream()
+                .map(name -> tags.findFirstByNameIgnoreCase(name).orElseGet(() -> createTag(name)).getId())
+                .collect(Collectors.toSet());
+
+        // 빠진 연결은 지우고 새 연결만 추가한다.
+        List<PostTag> current = postTags.findByIdPostDetailId(postDetailId);
+        postTags.deleteAll(current.stream().filter(link -> !wanted.contains(link.getId().getTagId())).toList());
+        Set<UUID> linked = current.stream().map(link -> link.getId().getTagId()).collect(Collectors.toSet());
+        wanted.stream().filter(tagId -> !linked.contains(tagId))
+                .forEach(tagId -> postTags.save(PostTag.create(new PostTagId(postDetailId, tagId))));
+    }
+
+    /**
+     * 이름에서 slug를 만들어 새 태그를 저장한다. 글 주소와 같은 금지 문자를 지운다.
+     *
+     * @param name 태그 이름
+     * @return 저장된 태그
+     */
+    private Tag createTag(String name) {
+        // 금지 문자를 지우고 공백을 하이픈으로 바꾼다. 남는 글자가 없으면 주소를 만들 수 없다.
+        String base = PostEditCommand.WHITESPACE.matcher(
+                PostEditCommand.SLUG_FORBIDDEN.matcher(name.toLowerCase(Locale.ROOT)).replaceAll("").strip()
+        ).replaceAll("-");
+        if (base.isEmpty()) {
+            throw new IllegalArgumentException("태그 '" + name + "'에는 주소로 쓸 수 있는 글자가 없습니다.");
+        }
+
+        // C#과 C처럼 이름은 다르지만 주소가 겹치면 -2, -3을 붙여 비어 있는 주소를 쓴다.
+        String slug = base;
+        for (int suffix = 2; tags.existsBySlug(slug); suffix++) {
+            slug = base + "-" + suffix;
+        }
+        return tags.save(Tag.create(name, slug));
+    }
+
+    /**
+     * 관리 목록의 글 한 줄이다.
+     *
+     * @param id 게시글 식별자
+     * @param slug URL 식별자
+     * @param title 제목
+     * @param published 공개 여부
+     * @param updatedAt 화면 표시 시간대로 바꾼 마지막 수정 시각
+     */
+    public record AdminPostRow(UUID id, String slug, String title, boolean published, LocalDateTime updatedAt) {
+    }
+
+    /**
+     * 글에 지정할 수 있는 카테고리 선택지다.
+     *
+     * @param id 카테고리 식별자
+     * @param name 표시 이름
+     */
+    public record CategoryChoice(UUID id, String name) {
+    }
+
+    /**
+     * 수정 화면에 채울 글의 현재 값이다.
+     *
+     * @param id 게시글 식별자
+     * @param slug URL 식별자
+     * @param title 제목
+     * @param summary 요약
+     * @param content Markdown 본문
+     * @param categoryId 카테고리 식별자 또는 null
+     * @param tags 쉼표로 이은 태그 이름
+     * @param representativeImageId 대표 이미지 파일 식별자 또는 null
+     * @param published 공개 여부
+     * @param inSeries 시리즈에 속해 카테고리를 바꿀 수 없는지 여부
+     */
+    public record PostEditView(UUID id, String slug, String title, String summary, String content,
+                               UUID categoryId, String tags, UUID representativeImageId,
+                               boolean published, boolean inSeries) {
+    }
+}

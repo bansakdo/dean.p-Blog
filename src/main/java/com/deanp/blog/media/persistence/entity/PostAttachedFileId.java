@@ -20,4 +20,13 @@ public class PostAttachedFileId {
     private UUID postDetailId;
     @Column(name = "attached_file_id")
     private UUID attachedFileId;
+
+    /**
+     * @param postDetailId 게시글 식별자
+     * @param attachedFileId 첨부 파일 식별자
+     */
+    public PostAttachedFileId(UUID postDetailId, UUID attachedFileId) {
+        this.postDetailId = postDetailId;
+        this.attachedFileId = attachedFileId;
+    }
 }

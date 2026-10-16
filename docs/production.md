@@ -89,6 +89,15 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 - V9 적용 전 운영 백업을 확보하고 Flyway validation을 통과시켜야 합니다. V6 checksum repair는 별도 운영 절차이며 애플리케이션이나 migration에서 validation을 자동 우회하지 않습니다.
 - V10은 상위 게시판 `post`를 제거합니다. 적용 전 스키마 백업과 카테고리·시리즈 slug 중복 여부를 확인해야 하며, 중복 시 데이터 변경 없이 중단합니다. `post_detail`·카테고리·시리즈·태그·방문 이력은 보존합니다. 기존 애플리케이션은 V10 스키마와 호환되지 않으므로 적용과 코드 교체를 함께 계획해야 합니다.
 
+## Admin Account
+
+글 관리 화면(`/admin/**`)은 폼 로그인과 `POST_WRITE` 권한이 필요하며, 나머지 공개 화면은 로그인 없이 열려 있습니다.
+
+- `ADMIN_LOGIN_ID`, `ADMIN_PASSWORD`를 함께 설정하면 기동 시 관리자 계정·`관리자` 그룹·`/admin/posts` 메뉴의 `WRITE` 권한·소속을 없는 것만 만듭니다. 둘 다 비우면 아무것도 하지 않고, 한쪽만 있거나 비밀번호가 10자 미만이면 기동을 멈춥니다.
+- 환경변수가 비밀번호의 기준입니다. 저장된 해시가 `ADMIN_PASSWORD`와 다르면 기동 때마다 새 값으로 교체하므로, 비밀번호는 환경변수를 바꾸고 재시작해서 변경합니다. 값은 `secrets/.env.prod`에만 두고 로그에 남기지 않습니다.
+- 같은 아이디로 틀릴 때마다 실패를 누적하고(직전 실패 후 15분이 지나면 새로 셈), 5번째 실패부터 마지막 실패 후 15분 동안 맞는 비밀번호도 거부합니다. 기록은 메모리에만 있어 재시작하면 사라지고, 단일 인스턴스를 전제로 합니다. 잠금 안내는 존재하는 아이디에만 표시됩니다.
+- 현재 운영은 LAN 내부 HTTP이므로 비밀번호와 세션 쿠키가 암호화되지 않은 채 전송됩니다. 외부에 공개하기 전에는 HTTPS를 적용하고 `server.servlet.session.cookie.secure=true`를 설정해야 합니다.
+
 ## Visitor Tracking
 
 - `prod`에서는 `app.visitor.cookie-secure=true`로 HTTPS 쿠키를 사용합니다.

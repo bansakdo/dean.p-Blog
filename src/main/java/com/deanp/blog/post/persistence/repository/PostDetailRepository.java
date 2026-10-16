@@ -28,4 +28,17 @@ public interface PostDetailRepository extends JpaRepository<PostDetail, UUID>, P
      * @return 중복 순서가 있으면 true
      */
     boolean existsBySeriesIdAndSeriesOrderAndIdNot(UUID seriesId, Integer seriesOrder, UUID id);
+
+    /**
+     * @param slug URL 식별자
+     * @return 같은 slug의 글이 있으면 true
+     */
+    boolean existsBySlug(String slug);
+
+    /**
+     * @param slug URL 식별자
+     * @param id 제외할 게시글 식별자
+     * @return 다른 글이 같은 slug를 쓰고 있으면 true
+     */
+    boolean existsBySlugAndIdNot(String slug, UUID id);
 }

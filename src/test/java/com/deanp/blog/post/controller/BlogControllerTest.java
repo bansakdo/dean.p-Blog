@@ -1,5 +1,7 @@
 package com.deanp.blog.post.controller;
 
+import com.deanp.blog.auth.controller.SecurityConfiguration;
+import com.deanp.blog.auth.service.BlogUserDetailsService;
 import com.deanp.blog.post.PostView;
 import com.deanp.blog.post.PostSeriesOption;
 import com.deanp.blog.post.service.PostService;
@@ -19,6 +21,7 @@ import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -41,6 +44,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -51,7 +55,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(BlogController.class)
 @Import({VisitorCookieIdentifier.class, VisitorTrackingRequestPolicy.class,
-        TrustedProxyMatcher.class, VisitorRequestMetadataFactory.class})
+        TrustedProxyMatcher.class, VisitorRequestMetadataFactory.class, SecurityConfiguration.class})
 class BlogControllerTest {
 
     /** 헤더와 메뉴가 공통 높이 변수를 사용하고 모바일 높이는 유지되는지 확인한다. */
@@ -154,14 +158,26 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString("aria-controls=\"site-sidebar\"")));
     }
 
-    /** 인증 미구현 상태에서 사용자 메뉴는 비활성 로그인 안내만 제공한다. */
+    /** 로그인하지 않은 사용자의 메뉴는 로그인 링크만 제공하고 글 관리·로그아웃은 숨긴다. */
     @Test
-    void accountMenuShowsHonestLoginPlaceholder() throws Exception {
+    void accountMenuShowsLoginLinkToAnonymousUser() throws Exception {
         mockMvc.perform(get("/search"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("aria-controls=\"account-panel\"")))
-                .andExpect(content().string(containsString("로그인 기능을 준비하고 있습니다.")))
-                .andExpect(content().string(containsString("type=\"button\" disabled")))
+                .andExpect(content().string(containsString("글을 쓰려면 로그인하세요.")))
+                .andExpect(content().string(containsString("href=\"/login\"")))
+                .andExpect(content().string(not(containsString("href=\"/admin/posts\""))))
+                .andExpect(content().string(not(containsString("action=\"/logout\""))));
+    }
+
+    /** 글 관리 권한이 있는 사용자의 메뉴는 글 관리 링크와 로그아웃을 제공한다. */
+    @Test
+    void accountMenuShowsAdminLinksToWriter() throws Exception {
+        mockMvc.perform(get("/search").with(user("admin").authorities(new SimpleGrantedAuthority(BlogUserDetailsService.POST_WRITE))))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("admin 님으로 로그인했습니다.")))
+                .andExpect(content().string(containsString("href=\"/admin/posts\"")))
+                .andExpect(content().string(containsString("action=\"/logout\"")))
                 .andExpect(content().string(not(containsString("href=\"/login\""))));
     }
 

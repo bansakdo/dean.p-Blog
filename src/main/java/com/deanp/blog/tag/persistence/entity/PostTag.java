@@ -35,4 +35,17 @@ public class PostTag {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tag_id", insertable = false, updatable = false)
     private Tag tag;
+
+    /**
+     * 게시글에 태그를 붙인다.
+     *
+     * @param id 게시글·태그 복합키
+     * @return 저장할 태그 연결
+     */
+    public static PostTag create(PostTagId id) {
+        PostTag postTag = new PostTag();
+        postTag.id = id;
+        postTag.createdAt = Instant.now();
+        return postTag;
+    }
 }

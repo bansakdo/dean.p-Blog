@@ -47,4 +47,34 @@ public class AppUser {
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
+    /**
+     * 로그인할 수 있는 활성 사용자를 만든다.
+     *
+     * @param loginId 로그인 아이디
+     * @param passwordHash 해시된 비밀번호
+     * @param name 표시 이름
+     * @return 저장할 사용자
+     */
+    public static AppUser create(String loginId, String passwordHash, String name) {
+        AppUser user = new AppUser();
+        Instant now = Instant.now();
+        user.id = UUID.randomUUID();
+        user.loginId = loginId;
+        user.passwordHash = passwordHash;
+        user.name = name;
+        user.status = "ACTIVE";
+        user.createdAt = now;
+        user.updatedAt = now;
+        return user;
+    }
+
+    /**
+     * 비밀번호 해시를 교체한다.
+     *
+     * @param passwordHash 새로 해시된 비밀번호
+     */
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+        this.updatedAt = Instant.now();
+    }
 }

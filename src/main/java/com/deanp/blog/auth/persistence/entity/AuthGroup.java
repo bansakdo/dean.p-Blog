@@ -38,4 +38,22 @@ public class AuthGroup {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    /**
+     * 활성 권한 그룹을 만든다.
+     *
+     * @param name 그룹 이름
+     * @param description 그룹 설명
+     * @return 저장할 그룹
+     */
+    public static AuthGroup create(String name, String description) {
+        AuthGroup group = new AuthGroup();
+        Instant now = Instant.now();
+        group.id = UUID.randomUUID();
+        group.name = name;
+        group.description = description;
+        group.status = "ACTIVE";
+        group.createdAt = now;
+        group.updatedAt = now;
+        return group;
+    }
 }
