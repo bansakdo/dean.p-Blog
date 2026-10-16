@@ -6,6 +6,9 @@ import com.deanp.blog.media.service.PostImageService;
 import com.deanp.blog.post.service.AdminPostFilter;
 import com.deanp.blog.post.service.PostEditorService;
 import com.deanp.blog.post.service.PostEditorService.PostEditView;
+import com.deanp.blog.publishing.service.PostRevisionService;
+import com.deanp.blog.publishing.service.PostRevisionService.RevisionRow;
+import com.deanp.blog.publishing.service.PostRevisionService.RevisionView;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +63,9 @@ class AdminPostControllerTest {
 
     @MockitoBean
     private PostImageService postImages;
+
+    @MockitoBean
+    private PostRevisionService revisions;
 
     /** 빈 목록과 선택지를 돌려주도록 준비한다. */
     @BeforeEach
@@ -145,7 +151,7 @@ class AdminPostControllerTest {
         mockMvc.perform(post("/admin/posts/{id}/delete", POST_ID).with(writer()))
                 .andExpect(status().isForbidden());
 
-        verify(postEditor, never()).delete(any());
+        verify(postEditor, never()).delete(any(), any());
     }
 
     /** 글 관리 권한이 없으면 삭제할 수 없다. */
@@ -154,7 +160,7 @@ class AdminPostControllerTest {
         mockMvc.perform(post("/admin/posts/{id}/delete", POST_ID).with(user("reader")).with(csrf()))
                 .andExpect(status().isForbidden());
 
-        verify(postEditor, never()).delete(any());
+        verify(postEditor, never()).delete(any(), any());
     }
 
     /** 삭제하면 안내를 띄울 목록으로 보낸다. */
@@ -165,7 +171,7 @@ class AdminPostControllerTest {
         mockMvc.perform(post("/admin/posts/{id}/delete", POST_ID).with(writer()).with(csrf()))
                 .andExpect(redirectedUrl("/admin/posts?deleted"));
 
-        verify(postEditor).delete(POST_ID);
+        verify(postEditor).delete(eq(POST_ID), any());
     }
 
     /** 없는 글은 삭제하지 않고 404로 응답한다. */
@@ -176,7 +182,7 @@ class AdminPostControllerTest {
         mockMvc.perform(post("/admin/posts/{id}/delete", POST_ID).with(writer()).with(csrf()))
                 .andExpect(status().isNotFound());
 
-        verify(postEditor, never()).delete(any());
+        verify(postEditor, never()).delete(any(), any());
     }
 
     /** 삭제한 글은 복구해 수정 화면으로 보내고, 서비스가 삭제 상태가 아니라고 거부하면 409로 응답한다. */
@@ -185,9 +191,9 @@ class AdminPostControllerTest {
         when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(true)));
         mockMvc.perform(post("/admin/posts/{id}/restore", POST_ID).with(writer()).with(csrf()))
                 .andExpect(redirectedUrl("/admin/posts/" + POST_ID + "/edit?restored"));
-        verify(postEditor).restore(POST_ID);
+        verify(postEditor).restore(eq(POST_ID), any());
 
-        doThrow(new IllegalArgumentException("삭제한 글만 복구할 수 있습니다.")).when(postEditor).restore(POST_ID);
+        doThrow(new IllegalArgumentException("삭제한 글만 복구할 수 있습니다.")).when(postEditor).restore(eq(POST_ID), any());
         mockMvc.perform(post("/admin/posts/{id}/restore", POST_ID).with(writer()).with(csrf()))
                 .andExpect(status().isConflict());
     }
@@ -196,7 +202,7 @@ class AdminPostControllerTest {
     @Test
     void redirectsWithNoticeOnRestoreSlugConflict() throws Exception {
         when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(true)));
-        doThrow(new PostEditorService.SlugConflictException("slug")).when(postEditor).restore(POST_ID);
+        doThrow(new PostEditorService.SlugConflictException("slug")).when(postEditor).restore(eq(POST_ID), any());
 
         mockMvc.perform(post("/admin/posts/{id}/restore", POST_ID).with(writer()).with(csrf()))
                 .andExpect(redirectedUrl("/admin/posts/" + POST_ID + "/edit?slugConflict"));
@@ -261,6 +267,75 @@ class AdminPostControllerTest {
                 .andExpect(status().isConflict());
 
         verify(postImages, never()).upload(any(), any());
+    }
+
+    /** 수정 화면은 변경 이력을 최신 버전부터 보여 주고, 버전 보기로 연결한다. */
+    @Test
+    void rendersRevisionHistoryOnEditPage() throws Exception {
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(false)));
+        when(revisions.findHistory(POST_ID)).thenReturn(List.of(
+                new RevisionRow(2, "발행", java.time.LocalDateTime.of(2026, 10, 16, 12, 30), "admin"),
+                new RevisionRow(1, "기록 시작 전", java.time.LocalDateTime.of(2026, 10, 1, 9, 0), null)));
+
+        mockMvc.perform(get("/admin/posts/{id}/edit", POST_ID).with(writer()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(allOf(
+                        containsString("/admin/posts/" + POST_ID + "/revisions/2"),
+                        containsString("2026.10.16 12:30"),
+                        containsString(">기록 시작 전<"))));
+    }
+
+    /** 버전 보기는 현재와 다른 항목을 표시하고, 삭제한 글이면 되돌리기 버튼을 숨긴다. */
+    @Test
+    void rendersRevisionAndHidesRevertForDeletedPost() throws Exception {
+        when(revisions.find(POST_ID, 1)).thenReturn(Optional.of(revisionView()));
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(false)));
+        String revertPath = "/admin/posts/" + POST_ID + "/revisions/1/revert";
+
+        mockMvc.perform(get("/admin/posts/{id}/revisions/1", POST_ID).with(writer()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(allOf(containsString("옛 본문"), containsString("현재와 다름"),
+                        containsString(revertPath))));
+
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(true)));
+        mockMvc.perform(get("/admin/posts/{id}/revisions/1", POST_ID).with(writer()))
+                .andExpect(content().string(not(containsString(revertPath))));
+        mockMvc.perform(get("/admin/posts/{id}/revisions/2", POST_ID).with(writer()))
+                .andExpect(status().isNotFound());
+    }
+
+    /** 되돌리면 안내를 띄울 수정 화면으로 보내고, 없는 버전은 404, 서비스가 거부하면 409로 응답한다. */
+    @Test
+    void revertsToRevision() throws Exception {
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(false)));
+        when(revisions.find(POST_ID, 1)).thenReturn(Optional.of(revisionView()));
+
+        mockMvc.perform(post("/admin/posts/{id}/revisions/1/revert", POST_ID).with(writer()).with(csrf()))
+                .andExpect(redirectedUrl("/admin/posts/" + POST_ID + "/edit?reverted=1"));
+        verify(revisions).revert(eq(POST_ID), eq(1), any());
+
+        mockMvc.perform(post("/admin/posts/{id}/revisions/2/revert", POST_ID).with(writer()).with(csrf()))
+                .andExpect(status().isNotFound());
+        verify(revisions, never()).revert(eq(POST_ID), eq(2), any());
+
+        doThrow(new IllegalArgumentException("삭제한 글은 복구한 뒤에 되돌릴 수 있습니다.")).when(revisions).revert(eq(POST_ID), eq(1), any());
+        mockMvc.perform(post("/admin/posts/{id}/revisions/1/revert", POST_ID).with(writer()).with(csrf()))
+                .andExpect(status().isConflict());
+    }
+
+    /** 되돌리기도 CSRF 토큰이 없으면 거부한다. */
+    @Test
+    void rejectsRevertWithoutCsrf() throws Exception {
+        mockMvc.perform(post("/admin/posts/{id}/revisions/1/revert", POST_ID).with(writer()))
+                .andExpect(status().isForbidden());
+
+        verify(revisions, never()).revert(any(), anyInt(), any());
+    }
+
+    /** @return 현재 글과 본문만 다른 버전 */
+    private static RevisionView revisionView() {
+        return new RevisionView(1, "작성", java.time.LocalDateTime.of(2026, 10, 1, 9, 0), "admin",
+                "제목", null, "옛 본문", false, false, true);
     }
 
     /** @param deleted 삭제 여부 @return 수정 화면에 쓰는 글 값 */

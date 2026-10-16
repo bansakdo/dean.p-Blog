@@ -8,6 +8,8 @@ import com.deanp.blog.post.persistence.entity.PostDetail;
 import com.deanp.blog.post.persistence.repository.PostCategoryRepository;
 import com.deanp.blog.post.persistence.repository.PostDetailRepository;
 import com.deanp.blog.post.service.PostEditCommand.PublishAction;
+import com.deanp.blog.publishing.service.PostRevisionService;
+import com.deanp.blog.publishing.service.RevisionChangeType;
 import com.deanp.blog.tag.persistence.entity.PostTag;
 import com.deanp.blog.tag.persistence.entity.PostTagId;
 import com.deanp.blog.tag.persistence.entity.Tag;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
 
 /**
  * 글 관리 화면의 목록 조회, 작성, 수정, 공개 상태 전환, 삭제·복구를 트랜잭션으로 조합한다.
+ * 글을 바꿀 때마다 같은 트랜잭션에서 변경 이력을 남긴다.
  */
 @Service
 @RequiredArgsConstructor
@@ -49,6 +52,7 @@ public class PostEditorService {
     private final PostAttachedFileRepository postAttachedFiles;
     private final AppUserRepository users;
     private final PostService postService;
+    private final PostRevisionService revisions;
 
     /**
      * 상태 필터와 제목 검색어에 맞는 글을 최근 수정순으로 조회한다.
@@ -141,6 +145,8 @@ public class PostEditorService {
         if (normalized.action() == PublishAction.PUBLISH) {
             post.publish();
         }
+        revisions.record(post, normalized.action() == PublishAction.PUBLISH
+                ? RevisionChangeType.PUBLISH : RevisionChangeType.CREATE, authorLoginId);
         return post.getId();
     }
 
@@ -149,9 +155,10 @@ public class PostEditorService {
      *
      * @param id 고칠 게시글 식별자
      * @param command 고칠 글 값
+     * @param editorLoginId 고친 사용자의 로그인 아이디
      */
     @Transactional
-    public void update(UUID id, PostEditCommand command) {
+    public void update(UUID id, PostEditCommand command, String editorLoginId) {
         PostDetail post = posts.findForUpdateById(id)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
         if (DELETED.equals(post.getStatus())) {
@@ -163,6 +170,7 @@ public class PostEditorService {
         if (posts.existsBySlugAndStatusNotAndIdNot(normalized.slug(), DELETED, id)) {
             throw new IllegalArgumentException("이미 사용 중인 주소(slug)입니다.");
         }
+        revisions.recordBaselineIfMissing(post);
         post.edit(normalized.slug(), normalized.title(), normalized.summary(), normalized.content());
 
         // 시리즈에 속한 글의 카테고리는 시리즈 대표 카테고리를 따르므로 여기서 바꾸지 않는다.
@@ -179,32 +187,44 @@ public class PostEditorService {
         post.changeRepresentativeImage(normalized.representativeImageId());
 
         // 태그 연결을 맞추고 요청한 공개 상태로 전환한다.
+        // 공개 상태가 실제로 바뀐 경우에만 발행·비공개 전환으로 기록한다.
         replaceTags(id, normalized.tagNames());
+        boolean wasPublished = PUBLISHED.equals(post.getStatus());
+        RevisionChangeType changeType = RevisionChangeType.UPDATE;
         if (normalized.action() == PublishAction.PUBLISH) {
             post.publish();
+            changeType = wasPublished ? RevisionChangeType.UPDATE : RevisionChangeType.PUBLISH;
         } else if (normalized.action() == PublishAction.UNPUBLISH) {
             post.unpublish();
+            changeType = wasPublished ? RevisionChangeType.UNPUBLISH : RevisionChangeType.UPDATE;
         }
+        revisions.record(post, changeType, editorLoginId);
     }
 
     /**
      * 글을 삭제 상태로 바꾼다. 공개 중이던 글도 바로 공개 화면에서 내려간다.
      *
      * @param id 삭제할 게시글 식별자
+     * @param editorLoginId 삭제한 사용자의 로그인 아이디
      */
     @Transactional
-    public void delete(UUID id) {
-        posts.findForUpdateById(id).orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다.")).delete();
+    public void delete(UUID id, String editorLoginId) {
+        PostDetail post = posts.findForUpdateById(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+        revisions.recordBaselineIfMissing(post);
+        post.delete();
+        revisions.record(post, RevisionChangeType.DELETE, editorLoginId);
     }
 
     /**
      * 삭제한 글을 초안으로 되돌린다. 삭제한 사이에 다른 글이 같은 주소를 쓰기 시작했다면 복구하지 않는다.
      *
      * @param id 복구할 게시글 식별자
+     * @param editorLoginId 복구한 사용자의 로그인 아이디
      * @throws SlugConflictException 삭제하지 않은 다른 글이 같은 주소를 쓰고 있을 때
      */
     @Transactional
-    public void restore(UUID id) {
+    public void restore(UUID id, String editorLoginId) {
         PostDetail post = posts.findForUpdateById(id)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
         if (!DELETED.equals(post.getStatus())) {
@@ -213,7 +233,9 @@ public class PostEditorService {
         if (posts.existsBySlugAndStatusNotAndIdNot(post.getSlug(), DELETED, id)) {
             throw new SlugConflictException(post.getSlug());
         }
+        revisions.recordBaselineIfMissing(post);
         post.restore();
+        revisions.record(post, RevisionChangeType.RESTORE, editorLoginId);
     }
 
     /**
