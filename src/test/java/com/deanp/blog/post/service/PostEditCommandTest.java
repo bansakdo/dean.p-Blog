@@ -42,7 +42,7 @@ class PostEditCommandTest {
     void requiresTitleAndContent() {
         assertThatThrownBy(() -> command(" ", "slug").normalized()).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> command("가".repeat(301), "slug").normalized()).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new PostEditCommand("제목", "slug", null, " ", null, List.of(), null, null).normalized())
+        assertThatThrownBy(() -> new PostEditCommand("제목", "slug", null, " ", null, List.of(), null, null, null).normalized())
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -50,17 +50,17 @@ class PostEditCommandTest {
     @Test
     void normalizesTags() {
         PostEditCommand normalized = new PostEditCommand("제목", "slug", null, "본문", null,
-                Arrays.asList(" Java ", "", "spring", "JAVA", "Spring "), null, null).normalized();
+                Arrays.asList(" Java ", "", "spring", "JAVA", "Spring "), null, null, null).normalized();
 
         assertThat(normalized.tagNames()).containsExactly("Java", "spring");
         assertThatThrownBy(() -> new PostEditCommand("제목", "slug", null, "본문", null,
-                List.of("t".repeat(101)), null, null).normalized()).isInstanceOf(IllegalArgumentException.class);
+                List.of("t".repeat(101)), null, null, null).normalized()).isInstanceOf(IllegalArgumentException.class);
     }
 
     /** 빈 요약은 null로 저장하고 공개 동작이 없으면 현재 상태를 유지한다. */
     @Test
     void defaultsSummaryAndAction() {
-        PostEditCommand normalized = new PostEditCommand("제목", "slug", "  ", "본문", null, null, null, null).normalized();
+        PostEditCommand normalized = new PostEditCommand("제목", "slug", "  ", "본문", null, null, null, null, null).normalized();
 
         assertThat(normalized.summary()).isNull();
         assertThat(normalized.tagNames()).isEmpty();
@@ -69,6 +69,6 @@ class PostEditCommandTest {
 
     /** @param title 제목 @param slug 주소 @return 본문만 채운 작성 명령 */
     private PostEditCommand command(String title, String slug) {
-        return new PostEditCommand(title, slug, null, "본문", null, List.of(), null, PublishAction.KEEP);
+        return new PostEditCommand(title, slug, null, "본문", null, List.of(), null, PublishAction.KEEP, null);
     }
 }

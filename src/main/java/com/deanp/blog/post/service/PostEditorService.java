@@ -22,8 +22,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -70,8 +72,8 @@ public class PostEditorService {
         return posts.findByStatusInAndTitleContainingIgnoreCase(filter.getStatuses(), title,
                         PageRequest.of(page, PAGE_SIZE, sort))
                 .map(post -> new AdminPostRow(post.getId(), post.getSlug(), post.getTitle(),
-                        PUBLISHED.equals(post.getStatus()), DELETED.equals(post.getStatus()),
-                        LocalDateTime.ofInstant(post.getUpdatedAt(), DISPLAY_ZONE)));
+                        PUBLISHED.equals(post.getStatus()), DELETED.equals(post.getStatus()), scheduled(post),
+                        displayTime(post.getPublishedAt()), displayTime(post.getUpdatedAt())));
     }
 
     /**
@@ -103,7 +105,9 @@ public class PostEditorService {
                 post.getRepresentativeImageId(),
                 PUBLISHED.equals(post.getStatus()),
                 DELETED.equals(post.getStatus()),
-                post.getSeriesId() != null
+                post.getSeriesId() != null,
+                scheduled(post),
+                displayTime(post.getPublishedAt())
         ));
     }
 
@@ -143,7 +147,7 @@ public class PostEditorService {
                 normalized.title(), normalized.summary(), normalized.content()));
         replaceTags(post.getId(), normalized.tagNames());
         if (normalized.action() == PublishAction.PUBLISH) {
-            post.publish();
+            post.publish(normalized.publishAt());
         }
         revisions.record(post, normalized.action() == PublishAction.PUBLISH
                 ? RevisionChangeType.PUBLISH : RevisionChangeType.CREATE, authorLoginId);
@@ -186,13 +190,17 @@ public class PostEditorService {
         }
         post.changeRepresentativeImage(normalized.representativeImageId());
 
-        // 태그 연결을 맞추고 요청한 공개 상태로 전환한다.
-        // 공개 상태가 실제로 바뀐 경우에만 발행·비공개 전환으로 기록한다.
+        // 태그 연결을 맞추고 요청한 공개 상태로 전환한다. 공개 상태가 실제로 바뀐 경우에만
+        // 발행·비공개 전환으로 기록한다. 공개 중인 글을 그대로 저장할 때는 지정한 발행 시각만 반영한다.
         replaceTags(id, normalized.tagNames());
         boolean wasPublished = PUBLISHED.equals(post.getStatus());
+        Instant publishAt = requestedPublishAt(post, normalized.publishAt());
         RevisionChangeType changeType = RevisionChangeType.UPDATE;
-        if (normalized.action() == PublishAction.PUBLISH) {
-            post.publish();
+        if (normalized.action() == PublishAction.KEEP && wasPublished && publishAt != null
+                && !publishAt.equals(post.getPublishedAt())) {
+            post.reschedule(publishAt);
+        } else if (normalized.action() == PublishAction.PUBLISH) {
+            post.publish(publishAt);
             changeType = wasPublished ? RevisionChangeType.UPDATE : RevisionChangeType.PUBLISH;
         } else if (normalized.action() == PublishAction.UNPUBLISH) {
             post.unpublish();
@@ -247,6 +255,39 @@ public class PostEditorService {
                 .map(postTag -> postTag.getTag().getName())
                 .sorted()
                 .toList();
+    }
+
+    /**
+     * 폼은 분 단위로만 시각을 다루므로, 저장된 발행 시각과 같은 분을 다시 보내면 저장된 값을 그대로 쓴다.
+     *
+     * @param post 게시글
+     * @param requested 폼에서 지정한 발행 시각 또는 null
+     * @return 적용할 발행 시각 또는 null
+     */
+    private static Instant requestedPublishAt(PostDetail post, Instant requested) {
+        Instant current = post.getPublishedAt();
+        if (requested != null && current != null
+                && requested.truncatedTo(ChronoUnit.MINUTES).equals(current.truncatedTo(ChronoUnit.MINUTES))) {
+            return current;
+        }
+        return requested;
+    }
+
+    /**
+     * @param post 게시글
+     * @return 공개 상태이지만 발행 시각이 아직 오지 않아 공개 화면에 나오지 않는지 여부
+     */
+    private static boolean scheduled(PostDetail post) {
+        return PUBLISHED.equals(post.getStatus()) && post.getPublishedAt() != null
+                && post.getPublishedAt().isAfter(Instant.now());
+    }
+
+    /**
+     * @param instant 시각 또는 null
+     * @return 화면 표시 시간대로 바꾼 시각 또는 null
+     */
+    private static LocalDateTime displayTime(Instant instant) {
+        return instant == null ? null : LocalDateTime.ofInstant(instant, DISPLAY_ZONE);
     }
 
     /**
@@ -322,10 +363,12 @@ public class PostEditorService {
      * @param title 제목
      * @param published 공개 여부
      * @param deleted 삭제 여부
+     * @param scheduled 발행 시각이 아직 오지 않은 예약 글인지 여부
+     * @param publishedAt 화면 표시 시간대로 바꾼 발행 시각 또는 null
      * @param updatedAt 화면 표시 시간대로 바꾼 마지막 수정 시각
      */
     public record AdminPostRow(UUID id, String slug, String title, boolean published, boolean deleted,
-                               LocalDateTime updatedAt) {
+                               boolean scheduled, LocalDateTime publishedAt, LocalDateTime updatedAt) {
     }
 
     /**
@@ -351,9 +394,12 @@ public class PostEditorService {
      * @param published 공개 여부
      * @param deleted 삭제 여부
      * @param inSeries 시리즈에 속해 카테고리를 바꿀 수 없는지 여부
+     * @param scheduled 발행 시각이 아직 오지 않은 예약 글인지 여부
+     * @param publishedAt 화면 표시 시간대로 바꾼 발행 시각 또는 null
      */
     public record PostEditView(UUID id, String slug, String title, String summary, String content,
                                UUID categoryId, String tags, UUID representativeImageId,
-                               boolean published, boolean deleted, boolean inSeries) {
+                               boolean published, boolean deleted, boolean inSeries,
+                               boolean scheduled, LocalDateTime publishedAt) {
     }
 }

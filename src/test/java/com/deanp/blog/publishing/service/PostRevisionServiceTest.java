@@ -124,7 +124,7 @@ class PostRevisionServiceTest {
         UUID postId = editor.create(command("처음", "본문 1", PublishAction.KEEP), AUTHOR);
         editor.update(postId, command("둘째", "본문 2", PublishAction.KEEP), AUTHOR);
         UUID otherId = editor.create(new PostEditCommand("다른 글", "other-post", null, "본문", null, List.of(), null,
-                PublishAction.KEEP), AUTHOR);
+                PublishAction.KEEP, null), AUTHOR);
         assertThat(service.find(otherId, 2)).isEmpty();
         assertThatThrownBy(() -> service.revert(otherId, 2, AUTHOR)).isInstanceOf(IllegalArgumentException.class);
 
@@ -163,7 +163,7 @@ class PostRevisionServiceTest {
     void treatsSummaryChangesAsContentChanges() {
         UUID postId = editor.create(command("처음", "본문", PublishAction.KEEP), AUTHOR);
         editor.update(postId, new PostEditCommand("처음", "revision-post", "요약", "본문", null, List.of(), null,
-                PublishAction.KEEP), AUTHOR);
+                PublishAction.KEEP, null), AUTHOR);
         entityManager.flush();
 
         assertThat(service.findHistory(postId)).hasSize(2);
@@ -179,7 +179,7 @@ class PostRevisionServiceTest {
      * @return 같은 주소를 쓰는 글 작성·수정 명령
      */
     private static PostEditCommand command(String title, String content, PublishAction action) {
-        return new PostEditCommand(title, "revision-post", null, content, null, List.of(), null, action);
+        return new PostEditCommand(title, "revision-post", null, content, null, List.of(), null, action, null);
     }
 
     /** @param column 컬럼 이름 @param postId 게시글 식별자 @return 게시글의 문자열 컬럼 값 */

@@ -17,6 +17,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -130,12 +132,12 @@ class PostEditorServiceTest {
     @Test
     void keepsSeriesCategory() {
         UUID postId = service.create(command("시리즈 글", "series-post", List.of(), PublishAction.KEEP), AUTHOR);
-        UUID seriesId = seriesService.createSeries(new PostSeriesCommand(id(10), "editor-series", "시리즈", null, 0));
+        UUID seriesId = seriesService.createSeries(new PostSeriesCommand(id(10), "editor-series", "시리즈", null, 0, null));
         seriesService.assignPost(seriesId, postId, 1);
         entityManager.flush();
         entityManager.clear();
 
-        service.update(postId, new PostEditCommand("시리즈 글", "series-post", null, "본문", id(11), List.of(), null, PublishAction.KEEP), AUTHOR);
+        service.update(postId, new PostEditCommand("시리즈 글", "series-post", null, "본문", id(11), List.of(), null, PublishAction.KEEP, null), AUTHOR);
         entityManager.flush();
 
         assertThat(jdbc.queryForObject("SELECT category_id FROM blog.post_detail WHERE id = ?", UUID.class, postId)).isEqualTo(id(10));
@@ -268,6 +270,68 @@ class PostEditorServiceTest {
         assertThat(titles(AdminPostFilter.ALL, "_")).containsExactly("snake_case 정리");
     }
 
+    /** 미래 시각으로 발행하면 그 시각 전까지 공개 화면에 나오지 않고, 관리 화면에는 예약으로 보인다. */
+    @Test
+    void schedulesFuturePublish() {
+        Instant future = Instant.now().plus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MINUTES);
+        UUID postId = service.create(scheduled("예약", "scheduled-post", PublishAction.PUBLISH, future), AUTHOR);
+        entityManager.flush();
+
+        assertThat(text("status", postId)).isEqualTo("PUBLISHED");
+        assertThat(publishedAt(postId)).isEqualTo(future);
+        assertThat(posts.findPublishedRowsBySlug("scheduled-post")).isEmpty();
+        assertThat(service.findForEdit(postId).orElseThrow().scheduled()).isTrue();
+        assertThat(service.findPage(0, AdminPostFilter.PUBLISHED, "예약").getContent().getFirst().scheduled()).isTrue();
+
+        // 공개 중인 글은 저장만으로 발행 시각을 바꾸고, 과거로 옮기면 바로 공개된다.
+        Instant past = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MINUTES);
+        service.update(postId, scheduled("예약", "scheduled-post", PublishAction.KEEP, past), AUTHOR);
+        entityManager.flush();
+        assertThat(publishedAt(postId)).isEqualTo(past);
+        assertThat(posts.findPublishedRowsBySlug("scheduled-post")).isNotEmpty();
+    }
+
+    /** 예약을 취소한 뒤 시각 없이 다시 발행하면 남아 있던 미래 시각 대신 지금 공개한다. */
+    @Test
+    void republishesNowAfterCancelingSchedule() {
+        Instant future = Instant.now().plus(1, ChronoUnit.DAYS);
+        UUID postId = service.create(scheduled("취소", "cancel-post", PublishAction.PUBLISH, future), AUTHOR);
+        service.update(postId, scheduled("취소", "cancel-post", PublishAction.UNPUBLISH, null), AUTHOR);
+        service.update(postId, scheduled("취소", "cancel-post", PublishAction.PUBLISH, null), AUTHOR);
+        entityManager.flush();
+
+        assertThat(publishedAt(postId)).isBefore(Instant.now().plusSeconds(1));
+        assertThat(posts.findPublishedRowsBySlug("cancel-post")).isNotEmpty();
+    }
+
+    /** 폼이 분 단위로 다시 보낸 기존 발행 시각은 초 단위 원래 값을 바꾸지 않는다. */
+    @Test
+    void keepsOriginalPublishTimeWithinSameMinute() {
+        UUID postId = service.create(command("원래", "same-minute", List.of(), PublishAction.PUBLISH), AUTHOR);
+        entityManager.flush();
+        Instant original = publishedAt(postId);
+
+        service.update(postId, scheduled("원래", "same-minute", PublishAction.KEEP, original.truncatedTo(ChronoUnit.MINUTES)), AUTHOR);
+        entityManager.flush();
+        assertThat(publishedAt(postId)).isEqualTo(original);
+    }
+
+    /** @param postId 게시글 식별자 @return 저장된 발행 시각 */
+    private Instant publishedAt(UUID postId) {
+        return jdbc.queryForObject("SELECT published_at FROM blog.post_detail WHERE id = ?", Timestamp.class, postId).toInstant();
+    }
+
+    /**
+     * @param title 제목
+     * @param slug 주소
+     * @param action 공개 상태 동작
+     * @param publishAt 발행 시각 또는 null
+     * @return 발행 시각을 지정한 작성·수정 명령
+     */
+    private PostEditCommand scheduled(String title, String slug, PublishAction action, Instant publishAt) {
+        return new PostEditCommand(title, slug, null, "본문", id(10), List.of(), null, action, publishAt);
+    }
+
     /** @param filter 상태 필터 @param query 제목 검색어 @return 첫 페이지 글 제목 */
     private List<String> titles(AdminPostFilter filter, String query) {
         return service.findPage(0, filter, query).map(AdminPostRow::title).getContent();
@@ -281,12 +345,12 @@ class PostEditorServiceTest {
      * @return 카테고리 10번에 넣는 작성 명령
      */
     private PostEditCommand command(String title, String slug, List<String> tags, PublishAction action) {
-        return new PostEditCommand(title, slug, null, "본문", id(10), tags, null, action);
+        return new PostEditCommand(title, slug, null, "본문", id(10), tags, null, action, null);
     }
 
     /** @param imageId 대표 이미지 식별자 @return 대표 이미지만 지정하는 수정 명령 */
     private PostEditCommand cover(UUID imageId) {
-        return new PostEditCommand("대표 이미지", "cover-post", null, "본문", id(10), List.of(), imageId, PublishAction.KEEP);
+        return new PostEditCommand("대표 이미지", "cover-post", null, "본문", id(10), List.of(), imageId, PublishAction.KEEP, null);
     }
 
     /** @param column 컬럼 이름 @param postId 게시글 식별자 @return 문자열 컬럼 값 */

@@ -89,27 +89,31 @@ public class PostDetail {
      */
     public void assignToSeries(PostSeries series, int seriesOrder) {
         this.seriesId = series.getId();
+        this.series = series;
         this.seriesOrder = seriesOrder;
         this.categoryId = series.getCategoryId();
+        this.category = null;
         this.updatedAt = Instant.now();
     }
 
     /**
-     * 시리즈 연결을 해제하고 현재 카테고리는 유지한다.
+     * 시리즈 연결을 해제하고 현재 카테고리는 유지한다. 시리즈를 지울 수 있도록 읽어 둔 연관도 비운다.
      */
     public void removeFromSeries() {
         this.seriesId = null;
+        this.series = null;
         this.seriesOrder = null;
         this.updatedAt = Instant.now();
     }
 
     /**
-     * 연결된 시리즈의 대표 카테고리 변경을 게시글에 반영한다.
+     * 게시글의 카테고리를 바꾼다. 이전 카테고리를 지울 수 있도록 읽어 둔 연관도 비운다.
      *
-     * @param categoryId 새 카테고리 식별자
+     * @param categoryId 새 카테고리 식별자 또는 null
      */
     public void changeCategory(UUID categoryId) {
         this.categoryId = categoryId;
+        this.category = null;
         this.updatedAt = Instant.now();
     }
 
@@ -169,15 +173,31 @@ public class PostDetail {
     }
 
     /**
-     * 글을 공개한다. 처음 공개할 때만 발행 시각을 기록해 재발행해도 원래 발행일을 유지한다.
+     * 글을 공개한다. 발행 시각을 지정하면 그 시각을 쓰고, 미래 시각이면 그때까지 공개 화면에 나오지 않는다.
+     * 지정하지 않으면 처음 공개할 때만 지금을 기록해 재발행해도 원래 발행일을 유지한다. 다만 남아 있던
+     * 발행 시각이 미래이면 예약된 채로 남지 않도록 지금으로 바꾼다.
+     *
+     * @param publishAt 지정한 발행 시각 또는 null
      */
-    public void publish() {
+    public void publish(Instant publishAt) {
         Instant now = Instant.now();
         this.status = "PUBLISHED";
-        if (this.publishedAt == null) {
+        if (publishAt != null) {
+            this.publishedAt = publishAt;
+        } else if (this.publishedAt == null || this.publishedAt.isAfter(now)) {
             this.publishedAt = now;
         }
         this.updatedAt = now;
+    }
+
+    /**
+     * 공개 중이거나 예약한 글의 발행 시각을 바꾼다.
+     *
+     * @param publishAt 새 발행 시각
+     */
+    public void reschedule(Instant publishAt) {
+        this.publishedAt = publishAt;
+        this.updatedAt = Instant.now();
     }
 
     /**

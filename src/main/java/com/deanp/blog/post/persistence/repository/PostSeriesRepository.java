@@ -1,6 +1,7 @@
 package com.deanp.blog.post.persistence.repository;
 
 import com.deanp.blog.post.persistence.entity.PostSeries;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -25,4 +26,15 @@ public interface PostSeriesRepository extends JpaRepository<PostSeries, UUID> {
      * @return 다른 시리즈가 같은 slug를 쓰면 true
      */
     boolean existsBySlugAndIdNot(String slug, UUID id);
+
+    /**
+     * @param categoryId 카테고리 식별자
+     * @return 이 카테고리를 대표 카테고리로 쓰는 시리즈 수
+     */
+    long countByCategoryId(UUID categoryId);
+
+    /**
+     * @return 모든 시리즈를 정렬 순서와 이름순으로 나열한 목록
+     */
+    List<PostSeries> findAllByOrderBySortOrderAscNameAsc();
 }

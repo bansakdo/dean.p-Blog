@@ -50,4 +50,39 @@ public class PostCategory {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id", insertable = false, updatable = false)
     private PostCategory parent;
+
+    /**
+     * 최상위 활성 카테고리를 만든다.
+     *
+     * @param name 표시 이름
+     * @param slug URL 식별자
+     * @param sortOrder 목록 정렬 순서
+     * @return 저장할 카테고리
+     */
+    public static PostCategory create(String name, String slug, int sortOrder) {
+        PostCategory category = new PostCategory();
+        Instant now = Instant.now();
+        category.id = UUID.randomUUID();
+        category.name = name;
+        category.slug = slug;
+        category.sortOrder = sortOrder;
+        category.status = "ACTIVE";
+        category.createdAt = now;
+        category.updatedAt = now;
+        return category;
+    }
+
+    /**
+     * 카테고리의 이름, 주소, 정렬 순서를 바꾼다.
+     *
+     * @param name 표시 이름
+     * @param slug URL 식별자
+     * @param sortOrder 목록 정렬 순서
+     */
+    public void update(String name, String slug, int sortOrder) {
+        this.name = name;
+        this.slug = slug;
+        this.sortOrder = sortOrder;
+        this.updatedAt = Instant.now();
+    }
 }

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/site :: head(${pageTitle})}"></head>
+<body class="admin-page">
+<header th:replace="~{fragments/site :: header}"></header>
+<main class="shell page-space">
+  <nav th:replace="~{fragments/admin :: nav('series')}"></nav>
+  <header class="admin-heading">
+    <div><h1>시리즈</h1><p th:text="|${seriesRows.size()}개 · 정렬 순서가 작을수록 앞에 보입니다|">0개</p></div>
+    <a class="admin-button primary" th:href="@{/admin/series/new}">새 시리즈</a>
+  </header>
+  <p class="admin-error" th:if="${param.conflict}" role="alert">다른 요청과 겹쳐 저장하지 못했습니다. 화면을 새로 보고 다시 시도하세요.</p>
+  <p class="admin-notice" th:if="${param.deleted}" role="status">시리즈를 삭제했습니다.</p>
+  <p class="empty-state" th:if="${seriesRows.isEmpty()}">아직 시리즈가 없습니다.</p>
+  <div class="admin-table-scroll" th:unless="${seriesRows.isEmpty()}">
+    <table class="admin-table">
+      <thead><tr><th scope="col">이름</th><th scope="col">카테고리</th><th scope="col">상태</th><th scope="col">글</th><th scope="col">순서</th></tr></thead>
+      <tbody>
+        <tr th:each="row : ${seriesRows}">
+          <td><a th:href="@{/admin/series/{id}/edit(id=${row.id})}" th:text="${row.name}">시리즈</a></td>
+          <td th:text="${row.categoryName}">카테고리</td>
+          <td><span class="admin-badge" th:classappend="${row.status == 'ACTIVE'} ? 'is-published'"
+                    th:text="${row.status == 'ACTIVE'} ? '연재 중' : (${row.status == 'COMPLETED'} ? '완결' : '숨김')">연재 중</span></td>
+          <td th:text="|${row.postCount}편|">0편</td>
+          <td th:text="${row.sortOrder}">0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+<footer th:replace="~{fragments/site :: footer}"></footer>
+</body>
+</html>

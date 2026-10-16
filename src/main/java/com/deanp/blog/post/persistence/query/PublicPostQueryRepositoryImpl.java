@@ -176,7 +176,7 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
                 .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now())).fetchOne();
     }
 
-    /** @return 공개 글에서 사용하는 카테고리만 이름순으로 반환한다. */
+    /** @return 공개 글에서 사용하는 카테고리만 관리 화면의 정렬 순서, 이름순으로 반환한다. */
     @Override
     public List<PostFilterOption> findPublishedCategories() {
         QPostDetail post = QPostDetail.postDetail;
@@ -184,8 +184,8 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
         return queryFactory.select(Projections.constructor(PostFilterOption.class, category.slug, category.name, post.id.countDistinct()))
                 .from(post).join(category).on(category.id.eq(post.categoryId))
                 .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()))
-                .groupBy(category.slug, category.name)
-                .orderBy(category.name.asc(), category.slug.asc()).fetch();
+                .groupBy(category.slug, category.name, category.sortOrder)
+                .orderBy(category.sortOrder.asc(), category.name.asc(), category.slug.asc()).fetch();
     }
 
     /** @return 공개 글에서 사용하는 태그만 이름순으로 반환한다. */
