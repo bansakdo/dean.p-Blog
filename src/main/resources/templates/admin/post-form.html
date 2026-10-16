@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/site :: head(${pageTitle})}"></head>
+<body class="admin-page">
+<header th:replace="~{fragments/site :: header}"></header>
+<main class="shell page-space">
+  <header class="admin-heading">
+    <div>
+      <h1 th:text="${post == null} ? '새 글' : '글 수정'">새 글</h1>
+      <p th:if="${post != null}">상태: <span class="admin-badge" th:classappend="${post.published} ? 'is-published'" th:text="${post.published} ? '공개' : '초안'">초안</span></p>
+    </div>
+    <a th:href="@{/admin/posts}">← 글 관리</a>
+  </header>
+  <p class="admin-notice" th:if="${param.saved}" role="status">저장했습니다.</p>
+  <form class="admin-form" method="post" th:object="${form}"
+        th:action="${post == null} ? @{/admin/posts} : @{/admin/posts/{id}(id=${post.id})}">
+    <ul class="admin-error" th:if="${#fields.hasAnyErrors()}" role="alert">
+      <li th:each="error : ${#fields.allErrors()}" th:text="${error}">오류</li>
+    </ul>
+
+    <label for="post-title">제목</label>
+    <input id="post-title" type="text" th:field="*{title}" maxlength="300" required>
+
+    <label for="post-slug">주소(slug)</label>
+    <input id="post-slug" type="text" th:field="*{slug}" maxlength="200" aria-describedby="post-slug-help">
+    <p class="admin-help" id="post-slug-help">글 주소 /posts/ 뒤에 붙습니다. 비워 두면 제목으로 만듭니다. 공개한 뒤 바꾸면 기존 링크가 끊깁니다.</p>
+
+    <label for="post-summary">요약</label>
+    <textarea id="post-summary" th:field="*{summary}" rows="2"></textarea>
+
+    <label for="post-category">카테고리</label>
+    <select id="post-category" th:field="*{categoryId}" th:disabled="${post != null and post.inSeries}" aria-describedby="post-category-help">
+      <option value="">없음</option>
+      <option th:each="category : ${categoryChoices}" th:value="${category.id}" th:text="${category.name}">카테고리</option>
+    </select>
+    <p class="admin-help" id="post-category-help" th:text="${post != null and post.inSeries} ? '시리즈에 속한 글은 시리즈의 카테고리를 따릅니다.' : '글 목록의 분류에 쓰입니다.'">글 목록의 분류에 쓰입니다.</p>
+
+    <label for="post-tags">태그</label>
+    <input id="post-tags" type="text" th:field="*{tags}" aria-describedby="post-tags-help">
+    <p class="admin-help" id="post-tags-help">쉼표로 구분합니다. 없는 태그는 새로 만듭니다.</p>
+
+    <label for="post-content">본문 (Markdown)</label>
+    <textarea id="post-content" class="admin-content" th:field="*{content}" rows="24" required></textarea>
+
+    <th:block th:if="${post != null}">
+      <label for="post-representative-image">대표 이미지</label>
+      <select id="post-representative-image" th:field="*{representativeImageId}" aria-describedby="post-representative-image-help">
+        <option value="">없음</option>
+        <option th:each="image : ${images}" th:value="${image.id}" th:text="${image.name}">이미지</option>
+      </select>
+      <p class="admin-help" id="post-representative-image-help">이 글에 올린 이미지 중에서 고릅니다. 홈과 글 목록의 썸네일로 쓰입니다.</p>
+    </th:block>
+
+    <div class="admin-actions">
+      <button class="admin-button primary" type="submit" name="action" value="save" th:text="${post == null} ? '초안으로 저장' : '저장'">저장</button>
+      <button class="admin-button" type="submit" name="action" value="publish" th:if="${post == null or !post.published}">발행</button>
+      <button class="admin-button" type="submit" name="action" value="unpublish" th:if="${post != null and post.published}">비공개로 전환</button>
+      <a th:if="${post != null}" th:href="@{/admin/posts/{id}/preview(id=${post.id})}" target="_blank" rel="noopener">저장된 내용 미리보기</a>
+      <a th:if="${post != null and post.published}" th:href="@{/posts/{slug}(slug=${post.slug})}" target="_blank" rel="noopener">공개 글 보기</a>
+    </div>
+  </form>
+
+  <section class="admin-images" th:if="${post != null}" aria-labelledby="post-images-title">
+    <h2 id="post-images-title">이미지</h2>
+    <label for="post-image-upload">이미지 올리기 (JPG, PNG, WebP · 10MB 이하)</label>
+    <input id="post-image-upload" type="file" accept="image/jpeg,image/png,image/webp"
+           th:attr="data-image-upload=@{/admin/posts/{id}/images(id=${post.id})},data-csrf-header=${_csrf.headerName},data-csrf-token=${_csrf.token}">
+    <p class="admin-help" data-image-status role="status">올리면 본문의 커서 위치에 이미지가 들어갑니다. 본문은 저장해야 반영됩니다.</p>
+    <ul class="admin-image-list" data-image-list>
+      <li th:each="image : ${images}"><span th:text="${image.name}">파일명</span> <code th:text="|![](${image.url})|">![](/media/posts/…)</code></li>
+    </ul>
+  </section>
+  <p class="admin-help" th:if="${post == null}">이미지는 글을 한 번 저장한 뒤에 올릴 수 있습니다.</p>
+</main>
+<footer th:replace="~{fragments/site :: footer}"></footer>
+<script defer th:src="@{/js/admin-post-editor.js}"></script>
+</body>
+</html>

@@ -20,4 +20,13 @@ public class UserGroupId {
     private UUID userId;
     @Column(name = "group_id")
     private UUID groupId;
+
+    /**
+     * @param userId 사용자 식별자
+     * @param groupId 그룹 식별자
+     */
+    public UserGroupId(UUID userId, UUID groupId) {
+        this.userId = userId;
+        this.groupId = groupId;
+    }
 }

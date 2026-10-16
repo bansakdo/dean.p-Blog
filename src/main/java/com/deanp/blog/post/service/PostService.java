@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -24,6 +25,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -208,6 +210,26 @@ public class PostService {
                         : "/media/posts/" + row.id() + "/" + row.representativeImageName(),
                 row.categoryName(), row.seriesSlug(), row.seriesName(), row.seriesOrder()
         );
+    }
+
+    /**
+     * 공개 여부와 관계없이 글 하나를 공개 화면과 같은 방식으로 변환한다. 글 관리의 미리보기에 쓴다.
+     *
+     * @param id 게시글 식별자
+     * @param slug URL 식별자
+     * @param title 제목
+     * @param summary 요약
+     * @param content Markdown 본문
+     * @param publishedAt 발행 시각, 아직 발행하지 않았으면 null
+     * @param tags 태그 이름 목록
+     * @return 상세 템플릿에서 사용할 게시글 표시 모델
+     */
+    public PostView preview(UUID id, String slug, String title, String summary, String content,
+                            Instant publishedAt, List<String> tags) {
+        // 발행 전 글은 오늘 날짜로 보여 준다.
+        return new PostView(id, slug, title, summary,
+                LocalDate.ofInstant(publishedAt == null ? Instant.now() : publishedAt, DISPLAY_ZONE),
+                readingMinutes(content), List.copyOf(tags), renderHtml(content));
     }
 
     /**

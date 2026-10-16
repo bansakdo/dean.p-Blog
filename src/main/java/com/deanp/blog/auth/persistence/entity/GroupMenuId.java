@@ -22,4 +22,15 @@ public class GroupMenuId {
     private UUID menuId;
     @Column(name = "permission_code")
     private String permissionCode;
+
+    /**
+     * @param groupId 그룹 식별자
+     * @param menuId 메뉴 식별자
+     * @param permissionCode 권한 코드
+     */
+    public GroupMenuId(UUID groupId, UUID menuId, String permissionCode) {
+        this.groupId = groupId;
+        this.menuId = menuId;
+        this.permissionCode = permissionCode;
+    }
 }

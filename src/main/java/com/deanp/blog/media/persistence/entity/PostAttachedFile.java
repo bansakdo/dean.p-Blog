@@ -35,4 +35,18 @@ public class PostAttachedFile {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "attached_file_id", insertable = false, updatable = false)
     private AttachedFile attachedFile;
+
+    /**
+     * 게시글에 첨부 파일을 연결한다.
+     *
+     * @param id 게시글·파일 복합키
+     * @param sortOrder 게시글 안에서의 첨부 순서
+     * @return 저장할 첨부 연결
+     */
+    public static PostAttachedFile create(PostAttachedFileId id, int sortOrder) {
+        PostAttachedFile link = new PostAttachedFile();
+        link.id = id;
+        link.sortOrder = sortOrder;
+        return link;
+    }
 }

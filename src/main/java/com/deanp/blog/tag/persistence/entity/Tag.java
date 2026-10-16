@@ -35,4 +35,21 @@ public class Tag {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    /**
+     * 새 태그를 만든다.
+     *
+     * @param name 표시 이름
+     * @param slug URL 식별자
+     * @return 저장할 태그
+     */
+    public static Tag create(String name, String slug) {
+        Tag tag = new Tag();
+        Instant now = Instant.now();
+        tag.id = UUID.randomUUID();
+        tag.name = name;
+        tag.slug = slug;
+        tag.createdAt = now;
+        tag.updatedAt = now;
+        return tag;
+    }
 }
