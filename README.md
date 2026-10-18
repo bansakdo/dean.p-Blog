@@ -12,6 +12,48 @@ Spring Boot 서버 렌더링 방식으로 만드는 개인 블로그입니다.
 
 현재 범위는 화면 템플릿입니다. 샘플 글은 실제 DB 데이터가 아니며, 외부 PostgreSQL 연결과 Obsidian/Git 자동 발행은 후속 단계입니다.
 
+## 시스템 구조
+
+```mermaid
+flowchart LR
+    visitor(["방문자 브라우저"])
+    admin(["관리자 브라우저"])
+    cdn["CDN 라이브러리<br/>Tailwind · htmx · highlight.js<br/>lucide · Mermaid"]
+
+    subgraph app["Spring Boot 애플리케이션"]
+        security["Spring Security<br/>폼 로그인 · CSRF"]
+        blog["공개 화면<br/>BlogController · Thymeleaf"]
+        adminCtrl["관리 화면<br/>AdminPostController"]
+        visit["방문 기록<br/>VisitorPostViewTrackingService"]
+        post["PostService<br/>조회 · Markdown 렌더"]
+        media["미디어<br/>이미지 · Archify 다이어그램"]
+        editor["편집·발행<br/>PostEditorService · PostRevisionService"]
+    end
+
+    db[("PostgreSQL<br/>blog 스키마 · Flyway")]
+    storage[("미디어 저장소<br/>posts/ · diagrams/")]
+
+    visitor -->|"HTML 요청"| blog
+    visitor -->|"/media/** · iframe"| media
+    visitor -.->|"스크립트·스타일"| cdn
+    blog --> post
+    blog -.->|"조회 기록"| visit
+    admin -->|"로그인"| security
+    security -->|"/admin/** 권한"| adminCtrl
+    adminCtrl -->|"저장·발행"| editor
+    adminCtrl -->|"업로드"| media
+    adminCtrl -->|"미리보기"| post
+    post -->|"Querydsl"| db
+    visit --> db
+    editor -->|"글·이력"| db
+    media -->|"첨부 메타"| db
+    media -->|"파일 I/O"| storage
+```
+
+- 모든 요청은 Spring Security를 거치며, `/admin/**`만 글쓰기 권한이 필요하고 나머지는 공개입니다.
+- Archify 다이어그램은 `/media/diagrams/{id}`에서 CSP sandbox로 격리해 내보내고, 그 밖의 응답은 iframe 삽입을 막습니다(`X-Frame-Options: DENY`).
+- 빌드·배포: Jenkins가 통합 테스트와 Playwright E2E를 돌린 뒤 `bootJar`를 만들고, `dev` 브랜치는 개발 서버에 배포합니다. 앱은 Docker(Temurin 25 JRE)로 실행합니다.
+
 ## 실행
 
 ```bash
