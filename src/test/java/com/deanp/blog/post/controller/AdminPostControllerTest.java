@@ -2,10 +2,14 @@ package com.deanp.blog.post.controller;
 
 import com.deanp.blog.auth.controller.SecurityConfiguration;
 import com.deanp.blog.auth.service.BlogUserDetailsService;
+import com.deanp.blog.media.service.MediaImageValidationService.MediaValidationException;
+import com.deanp.blog.media.service.PostDiagramService;
+import com.deanp.blog.media.service.PostDiagramService.PostDiagram;
 import com.deanp.blog.media.service.PostImageService;
 import com.deanp.blog.post.service.AdminPostFilter;
 import com.deanp.blog.post.service.PostEditorService;
 import com.deanp.blog.post.service.PostEditorService.PostEditView;
+import com.deanp.blog.post.service.PostService;
 import com.deanp.blog.publishing.service.PostRevisionService;
 import com.deanp.blog.publishing.service.PostRevisionService.RevisionRow;
 import com.deanp.blog.publishing.service.PostRevisionService.RevisionView;
@@ -44,6 +48,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -66,6 +71,12 @@ class AdminPostControllerTest {
 
     @MockitoBean
     private PostRevisionService revisions;
+
+    @MockitoBean
+    private PostDiagramService postDiagrams;
+
+    @MockitoBean
+    private PostService postService;
 
     /** 빈 목록과 선택지를 돌려주도록 준비한다. */
     @BeforeEach
@@ -127,6 +138,42 @@ class AdminPostControllerTest {
                 .andExpect(status().isForbidden());
 
         verify(postImages, never()).upload(any(), any());
+    }
+
+    /** 다이어그램 업로드는 본문 블록을 돌려주고, CSRF가 없으면 거부하며, 검증 실패는 메시지와 400으로 답한다. */
+    @Test
+    void uploadsDiagramAndReportsValidationErrors() throws Exception {
+        UUID diagramId = new UUID(0, 9);
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(false)));
+        when(postDiagrams.upload(eq(POST_ID), any())).thenReturn(new PostDiagram(diagramId, "flow.html"));
+        MockMultipartFile file = new MockMultipartFile("file", "flow.html", "text/html", new byte[] {1});
+
+        mockMvc.perform(multipart("/admin/posts/{id}/diagrams", POST_ID).file(file).with(writer()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(multipart("/admin/posts/{id}/diagrams", POST_ID).file(file).with(writer()).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(diagramId.toString()))
+                .andExpect(jsonPath("$.markdown").value("```archify\n" + diagramId + "\n```"));
+
+        when(postDiagrams.upload(eq(POST_ID), any())).thenThrow(new MediaValidationException("Archify로 만든 HTML이 아닙니다."));
+        mockMvc.perform(multipart("/admin/posts/{id}/diagrams", POST_ID).file(file).with(writer()).with(csrf()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Archify로 만든 HTML이 아닙니다."));
+    }
+
+    /** 실시간 미리보기는 글쓴이만 쓰며, 공개 화면과 같은 변환 결과를 돌려준다. 관리 화면은 iframe 삽입을 막는다. */
+    @Test
+    void rendersPreviewForWritersOnly() throws Exception {
+        when(postService.renderHtml("# 제목")).thenReturn("<h1>제목</h1>");
+
+        mockMvc.perform(post("/admin/posts/preview-render").param("content", "# 제목").with(csrf()))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(post("/admin/posts/preview-render").param("content", "# 제목").with(writer()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/admin/posts/preview-render").param("content", "# 제목").with(writer()).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(content().string("<h1>제목</h1>"))
+                .andExpect(header().string("X-Frame-Options", "DENY"));
     }
 
     /** 상태 필터와 앞뒤 공백을 지운 제목 검색어를 서비스에 넘긴다. */

@@ -161,6 +161,18 @@ class PostEditorServiceTest {
         assertThat(jdbc.queryForObject("SELECT representative_image_id FROM blog.post_detail WHERE id = ?", UUID.class, postId)).isEqualTo(id(40));
     }
 
+    /** 같은 글에 첨부했더라도 Archify 다이어그램 같은 이미지가 아닌 첨부는 대표 이미지로 지정할 수 없다. */
+    @Test
+    void rejectsDiagramAsRepresentativeImage() {
+        UUID postId = service.create(command("대표 이미지", "cover-post", List.of(), PublishAction.KEEP), AUTHOR);
+        entityManager.flush();
+        jdbc.update("INSERT INTO blog.attached_files (id, original_name, stored_name, storage_path, content_type) VALUES (?, 'd.html', 'd.html', 'diagrams/d.html', 'text/html')", id(41));
+        jdbc.update("INSERT INTO blog.post_attached_file (post_detail_id, attached_file_id) VALUES (?, ?)", postId, id(41));
+
+        assertThatThrownBy(() -> service.update(postId, cover(id(41)), AUTHOR))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     /** 발행하면 발행 시각이 생기고, 비공개 전환 후 다시 발행해도 처음 발행 시각을 유지한다. */
     @Test
     void publishesAndUnpublishes() {

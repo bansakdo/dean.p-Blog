@@ -86,11 +86,12 @@ public class PostImageService {
 
     /**
      * @param postDetailId 게시글 식별자
-     * @return 게시글에 첨부된 이미지를 첨부 순서대로 나열한 목록
+     * @return 게시글에 첨부된 이미지를 첨부 순서대로 나열한 목록(다이어그램 등 이미지가 아닌 첨부는 뺀다)
      */
     @Transactional(readOnly = true)
     public List<PostImage> findByPost(UUID postDetailId) {
         return postAttachedFiles.findByIdPostDetailIdOrderBySortOrderAsc(postDetailId).stream()
+                .filter(link -> link.getAttachedFile().isImage())
                 .map(link -> new PostImage(
                         link.getAttachedFile().getId(),
                         link.getAttachedFile().getOriginalName(),

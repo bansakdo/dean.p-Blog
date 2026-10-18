@@ -1,6 +1,8 @@
 package com.deanp.blog.post.controller;
 
 import com.deanp.blog.media.service.MediaImageValidationService.MediaValidationException;
+import com.deanp.blog.media.service.PostDiagramService;
+import com.deanp.blog.media.service.PostDiagramService.PostDiagram;
 import com.deanp.blog.media.service.PostImageService;
 import com.deanp.blog.media.service.PostImageService.PostImage;
 import com.deanp.blog.post.service.AdminPostFilter;
@@ -9,11 +11,13 @@ import com.deanp.blog.post.service.PostEditCommand.PublishAction;
 import com.deanp.blog.post.service.PostEditorService;
 import com.deanp.blog.post.service.PostEditorService.PostEditView;
 import com.deanp.blog.post.service.PostEditorService.SlugConflictException;
+import com.deanp.blog.post.service.PostService;
 import com.deanp.blog.publishing.service.PostRevisionService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -49,6 +53,8 @@ public class AdminPostController {
 
     private final PostEditorService postEditor;
     private final PostImageService postImages;
+    private final PostDiagramService postDiagrams;
+    private final PostService postService;
     private final PostRevisionService revisions;
 
     /**
@@ -272,6 +278,35 @@ public class AdminPostController {
     }
 
     /**
+     * 글에 Archify 다이어그램 HTML을 올리고 본문에 넣을 블록을 응답한다. 삭제한 글에는 올릴 수 없다.
+     *
+     * @param id 게시글 식별자
+     * @param file 업로드한 Archify HTML 파일
+     * @return 첨부된 다이어그램의 식별자, 파일명, 본문 블록
+     */
+    @PostMapping("/{id}/diagrams")
+    @ResponseBody
+    public Map<String, String> uploadDiagram(@PathVariable UUID id, @RequestParam("file") MultipartFile file) {
+        if (requirePost(id).deleted()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
+        }
+        PostDiagram diagram = postDiagrams.upload(id, file);
+        return Map.of("id", diagram.id().toString(), "name", diagram.name(), "markdown", diagram.markdown());
+    }
+
+    /**
+     * 저장하지 않은 본문을 공개 화면과 같은 방식으로 HTML로 바꿔 편집기 미리보기에 돌려준다.
+     *
+     * @param content Markdown 본문
+     * @return 본문 HTML 조각
+     */
+    @PostMapping(value = "/preview-render", produces = MediaType.TEXT_HTML_VALUE)
+    @ResponseBody
+    public String previewRender(@RequestParam(name = "content", defaultValue = "") String content) {
+        return postService.renderHtml(content);
+    }
+
+    /**
      * 저장된 글을 공개 여부와 관계없이 공개 상세 화면 모양으로 보여 준다.
      *
      * @param id 게시글 식별자
@@ -287,7 +322,7 @@ public class AdminPostController {
     }
 
     /**
-     * 이미지 검증 실패를 업로드 스크립트가 읽을 수 있는 메시지로 응답한다.
+     * 이미지·다이어그램 검증 실패를 업로드 스크립트가 읽을 수 있는 메시지로 응답한다.
      *
      * @param exception 이미지 검증 실패
      * @return 400 응답과 실패 사유
@@ -308,6 +343,7 @@ public class AdminPostController {
         model.addAttribute("categoryChoices", postEditor.findCategoryChoices());
         model.addAttribute("post", post);
         model.addAttribute("images", post == null ? List.of() : postImages.findByPost(post.id()));
+        model.addAttribute("diagrams", post == null ? List.of() : postDiagrams.findByPost(post.id()));
         model.addAttribute("revisions", post == null ? List.of() : revisions.findHistory(post.id()));
         model.addAttribute("pageTitle", (post == null ? "새 글" : "글 수정") + " — dean.p");
         return "admin/post-form";

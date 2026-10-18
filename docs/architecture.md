@@ -71,10 +71,11 @@ com.deanp.blog.<feature>
 - 게시판 상위 테이블 없이 `post_detail`을 실제 글로 사용하는 기능별 JPA Entity와 Spring Data Repository
 - Thymeleaf: 서버 렌더링 HTML
 - `media.controller.PublicMediaConfiguration`: 외부 저장소의 `posts/` 파일만 `/media/posts/**`로 공개
+- `media.controller.DiagramController`: Archify 다이어그램 HTML을 격리 헤더(CSP sandbox)와 함께 `/media/diagrams/{id}`로 제공
 - Vanilla JavaScript: 라이트/다크 테마 전환
 - PostgreSQL: Flyway가 `blog` 스키마 evolution을 소유하고 Hibernate는 `validate`로 매핑 호환성만 확인
 
-현재 게시글 화면은 샘플 fallback 없이 PostgreSQL `blog.post_detail`의 공개 발행 콘텐츠만 사용합니다. Markdown 원문은 서버에서 flexmark로 HTML로 변환하며(GFM 표·취소선·URL 자동 링크 사용, 문단 안 줄바꿈은 `<br>`로 표시, 본문 HTML은 이스케이프), 템플릿에는 Entity가 아니라 `PostView`만 전달합니다. V8에서 추가한 시리즈와 기존 글은 유지하며, V10은 게시판 상위 테이블 `post`와 `post_id` 참조만 제거합니다. 카테고리·시리즈 slug는 전체에서 고유합니다.
+현재 게시글 화면은 샘플 fallback 없이 PostgreSQL `blog.post_detail`의 공개 발행 콘텐츠만 사용합니다. Markdown 원문은 서버에서 flexmark로 HTML로 변환하며(GFM 표·취소선·URL 자동 링크 사용, 문단 안 줄바꿈은 `<br>`로 표시, 본문 HTML은 이스케이프). 코드 블록은 브라우저에서 highlight.js로 강조하고 언어 이름·복사 버튼을 붙입니다. ```` ```mermaid ```` 블록은 `post.service.DiagramBlockRenderer`가 이스케이프한 원문을 `<pre class="mermaid">`로 내보내고, 본문에 있을 때만 브라우저가 Mermaid 12.1.0(jsDelivr, SRI 해시 고정, `securityLevel: strict`)을 불러와 그립니다. ```` ```archify [캡션] ```` 블록 안의 첨부 UUID는 같은 렌더러가 `sandbox`(같은 출처 권한 없음) iframe과 새 창 링크로 바꾸며, 블로그 테마는 `?embed=1&theme=` 값으로 전달합니다), 템플릿에는 Entity가 아니라 `PostView`만 전달합니다. V8에서 추가한 시리즈와 기존 글은 유지하며, V10은 게시판 상위 테이블 `post`와 `post_id` 참조만 제거합니다. 카테고리·시리즈 slug는 전체에서 고유합니다.
 
 ## Content Direction
 
