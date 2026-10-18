@@ -16,7 +16,8 @@ pipeline {
     stage('Build and test') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dean-p-blog-ci-db', usernameVariable: 'CI_DB_USER', passwordVariable: 'CI_DB_PASSWORD')]) {
-          sh 'JAVA_TOOL_OPTIONS="-Xmx256m -XX:MaxMetaspaceSize=192m" sh ./gradlew --no-daemon --max-workers=1 clean ciDbIntegrationTest ciDbE2eTest bootJar'
+          // 에이전트 메모리(1.5GiB)를 Chromium E2E와 나눠 쓰므로 Gradle·테스트 JVM의 힙 밖 메모리(코드 캐시·GC·스레드 스택)도 줄인다.
+          sh 'JAVA_TOOL_OPTIONS="-Xmx256m -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=64m -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k" sh ./gradlew --no-daemon --max-workers=1 clean ciDbIntegrationTest ciDbE2eTest bootJar'
         }
       }
       post {
