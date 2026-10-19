@@ -355,10 +355,11 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .sidebar-nav { display: grid; gap: 8px; }
 .sidebar-nav a { padding: 10px 12px; border-radius: 8px; }
 .sidebar-nav a:hover { background: var(--accent-soft); }
-.sidebar-admin { margin: 0 0 28px; padding-top: 20px; border-top: 1px solid var(--line); gap: 2px; }
-.sidebar-admin h2 { margin: 0 0 8px; padding: 0 12px; color: var(--muted); font-size: 12px; font-weight: 600; }
-.sidebar-admin a { padding: 8px 12px; font-size: 14px; }
-.sidebar-admin a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.sidebar-group-title { display: block; padding: 10px 12px; }
+.sidebar-subnav { display: grid; gap: 2px; margin: 0 0 0 20px; padding-left: 8px; border-left: 1px solid var(--line); }
+.sidebar-nav .sidebar-subnav a { padding: 7px 12px; color: var(--muted); font-size: 14px; }
+.sidebar-nav .sidebar-subnav a:hover { color: var(--text); }
+.sidebar-nav .sidebar-subnav a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 .sidebar-filters { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
 .sidebar-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / .4); z-index: 99; }
 .posts-page .browse-layout { display: block; }

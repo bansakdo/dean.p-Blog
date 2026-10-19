@@ -53,15 +53,17 @@
     <nav class="sidebar-nav" aria-label="주요 메뉴">
       <a th:href="@{/about}">소개</a>
       <a th:href="@{/posts}">글</a>
-    </nav>
-    <nav class="sidebar-nav sidebar-admin" th:if="${canWritePosts}" aria-labelledby="sidebar-admin-title">
-      <h2 id="sidebar-admin-title">관리</h2>
-      <a th:href="@{/admin}" th:attr="aria-current=${adminMenu == 'dashboard'} ? 'page'">대시보드</a>
-      <a th:href="@{/admin/posts}" th:attr="aria-current=${adminMenu == 'posts'} ? 'page'">글</a>
-      <a th:href="@{/admin/posts/new}" th:attr="aria-current=${adminMenu == 'new'} ? 'page'">새 글</a>
-      <a th:href="@{/admin/categories}" th:attr="aria-current=${adminMenu == 'categories'} ? 'page'">카테고리</a>
-      <a th:href="@{/admin/series}" th:attr="aria-current=${adminMenu == 'series'} ? 'page'">시리즈</a>
-      <a th:href="@{/admin/tags}" th:attr="aria-current=${adminMenu == 'tags'} ? 'page'">태그</a>
+      <div class="sidebar-admin" th:if="${canWritePosts}">
+        <span class="sidebar-group-title" id="sidebar-admin-title">관리자</span>
+        <div class="sidebar-subnav" role="group" aria-labelledby="sidebar-admin-title">
+          <a th:href="@{/admin}" th:attr="aria-current=${adminMenu == 'dashboard'} ? 'page'">대시보드</a>
+          <a th:href="@{/admin/posts}" th:attr="aria-current=${adminMenu == 'posts'} ? 'page'">글</a>
+          <a th:href="@{/admin/posts/new}" th:attr="aria-current=${adminMenu == 'new'} ? 'page'">새 글</a>
+          <a th:href="@{/admin/categories}" th:attr="aria-current=${adminMenu == 'categories'} ? 'page'">카테고리</a>
+          <a th:href="@{/admin/series}" th:attr="aria-current=${adminMenu == 'series'} ? 'page'">시리즈</a>
+          <a th:href="@{/admin/tags}" th:attr="aria-current=${adminMenu == 'tags'} ? 'page'">태그</a>
+        </div>
+      </div>
     </nav>
     <th:block th:if="${categories != null}"><div th:replace="~{fragments/filters :: filters}"></div></th:block>
   </div>

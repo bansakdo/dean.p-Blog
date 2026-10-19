@@ -183,7 +183,7 @@ class BlogControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("admin 님으로 로그인했습니다.")))
                 .andExpect(content().string(containsString("href=\"/admin\"")))
-                .andExpect(content().string(containsString("class=\"sidebar-nav sidebar-admin\"")))
+                .andExpect(content().string(containsString("<span class=\"sidebar-group-title\" id=\"sidebar-admin-title\">관리자</span>")))
                 .andExpect(content().string(containsString("href=\"/admin/categories\"")))
                 .andExpect(content().string(not(containsString("aria-current=\"page\""))))
                 .andExpect(content().string(containsString("action=\"/logout\"")))
