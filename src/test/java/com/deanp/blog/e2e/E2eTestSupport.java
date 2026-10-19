@@ -1,6 +1,8 @@
 package com.deanp.blog.e2e;
 
 import com.deanp.blog.persistence.TestPostgresql;
+import com.microsoft.playwright.APIRequest;
+import com.microsoft.playwright.APIRequestContext;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
@@ -173,6 +175,22 @@ abstract class E2eTestSupport {
      */
     protected int status(String path) {
         return context.request().get(path, RequestOptions.create().setMaxRedirects(0)).status();
+    }
+
+    /**
+     * 리다이렉트를 따라가지 않고 로그인하지 않은 방문자로 요청한 응답 코드를 돌려준다.
+     *
+     * @param path 서버 경로
+     * @return HTTP 상태 코드
+     */
+    protected int anonymousStatus(String path) {
+        APIRequestContext anonymous = playwright.request()
+                .newContext(new APIRequest.NewContextOptions().setBaseURL("http://localhost:" + port));
+        try {
+            return anonymous.get(path, RequestOptions.create().setMaxRedirects(0)).status();
+        } finally {
+            anonymous.dispose();
+        }
     }
 
     /**

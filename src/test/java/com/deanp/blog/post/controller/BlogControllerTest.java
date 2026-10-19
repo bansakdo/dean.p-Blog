@@ -2,6 +2,8 @@ package com.deanp.blog.post.controller;
 
 import com.deanp.blog.auth.controller.SecurityConfiguration;
 import com.deanp.blog.auth.service.BlogUserDetailsService;
+import com.deanp.blog.media.service.PostFileService;
+import com.deanp.blog.media.service.PostFileService.PostFile;
 import com.deanp.blog.post.PostView;
 import com.deanp.blog.post.PostSeriesOption;
 import com.deanp.blog.post.service.PostService;
@@ -88,6 +90,9 @@ class BlogControllerTest {
 
     @MockitoBean
     private PostService postService;
+
+    @MockitoBean
+    private PostFileService postFiles;
 
     @MockitoBean
     private VisitorPostViewTrackingService visitorPostViewTrackingService;
@@ -415,6 +420,28 @@ class BlogControllerTest {
         mockMvc.perform(get("/about"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("about"));
+    }
+
+    /** 첨부 파일이 있으면 글 끝에 이름·크기와 내려받기 링크 목록을 붙이고, 없으면 목록을 그리지 않는다. */
+    @Test
+    void rendersAttachmentListBelowArticle() throws Exception {
+        UUID postId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID fileId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        PostView post = new PostView(postId, "real-post", "실제 발행 글", "요약", LocalDate.of(2026, 8, 31), 1,
+                List.of(), "<p>본문</p>\n");
+        when(postService.findBySlug("real-post")).thenReturn(Optional.of(post));
+
+        mockMvc.perform(get("/posts/real-post"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("article-attachments"))));
+
+        when(postFiles.findByPost(postId)).thenReturn(List.of(new PostFile(fileId, "slides.pdf", 1_572_864)));
+        mockMvc.perform(get("/posts/real-post"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("class=\"article-attachments\"")))
+                .andExpect(content().string(containsString("href=\"/media/files/" + fileId + "\"")))
+                .andExpect(content().string(containsString("slides.pdf")))
+                .andExpect(content().string(containsString("1.5 MB")));
     }
 
     /**

@@ -143,6 +143,8 @@ com.deanp.blog.post.persistence.query
 
 첨부파일 메타데이터와 게시글 연결을 담당합니다. 실제 파일 바이트는 외부 저장소의 `posts/{게시글 ID}/{파일명}`에 둡니다. `media.controller.PublicMediaConfiguration`은 `/media/posts/**`만 해당 `posts/` 디렉터리에서 제공합니다. Archify 다이어그램 HTML(`media.service.PostDiagramService`)은 `<meta name="generator" content="archify …">`가 있는 UTF-8 `.html`(5MB 이하)만 받아 `diagrams/{게시글 ID}/{파일 ID}.html`에 두고 `attached_files`에 `text/html`로 기록합니다(스키마 변경 없음). 스크립트를 담은 파일이므로 정적 경로로 공개하지 않고, `media.controller.DiagramController`가 `/media/diagrams/{id}`에서 CSP `sandbox allow-scripts allow-downloads allow-popups`(같은 출처 권한 없음, 네트워크·폼 차단)와 `X-Frame-Options: SAMEORIGIN`을 붙여 파일을 흘려보냅니다(업로드마다 새 ID라 1년 `immutable` 캐시, 체크섬 ETag로 304). 생성기 표시 확인은 잘못된 파일을 막는 용도이며 격리는 CSP sandbox가 맡습니다. 나머지 응답(오류 화면·정적 파일 포함)은 컨트롤러가 정하지 않은 한 `X-Frame-Options: DENY`입니다. 이미지와 마찬가지로 다이어그램도 글의 공개 여부와 관계없이 ID로 열립니다. 이미지 목록과 대표 이미지 후보에서는 다이어그램을 뺍니다.
 
+첨부 파일(`media.service.PostFileService`)은 확장자 허용 목록(PDF, zip·7z·gz·tar, docx·xlsx·pptx·hwp·hwpx, txt·log·md·csv·json, 소스 코드)에 드는 20MB 이하 파일만 받아 `files/{게시글 ID}/{파일 ID}.{확장자}`에 두고, 브라우저가 보낸 타입 대신 확장자로 정한 MIME 타입(소스 코드는 `text/plain`)과 SHA-256 체크섬을 `attached_files`에 기록합니다(스키마 변경 없음). 요청 크기 한도(`spring.servlet.multipart`)는 21MB이고, 이미지(10MB)·다이어그램(5MB)은 각자 한도를 따로 확인합니다. `media.controller.FileController`는 `/media/files/{id}`에서 `Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`, CSP `sandbox; default-src 'none'`를 붙여 다운로드로만 내보냅니다. 공개 글(`PUBLISHED`이고 발행 시각이 지남)의 파일은 누구나, 초안·예약·삭제한 글의 파일은 로그인한 작성자(`post_detail.author_id`)만 받으며, 그 밖에는 있는지 알리지 않도록 404로 답합니다. 공개 상태가 바뀔 수 있으므로 `private, no-cache`와 체크섬 ETag로 매번 다시 확인합니다. 글 수정 화면에서 첨부 파일을 지우면 연결·메타데이터를 지우고 커밋 뒤 파일을 지웁니다. 본문 링크는 그대로 남습니다. 공개 글 화면은 본문 아래에 첨부 파일 목록(이름·크기)을 붙입니다.
+
 바라보는 테이블:
 
 - `attached_files`: 파일명·경로·크기·checksum

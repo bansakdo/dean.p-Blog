@@ -18,6 +18,8 @@ public class MediaStorageService {
     public static final String POSTS_AREA = "posts";
     /** 격리 헤더를 붙여 컨트롤러로만 내보내는 Archify 다이어그램 영역 */
     public static final String DIAGRAMS_AREA = "diagrams";
+    /** 공개 여부를 확인한 뒤 다운로드로만 내보내는 첨부 파일 영역 */
+    public static final String FILES_AREA = "files";
 
     private final Path storageRoot;
 
@@ -49,7 +51,7 @@ public class MediaStorageService {
      * 저장 영역 아래 게시글별 디렉터리에 UUID 기반 파일을 저장한다.
      * 공개 정적 경로(/media/posts/**)로 바로 내보내면 안 되는 파일은 posts가 아닌 영역에 둔다.
      *
-     * @param area 저장소 루트 아래 최상위 디렉터리 이름(posts 또는 diagrams)
+     * @param area 저장소 루트 아래 최상위 디렉터리 이름(posts, diagrams, files)
      * @param postDetailId 게시글 상세 식별자
      * @param extension 저장할 파일의 확장자
      * @param content 파일 내용
@@ -57,7 +59,7 @@ public class MediaStorageService {
      * @throws IOException 파일 저장에 실패한 경우
      */
     public StoredMedia store(String area, UUID postDetailId, String extension, InputStream content) throws IOException {
-        if (!POSTS_AREA.equals(area) && !DIAGRAMS_AREA.equals(area)) {
+        if (!POSTS_AREA.equals(area) && !DIAGRAMS_AREA.equals(area) && !FILES_AREA.equals(area)) {
             throw new IllegalArgumentException("알 수 없는 미디어 저장 영역입니다.");
         }
         UUID fileId = UUID.randomUUID();
@@ -120,6 +122,16 @@ public class MediaStorageService {
             throw new IOException("미디어 삭제 경로가 저장소 루트를 벗어났습니다.");
         }
         Files.deleteIfExists(target);
+    }
+
+    /**
+     * 첨부 파일 메타데이터의 상대 경로로 저장된 파일을 삭제한다.
+     *
+     * @param storagePath 첨부 파일 메타데이터의 상대 경로
+     * @throws IOException 경로가 저장소 루트를 벗어났거나 삭제에 실패한 경우
+     */
+    public void delete(String storagePath) throws IOException {
+        Files.deleteIfExists(resolve(storagePath));
     }
 
     /**

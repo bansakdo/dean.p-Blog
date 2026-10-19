@@ -72,6 +72,7 @@ com.deanp.blog.<feature>
 - Thymeleaf: 서버 렌더링 HTML
 - `media.controller.PublicMediaConfiguration`: 외부 저장소의 `posts/` 파일만 `/media/posts/**`로 공개
 - `media.controller.DiagramController`: Archify 다이어그램 HTML을 격리 헤더(CSP sandbox)와 함께 `/media/diagrams/{id}`로 제공
+- `media.controller.FileController`: 첨부 파일을 `/media/files/{id}`에서 다운로드로만 제공. 공개 글이 아니면 로그인한 작성자에게만 주고 그 밖에는 404
 - Vanilla JavaScript: 라이트/다크 테마 전환
 - PostgreSQL: Flyway가 `blog` 스키마 evolution을 소유하고 Hibernate는 `validate`로 매핑 호환성만 확인
 
