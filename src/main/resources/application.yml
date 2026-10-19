@@ -1,3 +1,8 @@
+# 내부망 리버스 프록시(nginx)가 붙인 X-Forwarded-Proto·X-Forwarded-For를 Tomcat이 읽어 리다이렉트 주소를 https로 만든다.
+# 원격 주소는 프록시가 실제로 본 접속 주소(X-Forwarded-For에서 내부망이 아닌 가장 오른쪽 주소)가 된다.
+server:
+  forward-headers-strategy: native
+
 spring:
   application:
     name: dean-p-blog
