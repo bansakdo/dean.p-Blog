@@ -115,7 +115,9 @@ class AdminPostControllerTest {
         mockMvc.perform(get("/admin/posts/new").with(writer()))
                 .andExpect(content().string(allOf(
                         containsString("href=\"/admin/posts/new\" aria-current=\"page\">새 글</a>"),
-                        containsString("href=\"/admin/posts\">글</a>"))));
+                        containsString("href=\"/admin/posts\">글</a>"),
+                        containsString("aria-expanded=\"true\" aria-label=\"관리자 메뉴 접기\""),
+                        not(containsString("aria-labelledby=\"sidebar-admin-title\" hidden")))));
     }
 
     /** CSRF 토큰 없는 저장 요청은 권한이 있어도 거부하고 서비스를 호출하지 않는다. */

@@ -54,8 +54,15 @@
       <a th:href="@{/about}">소개</a>
       <a th:href="@{/posts}">글</a>
       <div class="sidebar-admin" th:if="${canWritePosts}">
-        <span class="sidebar-group-title" id="sidebar-admin-title">관리자</span>
-        <div class="sidebar-subnav" role="group" aria-labelledby="sidebar-admin-title">
+        <div class="sidebar-group-head">
+          <button class="sidebar-group-toggle" type="button" aria-controls="sidebar-admin-menu"
+                  th:attr="aria-expanded=${adminMenu != null},aria-label=${adminMenu != null} ? '관리자 메뉴 접기' : '관리자 메뉴 펼치기'"
+                  data-group-toggle>
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <a id="sidebar-admin-title" th:href="@{/admin}">관리자</a>
+        </div>
+        <div id="sidebar-admin-menu" class="sidebar-subnav" role="group" aria-labelledby="sidebar-admin-title" th:hidden="${adminMenu == null}">
           <a th:href="@{/admin}" th:attr="aria-current=${adminMenu == 'dashboard'} ? 'page'">대시보드</a>
           <a th:href="@{/admin/posts}" th:attr="aria-current=${adminMenu == 'posts'} ? 'page'">글</a>
           <a th:href="@{/admin/posts/new}" th:attr="aria-current=${adminMenu == 'new'} ? 'page'">새 글</a>

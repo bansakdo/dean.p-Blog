@@ -19,8 +19,17 @@ class TaxonomyE2eTest extends E2eTestSupport {
         String tagB = "e2e-tag-b-" + stamp;
         login();
 
-        // 카테고리: 사이드 메뉴의 관리 묶음에서 들어가 가장 작은 순서로 추가하면 맨 위에 오고, 같은 이름은 거부한다.
+        // 사이드 메뉴: 공개 화면에서는 관리자 하위 메뉴가 접혀 있고 아이콘으로 펴며, '관리자'를 누르면 대시보드로 간다.
+        page.navigate("/about");
         page.click(".menu-toggle");
+        expect(page.locator("#sidebar-admin-menu")).isHidden();
+        page.click("[data-group-toggle]");
+        expect(page.locator("#sidebar-admin-menu")).isVisible();
+        page.click("#sidebar-admin-title");
+        waitForUrl(".*/admin$");
+        expect(page.locator("#sidebar-admin-menu")).isVisible();
+
+        // 카테고리: 관리자 하위 메뉴에서 들어가 가장 작은 순서로 추가하면 맨 위에 오고, 같은 이름은 거부한다.
         page.click(".sidebar-admin a:text-is('카테고리')");
         expect(page.locator(".sidebar-admin a[aria-current=page]")).hasText("카테고리");
         Locator form = page.locator("section form.admin-term-form");

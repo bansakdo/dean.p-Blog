@@ -355,7 +355,14 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .sidebar-nav { display: grid; gap: 8px; }
 .sidebar-nav a { padding: 10px 12px; border-radius: 8px; }
 .sidebar-nav a:hover { background: var(--accent-soft); }
-.sidebar-group-title { display: block; padding: 10px 12px; }
+.sidebar-group-head { display: flex; align-items: center; gap: 2px; }
+.sidebar-group-head a { flex: 1; min-width: 0; padding-left: 4px; }
+.sidebar-group-toggle { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin-left: 2px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+.sidebar-group-toggle:hover { background: var(--accent-soft); color: var(--text); }
+.sidebar-group-toggle:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.sidebar-group-toggle svg { transition: transform .15s ease; }
+.sidebar-group-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+.sidebar-subnav[hidden] { display: none; }
 .sidebar-subnav { display: grid; gap: 2px; margin: 0 0 0 20px; padding-left: 8px; border-left: 1px solid var(--line); }
 .sidebar-nav .sidebar-subnav a { padding: 7px 12px; color: var(--muted); font-size: 14px; }
 .sidebar-nav .sidebar-subnav a:hover { color: var(--text); }
