@@ -144,6 +144,12 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .article-body { width: min(100%, 740px); margin-inline: auto; font-family: Georgia, "Noto Serif KR", serif; font-size: clamp(1rem, 1.5vw, 1.0625rem); line-height: 1.9; overflow-wrap: break-word; }
 .article-body p { margin: 0 0 1.75em; }
 .article-body img { display: block; max-width: 100%; height: auto; }
+.article-attachments { width: min(100%, 740px); margin: 56px auto 0; padding-top: 24px; border-top: 1px solid var(--line); }
+.article-attachments h2 { margin: 0 0 12px; font-size: 1rem; }
+.article-attachments ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.article-attachments li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; overflow-wrap: anywhere; }
+.article-attachments a { color: var(--accent); }
+.article-attachments span { color: var(--muted); font-size: .8rem; }
 .about-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 90px; align-items: start; }
 .about-layout h1 { margin: 0; font-size: clamp(3.5rem, 8vw, 7rem); letter-spacing: -.07em; }
 .about-copy { max-width: 600px; font-size: 1.3rem; }

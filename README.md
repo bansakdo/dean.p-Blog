@@ -5,7 +5,7 @@ Spring Boot 서버 렌더링 방식으로 만드는 개인 블로그입니다. �
 ## 기능
 
 - **공개 화면:** 홈, 글 목록(카테고리·시리즈·태그 필터와 페이지), 검색, 글 본문, 소개 화면. 반응형 라이트·다크 테마를 지원합니다. 발행 상태이고 발행 시각이 지난 글만 보입니다.
-- **글 관리(`/admin/posts`):** 글 작성·수정, 예약 발행, 삭제·복구, 변경 이력 보기·되돌리기, 대표 이미지, 이미지·Archify 다이어그램 업로드, 실시간 미리보기를 지원합니다.
+- **글 관리(`/admin/posts`):** 글 작성·수정, 예약 발행, 삭제·복구, 변경 이력 보기·되돌리기, 대표 이미지, 이미지·Archify 다이어그램·첨부 파일 업로드, 실시간 미리보기를 지원합니다.
 - **대시보드(`/admin`):** 로그인하면 처음 보는 화면으로, 상태별 글 수, 예약·최근 고친 글, 최근 30일 조회수·방문자 추이, 많이 본 글, 유입 경로, 검색 유입, 국가를 보여 줍니다.
 - **분류 관리:** 카테고리·시리즈·태그를 관리합니다. 시리즈에 글을 배치하고, 태그는 합칠 수 있습니다.
 - **보안:** 관리자 로그인은 폼 로그인과 CSRF 보호를 쓰고, 5회 연속 실패하면 15분 동안 잠깁니다. 관리자 계정은 환경변수로 만듭니다.
@@ -25,12 +25,12 @@ flowchart LR
         adminCtrl["관리 화면<br/>AdminPostController · AdminDashboardController"]
         visit["방문 기록<br/>VisitorPostViewTrackingService"]
         post["PostService<br/>조회 · Markdown 렌더"]
-        media["미디어<br/>이미지 · Archify 다이어그램"]
+        media["미디어<br/>이미지 · Archify 다이어그램 · 첨부 파일"]
         editor["편집·발행<br/>PostEditorService · PostRevisionService"]
     end
 
     db[("PostgreSQL<br/>blog 스키마 · Flyway")]
-    storage[("미디어 저장소<br/>posts/ · diagrams/")]
+    storage[("미디어 저장소<br/>posts/ · diagrams/ · files/")]
 
     visitor -->|"HTML 요청"| blog
     visitor -->|"/media/** · iframe"| media
@@ -52,6 +52,7 @@ flowchart LR
 
 - 모든 요청은 Spring Security를 거치며, `/admin/**`만 글쓰기 권한이 필요하고 나머지는 공개입니다.
 - Archify 다이어그램은 `/media/diagrams/{id}`에서 CSP sandbox로 격리해 내보내고, 그 밖의 응답은 iframe 삽입을 막습니다(`X-Frame-Options: DENY`).
+- 첨부 파일은 `/media/files/{id}`에서 다운로드로만 내보냅니다. 공개 글의 파일은 누구나, 공개 전·삭제한 글의 파일은 로그인한 작성자만 받을 수 있습니다.
 - 빌드·배포: Jenkins가 통합 테스트와 Playwright E2E를 돌린 뒤 `bootJar`를 만들고, `dev` 브랜치는 개발 서버에 배포합니다. 앱은 Docker(Temurin 25 JRE)로 실행합니다.
 
 ## 기술 스택
@@ -78,7 +79,7 @@ SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
 | `WAS_PORT` | HTTP 포트. 로컬 개발은 `8081`을 사용합니다. |
 | `DB_URL`, `DB_USER`, `DB_PASSWORD` | PostgreSQL 연결 정보 |
 | `ADMIN_LOGIN_ID`, `ADMIN_PASSWORD` | 관리자 계정. 둘 다 비어 있으면 건너뛰고, 한쪽만 있거나 비밀번호가 10자 미만이면 기동을 멈춥니다. |
-| `APP_MEDIA_STORAGE_ROOT` | 이미지·다이어그램 저장 디렉터리. `dev` 기본값은 `../dean-p-blog-media`입니다. |
+| `APP_MEDIA_STORAGE_ROOT` | 이미지·다이어그램·첨부 파일 저장 디렉터리. `dev` 기본값은 `../dean-p-blog-media`입니다. |
 | `VISITOR_TRUSTED_PROXIES` | 방문자 IP를 믿고 읽을 프록시 주소(선택) |
 
 브라우저에서 `http://localhost:<WAS_PORT>`를 엽니다. 관리 화면은 `/login`에서 로그인한 뒤 대시보드(`/admin`)로 들어갑니다.
@@ -90,6 +91,7 @@ SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
 - 코드 블록: ```` ```java ```` 처럼 언어를 적으면 공개 화면에서 강조하고 복사 버튼을 붙입니다.
 - Mermaid: ```` ```mermaid ```` 블록은 브라우저에서 다이어그램으로 그립니다.
 - Archify: [Archify](https://github.com/tt-a1i/archify) 스킬(v3.1.0)로 만든 HTML을 글 수정 화면의 ‘다이어그램’에서 올리면 ```` ```archify ```` 블록이 들어가고, 공개 화면에서 격리한 iframe으로 조작할 수 있습니다. 블록 첫 줄 `archify` 뒤에 적은 글은 캡션이 됩니다.
+- 첨부 파일: 글 수정 화면의 ‘첨부 파일’에서 PDF·압축 파일·문서(docx·xlsx·pptx·hwp)·텍스트·소스 코드 파일(20MB 이하)을 올리면 본문에 내려받기 링크가 들어가고, 공개 화면의 글 끝에 첨부 파일 목록이 붙습니다. 목록에서 지울 수 있지만 본문 링크는 직접 지워야 합니다.
 
 ## 테스트
 
@@ -121,6 +123,7 @@ Jenkins는 CI 전용 DB로 통합 테스트와 E2E를 모두 돌립니다(`Jenki
 | `/admin/posts` | 글 관리 |
 | `/admin/categories`, `/admin/series`, `/admin/tags` | 분류 관리 |
 | `/media/posts/**`, `/media/diagrams/{id}` | 업로드한 이미지·다이어그램 |
+| `/media/files/{id}` | 첨부 파일 내려받기(공개 전 글은 작성자만) |
 
 ## 문서
 

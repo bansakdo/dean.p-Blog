@@ -49,6 +49,25 @@ class ContentBlocksE2eTest extends E2eTestSupport {
         expect(page.locator("[data-diagram-list] li")).hasCount(1);
         expect(page.locator("#post-representative-image option")).hasCount(1);
 
+        // 첨부 파일: 허용하지 않은 형식은 거부하고, 올리면 본문에 내려받기 링크가 들어가며, 목록에서 지울 수 있다(확인 창은 공통 설정이 수락).
+        // 공개 전에는 로그인한 작성자만 받을 수 있다.
+        Path executable = Files.createTempFile("setup", ".exe");
+        page.setInputFiles("#post-file-upload", executable);
+        expect(page.locator("[data-file-status]")).containsText("올릴 수 없는 파일 형식");
+        Path notes = Files.writeString(Files.createTempFile("notes", ".txt"), "첨부 내용");
+        moveCursorToEnd();
+        page.setInputFiles("#post-file-upload", notes);
+        expect(page.locator("[data-file-status]")).hasText("본문에 첨부 파일 링크를 넣었습니다. 저장해야 반영됩니다.");
+        assertThat(page.inputValue("#post-content")).containsPattern("\\[notes[0-9]*\\.txt]\\(/media/files/[0-9a-f-]{36}\\)");
+        String fileUrl = page.locator("[data-file-list] a").first().getAttribute("href");
+        assertThat(status(fileUrl)).isEqualTo(200);
+        assertThat(anonymousStatus(fileUrl)).isEqualTo(404);
+        page.setInputFiles("#post-file-upload", Files.writeString(Files.createTempFile("extra", ".md"), "# 지울 파일"));
+        expect(page.locator("[data-file-list] li")).hasCount(2);
+        page.click("[data-file-list] li:nth-child(2) [data-delete-file]");
+        expect(page.locator("[data-file-list] li")).hasCount(1);
+        expect(page.locator("#post-representative-image option")).hasCount(1);
+
         // 미리보기: 저장 전 본문을 공개 화면처럼 그린다.
         page.click("[data-preview-toggle]");
         expect(page.locator("[data-preview] .code-language")).hasText("java");
@@ -60,6 +79,7 @@ class ContentBlocksE2eTest extends E2eTestSupport {
         expect(page.locator(".admin-heading .admin-badge")).hasText("공개");
         page.reload();
         expect(page.locator("[data-diagram-list] li")).hasCount(1);
+        expect(page.locator("[data-file-list] li")).hasCount(1);
         expect(page.locator("#post-representative-image option")).hasCount(1);
 
         // 공개 화면: 코드 강조·복사 버튼, Mermaid 그림, 격리된 Archify iframe(부모·쿠키 접근 불가, 테마 전달).
@@ -71,6 +91,10 @@ class ContentBlocksE2eTest extends E2eTestSupport {
         FrameLocator diagram = publicPage.frameLocator(".archify-embed iframe");
         expect(diagram.locator("#state")).hasText(java.util.regex.Pattern.compile("archify-ok parent-blocked cookie-blocked theme=(light|dark)"));
         assertThat(publicPage.locator(".archify-embed iframe").getAttribute("sandbox")).doesNotContain("allow-same-origin");
+        expect(publicPage.locator(".article-body a[href='" + fileUrl + "']")).hasCount(1);
+        expect(publicPage.locator(".article-attachments li")).hasCount(1);
+        expect(publicPage.locator(".article-attachments a")).hasAttribute("href", fileUrl);
+        assertThat(anonymousStatus(fileUrl)).isEqualTo(200);
 
         String diagramUrl = publicPage.locator(".archify-embed a").getAttribute("href");
         var response = context.request().get(diagramUrl);

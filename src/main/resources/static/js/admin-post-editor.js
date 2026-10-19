@@ -73,7 +73,7 @@ document.querySelectorAll('form[data-confirm]').forEach((form) => {
   });
 })();
 
-// 본문 넣기 도구: 코드 블록·Mermaid 틀과 Archify 다이어그램 블록을 커서 위치에 넣고, 저장하지 않은 본문을 미리 본다.
+// 본문 넣기 도구: 코드 블록·Mermaid 틀과 Archify 다이어그램 블록, 첨부 파일 링크를 커서 위치에 넣고, 저장하지 않은 본문을 미리 본다.
 (() => {
   const content = document.querySelector('#post-content');
   if (!content) return;
@@ -156,6 +156,83 @@ document.querySelectorAll('form[data-confirm]').forEach((form) => {
       } finally {
         upload.disabled = false;
         upload.value = '';
+      }
+    });
+  }
+
+  // 첨부 파일: 올리면 커서 위치에 내려받기 링크를 넣고 목록에 더한다. 목록에서 다시 넣거나 지울 수 있다.
+  const insertLink = (markdown) => {
+    content.setRangeText(markdown, content.selectionStart, content.selectionEnd, 'end');
+    content.focus();
+    content.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  const fileUpload = document.querySelector('[data-file-upload]');
+  const fileStatus = document.querySelector('[data-file-status]');
+  const fileList = document.querySelector('[data-file-list]');
+  if (fileUpload && fileStatus && fileList) {
+    const csrf = { [fileUpload.dataset.csrfHeader]: fileUpload.dataset.csrfToken };
+    fileList.addEventListener('click', async (event) => {
+      const insert = event.target.closest('[data-insert-file]');
+      if (insert) insertLink(insert.dataset.insertFile);
+      const remove = event.target.closest('[data-delete-file]');
+      if (!remove || !window.confirm('첨부 파일을 지울까요? 본문에 넣은 링크는 직접 지워야 합니다.')) return;
+      // 두 번 눌러 요청이 겹치지 않게 막고, 로그인이 풀려 로그인 화면으로 넘겨진 응답은 실패로 본다.
+      remove.disabled = true;
+      try {
+        const response = await fetch(remove.dataset.deleteFile, { method: 'POST', headers: csrf });
+        if (!response.ok || response.redirected) throw new Error();
+        remove.closest('li').remove();
+        fileStatus.textContent = '첨부 파일을 지웠습니다.';
+      } catch (error) {
+        remove.disabled = false;
+        fileStatus.textContent = '첨부 파일을 지우지 못했습니다.';
+      }
+    });
+    fileUpload.addEventListener('change', async () => {
+      const file = fileUpload.files[0];
+      if (!file) return;
+      // 요청 크기 한도를 넘으면 서버가 메시지 없이 거절하므로 먼저 확인한다.
+      if (file.size > 20 * 1024 * 1024) {
+        fileStatus.textContent = '첨부 파일은 20MB 이하여야 합니다.';
+        fileUpload.value = '';
+        return;
+      }
+      const body = new FormData();
+      body.append('file', file);
+      fileUpload.disabled = true;
+      fileStatus.textContent = '올리는 중입니다…';
+      try {
+        const response = await fetch(fileUpload.dataset.fileUpload, { method: 'POST', headers: csrf, body });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.message || '첨부 파일을 올리지 못했습니다.');
+        insertLink(result.markdown);
+
+        const item = document.createElement('li');
+        const name = document.createElement('span');
+        const size = document.createElement('code');
+        const insert = document.createElement('button');
+        const download = document.createElement('a');
+        const remove = document.createElement('button');
+        name.textContent = result.name;
+        size.textContent = result.size;
+        insert.type = 'button';
+        insert.className = 'admin-text-button';
+        insert.dataset.insertFile = result.markdown;
+        insert.textContent = '본문에 넣기';
+        download.href = result.url;
+        download.textContent = '내려받기';
+        remove.type = 'button';
+        remove.className = 'admin-text-button';
+        remove.dataset.deleteFile = `${fileUpload.dataset.fileUpload}/${result.id}/delete`;
+        remove.textContent = '삭제';
+        item.append(name, ' ', size, ' ', insert, ' ', download, ' ', remove);
+        fileList.append(item);
+        fileStatus.textContent = '본문에 첨부 파일 링크를 넣었습니다. 저장해야 반영됩니다.';
+      } catch (error) {
+        fileStatus.textContent = error.message;
+      } finally {
+        fileUpload.disabled = false;
+        fileUpload.value = '';
       }
     });
   }
