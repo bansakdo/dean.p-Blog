@@ -468,8 +468,23 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .dashboard-cards strong { font-size: 28px; font-weight: 750; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .dashboard-cards small { color: var(--muted); font-size: 12px; }
 .dashboard-chart { margin: 16px 0 0; padding: 16px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
-.dashboard-chart figcaption { margin-bottom: 12px; color: var(--muted); font-size: 13px; font-weight: 650; }
+.dashboard-chart figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-bottom: 12px; color: var(--muted); font-size: 13px; font-weight: 650; }
+.dashboard-legend { display: flex; gap: 12px; font-weight: 500; }
+.dashboard-legend > span::before { content: ""; display: inline-block; margin-right: 5px; vertical-align: middle; }
+.dashboard-legend-bar::before { width: 10px; height: 10px; border-radius: 2px; background: var(--accent); }
+.dashboard-legend-line::before { width: 14px; height: 0; border-top: 2px solid var(--text); }
+.dashboard-plot { position: relative; }
 .dashboard-bars { margin: 0; padding: 0; list-style: none; display: flex; align-items: flex-end; gap: 3px; height: 140px; border-bottom: 1px solid var(--line); }
+.dashboard-line { position: absolute; inset: 0 0 1px; width: 100%; height: 139px; overflow: visible; pointer-events: none; }
+.dashboard-line polyline { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.dashboard-period { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-bottom: 14px; }
+.dashboard-period-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.dashboard-period-presets a { padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 13px; font-weight: 650; }
+.dashboard-period-presets a:hover { border-color: var(--accent); color: var(--accent); }
+.dashboard-period-presets a[aria-current=page] { border-color: var(--accent); background: var(--accent); color: #fff; }
+.dashboard-period-range { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.dashboard-period-range .admin-button { min-height: 34px; padding: 5px 14px; font-size: 13px; }
+.dashboard-period-range input { min-width: 0; min-height: 34px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: inherit; font: inherit; }
 .dashboard-bars li { flex: 1 1 0; min-width: 0; height: 100%; display: flex; align-items: flex-end; }
 .dashboard-bar { display: block; width: 100%; border-radius: 3px 3px 0 0; background: var(--accent); }
 .dashboard-bars li:hover .dashboard-bar { opacity: .7; }

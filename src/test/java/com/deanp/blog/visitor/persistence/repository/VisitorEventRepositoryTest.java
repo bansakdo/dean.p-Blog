@@ -88,17 +88,26 @@ class VisitorEventRepositoryTest {
         Instant week = MARCH_SECOND.minusSeconds(86_400);
         Instant since = MARCH_SECOND.minusSeconds(10 * 86_400);
         Instant until = MARCH_SECOND.plusSeconds(86_400);
-        var totals = events.countViews(MARCH_SECOND, week, since, until);
+        var totals = events.countViews(MARCH_SECOND, week, since, until, until);
         assertThat(totals.getTodayViews()).isEqualTo(3);
         assertThat(totals.getTodayVisitors()).isEqualTo(2);
         assertThat(totals.getWeekViews()).isEqualTo(4);
         assertThat(totals.getWeekVisitors()).isEqualTo(2);
-        assertThat(totals.getMonthViews()).isEqualTo(5);
-        assertThat(totals.getMonthVisitors()).isEqualTo(3);
+        assertThat(totals.getPeriodViews()).isEqualTo(5);
+        assertThat(totals.getPeriodVisitors()).isEqualTo(3);
+        // 조회 기간이 어제(3월 1일)에 끝나도 오늘·7일 합계는 그대로 센다.
+        var earlier = events.countViews(MARCH_SECOND, week, since, MARCH_SECOND, until);
+        assertThat(earlier.getTodayViews()).isEqualTo(3);
+        assertThat(earlier.getPeriodViews()).isEqualTo(2);
+        assertThat(earlier.getPeriodVisitors()).isEqualTo(2);
 
-        assertThat(events.countDailyViews(since, until, "Asia/Seoul"))
+        assertThat(events.countViewsByUnit(since, until, "Asia/Seoul", "day"))
                 .extracting(DailyViews::getDay, DailyViews::getViews, DailyViews::getVisitors)
                 .containsExactly(tuple("2001-02-25", 1L, 1L), tuple("2001-03-01", 1L, 1L), tuple("2001-03-02", 3L, 2L));
+        // 2001년 2월 25일은 일요일이라 2월 19일 주, 3월 1·2일은 2월 26일(월) 주로 묶는다.
+        assertThat(events.countViewsByUnit(since, until, "Asia/Seoul", "week"))
+                .extracting(DailyViews::getDay, DailyViews::getViews, DailyViews::getVisitors)
+                .containsExactly(tuple("2001-02-19", 1L, 1L), tuple("2001-02-26", 4L, 2L));
         assertThat(events.findTopPosts(since, until, 10))
                 .extracting(PostViews::getTitle, PostViews::getSlug, PostViews::getViews, PostViews::getVisitors)
                 .containsExactly(tuple("많이 본 글", "stats-post", 3L, 2L), tuple("덜 본 글", "stats-other", 1L, 1L));

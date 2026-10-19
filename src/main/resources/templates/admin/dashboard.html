@@ -21,33 +21,56 @@
 
   <section class="dashboard-section" aria-labelledby="dashboard-views">
     <h2 id="dashboard-views">조회</h2>
+    <div class="dashboard-period">
+      <nav class="dashboard-period-presets" aria-label="조회 기간">
+        <a th:each="preset : ${periods}" th:href="@{/admin(period=${preset.key()})}" th:text="${preset.label()}"
+           th:attr="aria-current=${stats.range.preset == preset} ? 'page'">30일</a>
+      </nav>
+      <form class="dashboard-period-range" method="get" th:action="@{/admin}" aria-label="기간 직접 고르기">
+        <label for="dashboard-from" class="visually-hidden">시작일</label>
+        <input id="dashboard-from" name="from" type="date" th:value="${stats.range.from}" th:max="${#temporals.createToday()}" required>
+        <span aria-hidden="true">~</span>
+        <label for="dashboard-to" class="visually-hidden">종료일</label>
+        <input id="dashboard-to" name="to" type="date" th:value="${stats.range.to}" th:max="${#temporals.createToday()}" required>
+        <button class="admin-button" type="submit">조회</button>
+      </form>
+    </div>
+    <p class="admin-error" th:if="${stats.range.error}" th:text="${stats.range.error}" role="alert">잘못된 기간</p>
     <ul class="dashboard-cards">
       <li><span>오늘</span><strong th:text="${#numbers.formatInteger(stats.today.views, 1, 'COMMA')}">0</strong>
         <small th:text="|방문자 ${#numbers.formatInteger(stats.today.visitors, 1, 'COMMA')}명|">방문자 0명</small></li>
       <li><span>최근 7일</span><strong th:text="${#numbers.formatInteger(stats.week.views, 1, 'COMMA')}">0</strong>
         <small th:text="|방문자 ${#numbers.formatInteger(stats.week.visitors, 1, 'COMMA')}명|">방문자 0명</small></li>
-      <li><span>최근 30일</span><strong th:text="${#numbers.formatInteger(stats.month.views, 1, 'COMMA')}">0</strong>
-        <small th:text="|방문자 ${#numbers.formatInteger(stats.month.visitors, 1, 'COMMA')}명|">방문자 0명</small></li>
+      <li><span th:text="${stats.range.label()}">최근 30일</span><strong th:text="${#numbers.formatInteger(stats.period.views, 1, 'COMMA')}">0</strong>
+        <small th:text="|방문자 ${#numbers.formatInteger(stats.period.visitors, 1, 'COMMA')}명|">방문자 0명</small></li>
     </ul>
     <figure class="dashboard-chart">
-      <figcaption>최근 30일 일별 조회수</figcaption>
-      <ol class="dashboard-bars">
-        <li th:each="day : ${stats.daily}" th:title="|${#temporals.format(day.day, 'M월 d일')} · 조회 ${day.views} · 방문자 ${day.visitors}|">
-          <span class="dashboard-bar" th:style="|height: ${stats.barHeight(day.views)}%|"></span>
-          <span class="visually-hidden" th:text="|${#temporals.format(day.day, 'M월 d일')} 조회 ${day.views}회, 방문자 ${day.visitors}명|">날짜별 조회</span>
-        </li>
-      </ol>
+      <figcaption>
+        <span th:text="|${stats.range.label()} ${stats.range.weekly() ? '주별' : '일별'} 추이|">최근 30일 일별 추이</span>
+        <span class="dashboard-legend" aria-hidden="true"><span class="dashboard-legend-bar">조회수</span><span class="dashboard-legend-line">방문자</span></span>
+      </figcaption>
+      <div class="dashboard-plot">
+        <ol class="dashboard-bars">
+          <li th:each="point : ${stats.chart}" th:title="|${point.label()} · 조회 ${point.views} · 방문자 ${point.visitors}|">
+            <span class="dashboard-bar" th:style="|height: ${stats.barHeight(point.views)}%|"></span>
+            <span class="visually-hidden" th:text="|${point.label()} 조회 ${point.views}회, 방문자 ${point.visitors}명|">날짜별 조회</span>
+          </li>
+        </ol>
+        <svg class="dashboard-line" th:attr="viewBox=|0 0 ${stats.chart.size()} 100|" preserveAspectRatio="none" aria-hidden="true">
+          <polyline th:attr="points=${stats.visitorLine()}" vector-effect="non-scaling-stroke"/>
+        </svg>
+      </div>
       <div class="dashboard-axis" aria-hidden="true">
-        <span th:text="${#temporals.format(stats.daily[0].day, 'M.d')}">9.20</span>
+        <span th:text="${#temporals.format(stats.range.from, 'M.d')}">9.20</span>
         <span th:text="|최고 ${stats.peak}회|">최고 0회</span>
-        <span th:text="${#temporals.format(stats.daily[stats.daily.size() - 1].day, 'M.d')}">10.19</span>
+        <span th:text="${#temporals.format(stats.range.to, 'M.d')}">10.19</span>
       </div>
     </figure>
   </section>
 
   <div class="dashboard-columns">
     <section class="dashboard-section" aria-labelledby="dashboard-top-posts">
-      <h2 id="dashboard-top-posts">많이 본 글 <small>최근 30일</small></h2>
+      <h2 id="dashboard-top-posts">많이 본 글 <small th:text="${stats.range.label()}">최근 30일</small></h2>
       <p class="empty-state" th:if="${stats.topPosts.isEmpty()}">아직 조회 기록이 없습니다.</p>
       <ol class="dashboard-rank" th:unless="${stats.topPosts.isEmpty()}">
         <li th:each="post : ${stats.topPosts}">
@@ -57,7 +80,7 @@
       </ol>
     </section>
     <section class="dashboard-section" aria-labelledby="dashboard-referrers">
-      <h2 id="dashboard-referrers">유입 경로 <small>최근 30일</small></h2>
+      <h2 id="dashboard-referrers">유입 경로 <small th:text="${stats.range.label()}">최근 30일</small></h2>
       <p class="empty-state" th:if="${stats.referrers.isEmpty()}">아직 조회 기록이 없습니다.</p>
       <ol class="dashboard-rank" th:unless="${stats.referrers.isEmpty()}">
         <li th:each="referrer : ${stats.referrers}">
@@ -70,7 +93,7 @@
 
   <div class="dashboard-columns">
     <section class="dashboard-section" aria-labelledby="dashboard-search-engines">
-      <h2 id="dashboard-search-engines">검색 유입 <small>최근 30일</small></h2>
+      <h2 id="dashboard-search-engines">검색 유입 <small th:text="${stats.range.label()}">최근 30일</small></h2>
       <p class="empty-state" th:if="${stats.searchEngines.isEmpty()}">아직 검색으로 들어온 조회가 없습니다.</p>
       <ol class="dashboard-rank" th:unless="${stats.searchEngines.isEmpty()}">
         <li th:each="engine : ${stats.searchEngines}">
@@ -80,7 +103,7 @@
       </ol>
     </section>
     <section class="dashboard-section" aria-labelledby="dashboard-countries">
-      <h2 id="dashboard-countries">국가 <small>최근 30일</small></h2>
+      <h2 id="dashboard-countries">국가 <small th:text="${stats.range.label()}">최근 30일</small></h2>
       <p class="empty-state" th:if="${stats.countries.isEmpty()}">아직 조회 기록이 없습니다.</p>
       <ol class="dashboard-rank" th:unless="${stats.countries.isEmpty()}">
         <li th:each="country : ${stats.countries}">

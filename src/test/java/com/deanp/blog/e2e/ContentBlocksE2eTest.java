@@ -110,7 +110,21 @@ class ContentBlocksE2eTest extends E2eTestSupport {
         page.navigate("/admin");
         expect(topPost).isVisible();
 
-        assertNoMobileOverflow("/posts/" + slug, "/admin/posts/" + postId + "/edit", "/admin");
+        // 조회 기간: 기본 30일에서 1년 버튼을 누르면 주별로 묶고, 직접 고른 기간은 그 날짜로 보여 준다.
+        expect(page.locator(".dashboard-period-presets a[aria-current=page]")).hasText("30일");
+        page.click(".dashboard-period-presets a:text-is('1년')");
+        waitForUrl(".*period=1y.*");
+        expect(page.locator(".dashboard-chart figcaption")).containsText("최근 1년 주별 추이");
+        expect(topPost).isVisible();
+        String today = page.inputValue("#dashboard-to");
+        page.fill("#dashboard-from", today);
+        page.click(".dashboard-period-range button");
+        waitForUrl(".*from=.*");
+        expect(page.locator(".dashboard-period-presets a[aria-current=page]")).hasCount(0);
+        expect(page.locator(".dashboard-bars li")).hasCount(1);
+        expect(topPost).isVisible();
+
+        assertNoMobileOverflow("/posts/" + slug, "/admin/posts/" + postId + "/edit", "/admin", "/admin?period=1y");
         publicPage.close();
         assertNoConsoleErrors("status of 400");
     }
