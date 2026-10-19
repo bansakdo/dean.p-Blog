@@ -59,6 +59,15 @@ public class VisitorStatsService {
     }
 
     /**
+     * 서버 시간대와 관계없이 화면 시간대(한국 시간)의 오늘을 돌려준다. 날짜 입력칸의 최댓값으로 쓴다.
+     *
+     * @return 한국 시간 오늘
+     */
+    public LocalDate today() {
+        return LocalDate.now(clock.withZone(DISPLAY_ZONE));
+    }
+
+    /**
      * 화면에서 고른 값을 조회 기간으로 바꾼다. 시작일·종료일이 둘 다 있으면 직접 고른 기간을, 아니면 기간 버튼을 쓴다.
      * 잘못된 값이면 기본 기간(최근 30일)과 안내 문구를 돌려준다.
      *
@@ -68,7 +77,7 @@ public class VisitorStatsService {
      * @return 조회 기간
      */
     public StatsRange resolve(String period, LocalDate from, LocalDate to) {
-        LocalDate today = LocalDate.now(clock.withZone(DISPLAY_ZONE));
+        LocalDate today = today();
         if (from != null || to != null) {
             String error = rangeError(from, to, today);
             return error == null ? new StatsRange(from, to, null, null) : preset(StatsPeriod.DEFAULT, today, error);
@@ -87,7 +96,7 @@ public class VisitorStatsService {
      */
     @Transactional(readOnly = true)
     public VisitorStats summarize(String siteHost, StatsRange range) {
-        LocalDate today = LocalDate.now(clock.withZone(DISPLAY_ZONE));
+        LocalDate today = today();
         Instant since = startOf(range.from());
         Instant until = startOf(range.to().plusDays(1));
         var totals = events.countViews(startOf(today), startOf(today.minusDays(6)), since, until, startOf(today.plusDays(1)));

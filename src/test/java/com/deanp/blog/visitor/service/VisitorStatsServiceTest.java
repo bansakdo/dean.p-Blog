@@ -85,6 +85,7 @@ class VisitorStatsServiceTest {
     /** 기간 버튼은 오늘로 끝나고, 시작일·종료일이 둘 다 맞으면 그 기간을 쓰며, 잘못된 값은 최근 30일과 안내 문구로 바꾼다. */
     @Test
     void resolvesPresetsCustomRangesAndInvalidInput() {
+        assertThat(service.today()).isEqualTo(TODAY_DATE);
         assertThat(service.resolve("7d", null, null)).isEqualTo(
                 new StatsRange(LocalDate.of(2026, 10, 13), TODAY_DATE, StatsPeriod.DAYS_7, null));
         assertThat(service.resolve("90d", null, null).from()).isEqualTo(LocalDate.of(2026, 7, 22));

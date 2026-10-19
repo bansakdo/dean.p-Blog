@@ -28,10 +28,10 @@
       </nav>
       <form class="dashboard-period-range" method="get" th:action="@{/admin}" aria-label="기간 직접 고르기">
         <label for="dashboard-from" class="visually-hidden">시작일</label>
-        <input id="dashboard-from" name="from" type="date" th:value="${stats.range.from}" th:max="${#temporals.createToday()}" required>
+        <input id="dashboard-from" name="from" type="date" th:value="${stats.range.from}" th:max="${today}" required>
         <span aria-hidden="true">~</span>
         <label for="dashboard-to" class="visually-hidden">종료일</label>
-        <input id="dashboard-to" name="to" type="date" th:value="${stats.range.to}" th:max="${#temporals.createToday()}" required>
+        <input id="dashboard-to" name="to" type="date" th:value="${stats.range.to}" th:max="${today}" required>
         <button class="admin-button" type="submit">조회</button>
       </form>
     </div>
