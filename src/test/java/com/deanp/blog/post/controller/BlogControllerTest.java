@@ -158,7 +158,7 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString("aria-controls=\"site-sidebar\"")));
     }
 
-    /** 로그인하지 않은 사용자의 메뉴는 로그인 링크만 제공하고 글 관리·로그아웃은 숨긴다. */
+    /** 로그인하지 않은 사용자의 메뉴는 로그인 링크만 제공하고 관리·로그아웃은 숨긴다. */
     @Test
     void accountMenuShowsLoginLinkToAnonymousUser() throws Exception {
         mockMvc.perform(get("/search"))
@@ -166,17 +166,17 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString("aria-controls=\"account-panel\"")))
                 .andExpect(content().string(containsString("글을 쓰려면 로그인하세요.")))
                 .andExpect(content().string(containsString("href=\"/login\"")))
-                .andExpect(content().string(not(containsString("href=\"/admin/posts\""))))
+                .andExpect(content().string(not(containsString("href=\"/admin\""))))
                 .andExpect(content().string(not(containsString("action=\"/logout\""))));
     }
 
-    /** 글 관리 권한이 있는 사용자의 메뉴는 글 관리 링크와 로그아웃을 제공한다. */
+    /** 글 관리 권한이 있는 사용자의 메뉴는 관리 대시보드 링크와 로그아웃을 제공한다. */
     @Test
     void accountMenuShowsAdminLinksToWriter() throws Exception {
         mockMvc.perform(get("/search").with(user("admin").authorities(new SimpleGrantedAuthority(BlogUserDetailsService.POST_WRITE))))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("admin 님으로 로그인했습니다.")))
-                .andExpect(content().string(containsString("href=\"/admin/posts\"")))
+                .andExpect(content().string(containsString("href=\"/admin\"")))
                 .andExpect(content().string(containsString("action=\"/logout\"")))
                 .andExpect(content().string(not(containsString("href=\"/login\""))));
     }

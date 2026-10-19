@@ -7,6 +7,7 @@ import com.deanp.blog.post.PostView;
 import com.deanp.blog.post.persistence.entity.PostDetail;
 import com.deanp.blog.post.persistence.repository.PostCategoryRepository;
 import com.deanp.blog.post.persistence.repository.PostDetailRepository;
+import com.deanp.blog.post.persistence.repository.PostDetailRepository.StatusCount;
 import com.deanp.blog.post.service.PostEditCommand.PublishAction;
 import com.deanp.blog.publishing.service.PostRevisionService;
 import com.deanp.blog.publishing.service.RevisionChangeType;
@@ -28,6 +29,7 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -71,9 +73,30 @@ public class PostEditorService {
         String title = query == null ? "" : query.strip();
         return posts.findByStatusInAndTitleContainingIgnoreCase(filter.getStatuses(), title,
                         PageRequest.of(page, PAGE_SIZE, sort))
-                .map(post -> new AdminPostRow(post.getId(), post.getSlug(), post.getTitle(),
-                        PUBLISHED.equals(post.getStatus()), DELETED.equals(post.getStatus()), scheduled(post),
-                        displayTime(post.getPublishedAt()), displayTime(post.getUpdatedAt())));
+                .map(PostEditorService::row);
+    }
+
+    /**
+     * 대시보드에 보여 줄 상태별 글 수, 곧 발행할 예약 글, 최근에 고친 글을 모은다.
+     *
+     * @return 글 현황
+     */
+    @Transactional(readOnly = true)
+    public PostSummary summarize() {
+        Instant now = Instant.now();
+        Map<String, Long> counts = posts.countByStatus().stream()
+                .collect(Collectors.toMap(StatusCount::status, StatusCount::count));
+        // 예약 글은 상태가 PUBLISHED이므로 공개 글 수에서 뺀다.
+        long scheduled = posts.countByStatusAndPublishedAtAfter(PUBLISHED, now);
+        return new PostSummary(
+                counts.getOrDefault(PUBLISHED, 0L) - scheduled,
+                scheduled,
+                counts.getOrDefault("DRAFT", 0L),
+                counts.getOrDefault(DELETED, 0L),
+                posts.findTop5ByStatusAndPublishedAtAfterOrderByPublishedAtAsc(PUBLISHED, now).stream()
+                        .map(PostEditorService::row).toList(),
+                posts.findTop5ByStatusNotOrderByUpdatedAtDescIdAsc(DELETED).stream()
+                        .map(PostEditorService::row).toList());
     }
 
     /**
@@ -277,6 +300,16 @@ public class PostEditorService {
 
     /**
      * @param post 게시글
+     * @return 관리 목록의 글 한 줄
+     */
+    private static AdminPostRow row(PostDetail post) {
+        return new AdminPostRow(post.getId(), post.getSlug(), post.getTitle(),
+                PUBLISHED.equals(post.getStatus()), DELETED.equals(post.getStatus()), scheduled(post),
+                displayTime(post.getPublishedAt()), displayTime(post.getUpdatedAt()));
+    }
+
+    /**
+     * @param post 게시글
      * @return 공개 상태이지만 발행 시각이 아직 오지 않아 공개 화면에 나오지 않는지 여부
      */
     private static boolean scheduled(PostDetail post) {
@@ -355,6 +388,20 @@ public class PostEditorService {
         public SlugConflictException(String slug) {
             super("주소(slug) '" + slug + "'를 다른 글이 쓰고 있어 복구할 수 없습니다. 그 글의 주소를 바꾼 뒤 다시 복구하세요.");
         }
+    }
+
+    /**
+     * 대시보드의 글 현황이다.
+     *
+     * @param published 공개 중인 글 수
+     * @param scheduled 발행을 기다리는 예약 글 수
+     * @param drafts 초안 수
+     * @param deleted 삭제한 글 수
+     * @param upcoming 곧 발행할 예약 글
+     * @param recent 최근에 고친 글
+     */
+    public record PostSummary(long published, long scheduled, long drafts, long deleted,
+                              List<AdminPostRow> upcoming, List<AdminPostRow> recent) {
     }
 
     /**

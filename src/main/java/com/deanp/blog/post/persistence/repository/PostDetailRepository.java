@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -111,11 +112,55 @@ public interface PostDetailRepository extends JpaRepository<PostDetail, UUID>, P
     Page<PostDetail> findByStatusInAndTitleContainingIgnoreCase(Collection<String> statuses, String title, Pageable pageable);
 
     /**
+     * 대시보드 현황을 위해 모든 글을 상태별로 센다.
+     *
+     * @return 상태별 글 수
+     */
+    @Query("select new com.deanp.blog.post.persistence.repository.PostDetailRepository$StatusCount(p.status, count(p)) "
+            + "from PostDetail p group by p.status")
+    List<StatusCount> countByStatus();
+
+    /**
+     * 발행 시각이 오지 않은 예약 글을 센다.
+     *
+     * @param status 글 상태
+     * @param publishedAt 기준 시각
+     * @return 그 상태이고 발행 시각이 기준 시각보다 뒤인 글 수
+     */
+    long countByStatusAndPublishedAtAfter(String status, Instant publishedAt);
+
+    /**
+     * 곧 발행할 예약 글을 발행 시각순으로 고른다.
+     *
+     * @param status 글 상태
+     * @param publishedAt 기준 시각
+     * @return 그 상태이고 발행 시각이 기준 시각보다 뒤인 글 가운데 곧 발행할 다섯 편
+     */
+    List<PostDetail> findTop5ByStatusAndPublishedAtAfterOrderByPublishedAtAsc(String status, Instant publishedAt);
+
+    /**
+     * 최근에 고친 글을 고른다.
+     *
+     * @param status 뺄 글 상태
+     * @return 그 상태가 아닌 글 가운데 최근에 고친 다섯 편
+     */
+    List<PostDetail> findTop5ByStatusNotOrderByUpdatedAtDescIdAsc(String status);
+
+    /**
      * 분류 식별자별 글 수다.
      *
      * @param id 카테고리 또는 시리즈 식별자
      * @param count 글 수
      */
     record KeyCount(UUID id, long count) {
+    }
+
+    /**
+     * 상태별 글 수다.
+     *
+     * @param status 글 상태
+     * @param count 글 수
+     */
+    record StatusCount(String status, long count) {
     }
 }

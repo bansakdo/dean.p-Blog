@@ -2,6 +2,7 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <body>
 <nav class="admin-nav" th:fragment="nav(active)" aria-label="관리 메뉴">
+  <a th:href="@{/admin}" th:attr="aria-current=${active == 'dashboard'} ? 'page'">대시보드</a>
   <a th:href="@{/admin/posts}" th:attr="aria-current=${active == 'posts'} ? 'page'">글</a>
   <a th:href="@{/admin/categories}" th:attr="aria-current=${active == 'categories'} ? 'page'">카테고리</a>
   <a th:href="@{/admin/series}" th:attr="aria-current=${active == 'series'} ? 'page'">시리즈</a>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/site :: head(${pageTitle})}"></head>
+<body class="admin-page">
+<header th:replace="~{fragments/site :: header}"></header>
+<main class="shell page-space">
+  <nav th:replace="~{fragments/admin :: nav('dashboard')}"></nav>
+  <header class="admin-heading">
+    <div><h1>대시보드</h1><p>조회 통계는 글 상세 화면을 연 횟수이며 한국 시간 기준입니다.</p></div>
+    <a class="admin-button primary" th:href="@{/admin/posts/new}">새 글</a>
+  </header>
+
+  <section class="dashboard-section" aria-labelledby="dashboard-posts">
+    <h2 id="dashboard-posts">글 현황</h2>
+    <ul class="dashboard-cards">
+      <li><a th:href="@{/admin/posts(status='published')}"><span>공개</span><strong th:text="${posts.published}">0</strong></a></li>
+      <li><a href="#dashboard-upcoming"><span>예약</span><strong th:text="${posts.scheduled}">0</strong></a></li>
+      <li><a th:href="@{/admin/posts(status='draft')}"><span>초안</span><strong th:text="${posts.drafts}">0</strong></a></li>
+      <li><a th:href="@{/admin/posts(status='deleted')}"><span>삭제됨</span><strong th:text="${posts.deleted}">0</strong></a></li>
+    </ul>
+  </section>
+
+  <section class="dashboard-section" aria-labelledby="dashboard-views">
+    <h2 id="dashboard-views">조회</h2>
+    <ul class="dashboard-cards">
+      <li><span>오늘</span><strong th:text="${#numbers.formatInteger(stats.today.views, 1, 'COMMA')}">0</strong>
+        <small th:text="|방문자 ${#numbers.formatInteger(stats.today.visitors, 1, 'COMMA')}명|">방문자 0명</small></li>
+      <li><span>최근 7일</span><strong th:text="${#numbers.formatInteger(stats.week.views, 1, 'COMMA')}">0</strong>
+        <small th:text="|방문자 ${#numbers.formatInteger(stats.week.visitors, 1, 'COMMA')}명|">방문자 0명</small></li>
+      <li><span>최근 30일</span><strong th:text="${#numbers.formatInteger(stats.month.views, 1, 'COMMA')}">0</strong>
+        <small th:text="|방문자 ${#numbers.formatInteger(stats.month.visitors, 1, 'COMMA')}명|">방문자 0명</small></li>
+    </ul>
+    <figure class="dashboard-chart">
+      <figcaption>최근 30일 일별 조회수</figcaption>
+      <ol class="dashboard-bars">
+        <li th:each="day : ${stats.daily}" th:title="|${#temporals.format(day.day, 'M월 d일')} · 조회 ${day.views} · 방문자 ${day.visitors}|">
+          <span class="dashboard-bar" th:style="|height: ${stats.barHeight(day.views)}%|"></span>
+          <span class="visually-hidden" th:text="|${#temporals.format(day.day, 'M월 d일')} 조회 ${day.views}회, 방문자 ${day.visitors}명|">날짜별 조회</span>
+        </li>
+      </ol>
+      <div class="dashboard-axis" aria-hidden="true">
+        <span th:text="${#temporals.format(stats.daily[0].day, 'M.d')}">9.20</span>
+        <span th:text="|최고 ${stats.peak}회|">최고 0회</span>
+        <span th:text="${#temporals.format(stats.daily[stats.daily.size() - 1].day, 'M.d')}">10.19</span>
+      </div>
+    </figure>
+  </section>
+
+  <div class="dashboard-columns">
+    <section class="dashboard-section" aria-labelledby="dashboard-top-posts">
+      <h2 id="dashboard-top-posts">많이 본 글 <small>최근 30일</small></h2>
+      <p class="empty-state" th:if="${stats.topPosts.isEmpty()}">아직 조회 기록이 없습니다.</p>
+      <ol class="dashboard-rank" th:unless="${stats.topPosts.isEmpty()}">
+        <li th:each="post : ${stats.topPosts}">
+          <a th:href="@{/admin/posts/{id}/edit(id=${post.id})}" th:text="${post.title}">제목</a>
+          <span th:text="|${#numbers.formatInteger(post.views, 1, 'COMMA')}회 · ${#numbers.formatInteger(post.visitors, 1, 'COMMA')}명|">0회 · 0명</span>
+        </li>
+      </ol>
+    </section>
+    <section class="dashboard-section" aria-labelledby="dashboard-referrers">
+      <h2 id="dashboard-referrers">유입 경로 <small>최근 30일</small></h2>
+      <p class="empty-state" th:if="${stats.referrers.isEmpty()}">아직 조회 기록이 없습니다.</p>
+      <ol class="dashboard-rank" th:unless="${stats.referrers.isEmpty()}">
+        <li th:each="referrer : ${stats.referrers}">
+          <span class="dashboard-rank-name" th:text="${referrer.label}">google.com</span>
+          <span th:text="|${#numbers.formatInteger(referrer.views, 1, 'COMMA')}회|">0회</span>
+        </li>
+      </ol>
+    </section>
+  </div>
+
+  <div class="dashboard-columns">
+    <section class="dashboard-section" aria-labelledby="dashboard-upcoming">
+      <h2 id="dashboard-upcoming">예약한 글</h2>
+      <p class="empty-state" th:if="${posts.upcoming.isEmpty()}">예약한 글이 없습니다.</p>
+      <ol class="dashboard-rank" th:unless="${posts.upcoming.isEmpty()}">
+        <li th:each="post : ${posts.upcoming}">
+          <a th:href="@{/admin/posts/{id}/edit(id=${post.id})}" th:text="${post.title}">제목</a>
+          <time th:datetime="${post.publishedAt}" th:text="${#temporals.format(post.publishedAt, 'MM.dd HH:mm')}">10.20 09:00</time>
+        </li>
+      </ol>
+    </section>
+    <section class="dashboard-section" aria-labelledby="dashboard-recent">
+      <h2 id="dashboard-recent">최근 고친 글</h2>
+      <p class="empty-state" th:if="${posts.recent.isEmpty()}">아직 글이 없습니다.</p>
+      <ol class="dashboard-rank" th:unless="${posts.recent.isEmpty()}">
+        <li th:each="post : ${posts.recent}">
+          <a th:href="@{/admin/posts/{id}/edit(id=${post.id})}" th:text="${post.title}">제목</a>
+          <time th:datetime="${post.updatedAt}" th:text="${#temporals.format(post.updatedAt, 'MM.dd HH:mm')}">10.19 09:00</time>
+        </li>
+      </ol>
+      <p class="dashboard-more"><a th:href="@{/admin/posts}">글 전체 보기</a></p>
+    </section>
+  </div>
+</main>
+<footer th:replace="~{fragments/site :: footer}"></footer>
+</body>
+</html>

@@ -282,6 +282,29 @@ class PostEditorServiceTest {
         assertThat(titles(AdminPostFilter.ALL, "_")).containsExactly("snake_case 정리");
     }
 
+    /** 대시보드 현황은 예약 글을 공개 글과 따로 세고, 곧 발행할 예약 글과 최근에 고친 글(삭제한 글 제외)을 보여 준다. */
+    @Test
+    void summarizesPostsForDashboard() {
+        PostEditorService.PostSummary before = service.summarize();
+        service.create(command("현황 초안", "summary-draft", List.of(), PublishAction.KEEP), AUTHOR);
+        service.create(command("현황 공개", "summary-published", List.of(), PublishAction.PUBLISH), AUTHOR);
+        UUID deleted = service.create(command("현황 삭제", "summary-deleted", List.of(), PublishAction.KEEP), AUTHOR);
+        service.delete(deleted, AUTHOR);
+        // 다른 예약 글보다 먼저 발행되도록 가까운 미래로 잡아 곧 발행할 다섯 편에 들게 한다.
+        Instant future = Instant.now().plus(10, ChronoUnit.MINUTES).truncatedTo(ChronoUnit.MINUTES);
+        service.create(scheduled("현황 예약", "summary-scheduled", PublishAction.PUBLISH, future), AUTHOR);
+        entityManager.flush();
+
+        PostEditorService.PostSummary after = service.summarize();
+        assertThat(after.published() - before.published()).isEqualTo(1);
+        assertThat(after.scheduled() - before.scheduled()).isEqualTo(1);
+        assertThat(after.drafts() - before.drafts()).isEqualTo(1);
+        assertThat(after.deleted() - before.deleted()).isEqualTo(1);
+        assertThat(after.upcoming()).extracting(AdminPostRow::title).contains("현황 예약");
+        assertThat(after.recent()).extracting(AdminPostRow::title)
+                .contains("현황 초안", "현황 공개", "현황 예약").doesNotContain("현황 삭제");
+    }
+
     /** 미래 시각으로 발행하면 그 시각 전까지 공개 화면에 나오지 않고, 관리 화면에는 예약으로 보인다. */
     @Test
     void schedulesFuturePublish() {

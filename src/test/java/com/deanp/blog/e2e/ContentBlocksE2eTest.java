@@ -77,7 +77,11 @@ class ContentBlocksE2eTest extends E2eTestSupport {
         assertThat(response.headers().get("content-security-policy")).startsWith("sandbox allow-scripts");
         assertThat(status("/media/diagrams/" + java.util.UUID.randomUUID())).isEqualTo(404);
 
-        assertNoMobileOverflow("/posts/" + slug, "/admin/posts/" + postId + "/edit");
+        // 대시보드: 방금 공개 화면에서 본 글이 많이 본 글에 잡힌다.
+        page.navigate("/admin");
+        expect(page.locator("[aria-labelledby=dashboard-top-posts] a", new Page.LocatorOptions().setHasText("E2E 블록 " + stamp))).isVisible();
+
+        assertNoMobileOverflow("/posts/" + slug, "/admin/posts/" + postId + "/edit", "/admin");
         publicPage.close();
         assertNoConsoleErrors("status of 400");
     }

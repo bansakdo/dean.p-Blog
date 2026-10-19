@@ -144,13 +144,13 @@ abstract class E2eTestSupport {
         }
     }
 
-    /** 테스트용 관리자로 로그인하고 글 목록에 도착한 것을 확인한다. */
+    /** 테스트용 관리자로 로그인하고 관리 대시보드에 도착한 것을 확인한다. */
     protected void login() {
         page.navigate("/login");
         page.fill("#username", ADMIN_LOGIN_ID);
         page.fill("#password", ADMIN_PASSWORD);
         page.click("button[type=submit]");
-        page.waitForURL("**/admin/posts");
+        page.waitForURL("**/admin");
     }
 
     /**
