@@ -353,9 +353,23 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .sidebar-theme { display: flex; align-items: center; justify-content: flex-start; padding: 18px 20px; flex-shrink: 0; border-top: 1px solid var(--line); }
 .sidebar-scroll { overflow-y: auto; min-height: 0; flex: 1; padding: 20px; overscroll-behavior: contain; }
 .sidebar-nav { display: grid; gap: 8px; }
-.sidebar-nav a { padding: 10px 12px; border-radius: 8px; }
-.sidebar-nav a:hover { background: var(--accent-soft); }
-.sidebar-filters { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.sidebar-nav > a, .sidebar-group-head a { padding: 10px 12px; border-radius: 8px; }
+.sidebar-nav > a:hover, .sidebar-group-head a:hover { background: var(--accent-soft); }
+.sidebar-nav > a.sidebar-leaf { padding-left: 36px; }
+.sidebar-group-head { display: flex; align-items: center; gap: 2px; }
+.sidebar-group-head a { flex: 1; min-width: 0; padding-left: 4px; }
+.sidebar-group-spacer { flex: none; width: 28px; margin-left: 2px; }
+.sidebar-group-toggle { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin-left: 2px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+.sidebar-group-toggle:hover { background: var(--accent-soft); color: var(--text); }
+.sidebar-group-toggle:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.sidebar-group-toggle svg { transition: transform .15s ease; }
+.sidebar-group-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+.sidebar-subnav[hidden] { display: none; }
+.sidebar-subnav { display: grid; gap: 2px; margin: 0 0 8px 20px; padding-left: 8px; border-left: 1px solid var(--line); min-width: 0; }
+.sidebar-admin .sidebar-subnav a { padding: 7px 12px; border-radius: 8px; color: var(--muted); font-size: 14px; }
+.sidebar-admin .sidebar-subnav a:hover { background: var(--accent-soft); color: var(--text); }
+.sidebar-admin .sidebar-subnav a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.sidebar-subnav .sidebar-filters { padding: 8px 0 0 4px; }
 .sidebar-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / .4); z-index: 99; }
 .posts-page .browse-layout { display: block; }
 @media (min-width: 721px) {
@@ -442,10 +456,6 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .admin-revision dt { margin-top: 16px; color: var(--muted); font-size: 13px; font-weight: 650; }
 .admin-revision dd { margin: 0; overflow-wrap: anywhere; }
 .admin-revision-content { margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; max-height: 70vh; overflow: auto; font-family: "SFMono-Regular", Consolas, monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
-.admin-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; font-size: 14px; }
-.admin-nav a { padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
-.admin-nav a:hover { color: var(--accent); }
-.admin-nav a[aria-current="page"] { border-color: var(--accent); color: var(--accent); font-weight: 650; }
 .dashboard-section { margin-bottom: 36px; min-width: 0; }
 .dashboard-section h2 { margin: 0 0 14px; font-size: 18px; font-weight: 750; }
 .dashboard-section h2 small { margin-left: 6px; color: var(--muted); font-size: 12px; font-weight: 500; }

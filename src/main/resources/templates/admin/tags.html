@@ -4,7 +4,6 @@
 <body class="admin-page">
 <header th:replace="~{fragments/site :: header}"></header>
 <main class="shell page-space">
-  <nav th:replace="~{fragments/admin :: nav('tags')}"></nav>
   <header class="admin-heading">
     <div><h1>태그</h1><p th:text="|${tagRows.size()}개 · 이름순|">0개</p></div>
   </header>

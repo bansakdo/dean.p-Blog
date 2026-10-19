@@ -57,7 +57,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(BlogController.class)
 @Import({VisitorCookieIdentifier.class, VisitorTrackingRequestPolicy.class,
-        TrustedProxyMatcher.class, VisitorRequestMetadataFactory.class, SecurityConfiguration.class})
+        TrustedProxyMatcher.class, VisitorRequestMetadataFactory.class, SecurityConfiguration.class,
+        SidebarFilterModel.class})
 class BlogControllerTest {
 
     /** 헤더와 메뉴가 공통 높이 변수를 사용하고 모바일 높이는 유지되는지 확인한다. */
@@ -153,12 +154,14 @@ class BlogControllerTest {
         Files.writeString(output, detail);
     }
 
-    /** 검색 페이지에는 공통 메뉴만 표시하고 글 분류는 표시하지 않는다. */
+    /** 검색 페이지에서도 사이드 메뉴 ‘글’ 아래에 분류 필터를 두되, 글 화면이 아니므로 접어 둔다. */
     @Test
-    void searchSidebarOmitsPostFilters() throws Exception {
+    void searchSidebarKeepsPostFiltersCollapsed() throws Exception {
         mockMvc.perform(get("/search"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("class=\"sidebar-filters\""))))
+                .andExpect(content().string(containsString("class=\"sidebar-filters\"")))
+                .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"글 메뉴 펼치기\"")))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"sidebar-posts-menu\"[^>]*hidden.*")))
                 .andExpect(content().string(containsString("id=\"site-sidebar\"")))
                 .andExpect(content().string(containsString("aria-controls=\"site-sidebar\"")));
     }
@@ -172,6 +175,7 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString("글을 쓰려면 로그인하세요.")))
                 .andExpect(content().string(containsString("href=\"/login\"")))
                 .andExpect(content().string(not(containsString("href=\"/admin\""))))
+                .andExpect(content().string(not(containsString("sidebar-admin"))))
                 .andExpect(content().string(not(containsString("action=\"/logout\""))));
     }
 
@@ -182,6 +186,11 @@ class BlogControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("admin 님으로 로그인했습니다.")))
                 .andExpect(content().string(containsString("href=\"/admin\"")))
+                .andExpect(content().string(containsString("<a id=\"sidebar-admin-title\" href=\"/admin\">관리자</a>")))
+                .andExpect(content().string(containsString("href=\"/admin/categories\"")))
+                .andExpect(content().string(not(containsString("aria-current=\"page\""))))
+                .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"관리자 메뉴 펼치기\"")))
+                .andExpect(content().string(containsString("role=\"group\" aria-labelledby=\"sidebar-admin-title\" hidden")))
                 .andExpect(content().string(containsString("action=\"/logout\"")))
                 .andExpect(content().string(not(containsString("href=\"/login\""))));
     }
@@ -213,12 +222,14 @@ class BlogControllerTest {
         verify(postService).findAll(null, null, null, "missing");
     }
 
-    /** 공통 메뉴에는 소개·글만 순서대로 표시하고 테마 버튼은 유지한다. */
+    /** 공통 메뉴에는 소개·글만 순서대로 표시하고, 글 화면에서는 ‘글’ 하위 메뉴(분류 필터)를 펼치며 테마 버튼은 유지한다. */
     @Test
     void sidebarNavigationAndThemeAreRendered() throws Exception {
         mockMvc.perform(get("/posts"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(matchesPattern("(?s).*class=\"sidebar-nav\"[^>]*>\\s*<a href=\"/about\">소개</a>\\s*<a href=\"/posts\">글</a>\\s*</nav>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*class=\"sidebar-nav\"[^>]*>\\s*<a class=\"sidebar-leaf\" href=\"/about\">소개</a>\\s*<div class=\"sidebar-group\">.*<a id=\"sidebar-posts-title\" href=\"/posts\">글</a>.*</nav>.*")))
+                .andExpect(content().string(containsString("aria-expanded=\"true\" aria-label=\"글 메뉴 접기\"")))
+                .andExpect(content().string(not(matchesPattern("(?s).*id=\"sidebar-posts-menu\"[^>]*hidden.*"))))
                 .andExpect(content().string(not(containsString(">검색</a>"))))
                 .andExpect(content().string(not(containsString("<strong>메뉴</strong>"))))
                 .andExpect(content().string(not(containsString("<span>테마</span>"))))
