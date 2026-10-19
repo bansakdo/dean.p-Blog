@@ -28,3 +28,5 @@ app:
   visitor:
     cookie-secure: false
     trusted-proxies: ${VISITOR_TRUSTED_PROXIES:}
+    # 개발 서버는 내부망으로만 접속하고 E2E도 localhost로 조회하므로 사설 대역은 빼지 않는다.
+    excluded-networks: ${VISITOR_EXCLUDED_NETWORKS:}

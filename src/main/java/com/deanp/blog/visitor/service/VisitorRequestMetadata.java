@@ -77,7 +77,14 @@ public record VisitorRequestMetadata(
         );
     }
 
-    private static String clientIpAddress(HttpServletRequest request, TrustedProxyMatcher trustedProxyMatcher) {
+    /**
+     * trusted proxy에서 온 요청이면 X-Forwarded-For 체인에서, 아니면 remote address에서 익명화 전 클라이언트 IP를 고른다.
+     *
+     * @param request HTTP 요청
+     * @param trustedProxyMatcher trusted proxy 판별기
+     * @return 클라이언트 IP
+     */
+    static String clientIpAddress(HttpServletRequest request, TrustedProxyMatcher trustedProxyMatcher) {
         String remoteAddress = request.getRemoteAddr();
         if (!trustedProxyMatcher.isTrusted(remoteAddress)) {
             return remoteAddress;

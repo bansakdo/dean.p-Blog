@@ -26,3 +26,6 @@ app:
   visitor:
     cookie-secure: true
     trusted-proxies: ${VISITOR_TRUSTED_PROXIES:}
+    # 내부망(사설·루프백 대역)에서 온 조회와, 서버가 쓰는 공인 IP처럼 따로 지정한 CIDR의 조회는 방문 통계에서 뺀다.
+    exclude-private-networks: true
+    excluded-networks: ${VISITOR_EXCLUDED_NETWORKS:}
