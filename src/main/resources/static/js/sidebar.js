@@ -29,14 +29,14 @@
     setOpen(false);
     if (!open && restoreFocus) toggle.focus();
   });
-  // 관리자 메뉴 왼쪽 아이콘으로 하위 메뉴를 접고 편다. 관리 화면에서는 펼친 채로 그려진다.
+  // 글·관리자 메뉴 왼쪽 아이콘으로 하위 메뉴를 접고 편다. 글 화면·관리 화면에서는 펼친 채로 그려진다.
   sidebar.querySelectorAll('[data-group-toggle]').forEach(button => {
     const menu = document.getElementById(button.getAttribute('aria-controls'));
     if (!menu) return;
     button.addEventListener('click', () => {
       const expanded = button.getAttribute('aria-expanded') !== 'true';
       button.setAttribute('aria-expanded', String(expanded));
-      button.setAttribute('aria-label', expanded ? '관리자 메뉴 접기' : '관리자 메뉴 펼치기');
+      button.setAttribute('aria-label', `${button.dataset.groupName} 메뉴 ${expanded ? '접기' : '펼치기'}`);
       menu.hidden = !expanded;
     });
   });

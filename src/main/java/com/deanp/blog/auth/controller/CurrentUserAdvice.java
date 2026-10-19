@@ -56,6 +56,18 @@ public class CurrentUserAdvice {
     }
 
     /**
+     * 사이드 메뉴 ‘글’ 하위 메뉴(카테고리·시리즈·태그)를 글 목록·글 상세에서는 펼친 채로 그리기 위해 요청 주소를 본다.
+     *
+     * @param request 현재 요청
+     * @return 글 목록이나 글 상세 화면이면 true
+     */
+    @ModelAttribute("postsMenuOpen")
+    public boolean postsMenuOpen(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.equals("/posts") || path.startsWith("/posts/");
+    }
+
+    /**
      * @param authentication 현재 요청의 인증 정보
      * @return 익명이 아닌 인증된 사용자이면 true
      */

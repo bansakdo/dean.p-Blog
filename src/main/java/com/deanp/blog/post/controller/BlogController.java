@@ -24,7 +24,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -38,11 +37,10 @@ import java.util.stream.IntStream;
 public class BlogController {
 
     private static final Logger log = LoggerFactory.getLogger(BlogController.class);
-    private static final int TAG_BATCH_SIZE = 20;
     private static final List<Integer> PAGE_SIZES = List.of(10, 20, 50);
-    private static final int DEFAULT_PAGE_SIZE = 20;
 
     private final PostService postService;
+    private final SidebarFilterModel sidebarFilters;
     private final PostFileService postFiles;
     private final VisitorCookieIdentifier visitorCookieIdentifier;
     private final VisitorPostViewTrackingService visitorPostViewTrackingService;
@@ -108,7 +106,7 @@ public class BlogController {
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("pageNumbers", IntStream.rangeClosed(1, totalPages).boxed().toList());
-        addFilterModel(model, category, series, selectedTags, search, size);
+        sidebarFilters.add(model.asMap(), category, series, selectedTags, search, size);
         model.addAttribute("selectedSeriesInfo", postService.findSeries(category, series).orElse(null));
         model.addAttribute("hasFilters", category != null || series != null || !selectedTags.isEmpty() || search != null);
 
@@ -136,58 +134,6 @@ public class BlogController {
     }
 
     /**
-     * 글 목록과 글 상세가 함께 쓰는 사이드바 분류 필터의 선택지와 선택 상태를 모델에 담는다.
-     *
-     * @param model Thymeleaf 렌더링에 사용할 모델
-     * @param category 선택된 카테고리 슬러그 또는 null
-     * @param series 선택된 시리즈 슬러그 또는 null
-     * @param selectedTags 선택된 태그 슬러그 목록
-     * @param search 검색어 또는 null
-     * @param size 필터 링크가 유지할 페이지당 글 수
-     */
-    private void addFilterModel(Model model, String category, String series,
-                                List<String> selectedTags, String search, int size) {
-        // 카테고리와 시리즈 선택지를 현재 선택 상태와 함께 담는다.
-        var categories = postService.findCategories();
-        model.addAttribute("categories", categories);
-        model.addAttribute("totalPosts", postService.countPublishedPosts());
-        model.addAttribute("selectedCategoryName", filterName(categories, category));
-        model.addAttribute("seriesOptions", postService.findSeries(category));
-
-        // 첫 태그 구간과, 그 구간 밖에 있는 선택 태그를 칩으로 만든다.
-        var tags = postService.findTags(0, TAG_BATCH_SIZE + 1);
-        var allTags = selectedTags.isEmpty() ? List.<PostFilterOption>of() : postService.findTags();
-        var firstTags = tags.stream().limit(TAG_BATCH_SIZE).toList();
-        var selectedChips = selectedTags.stream()
-                .map(slug -> tagChip(new PostFilterOption(slug, filterName(allTags, slug)), selectedTags)).toList();
-        model.addAttribute("selectedTagFilters", selectedChips);
-        model.addAttribute("pinnedTagChips", selectedChips.stream()
-                .filter(chip -> firstTags.stream().noneMatch(option -> option.slug().equals(chip.slug()))).toList());
-        model.addAttribute("tags", firstTags);
-        model.addAttribute("tagChips", firstTags.stream()
-                .map(option -> tagChip(option, selectedTags)).toList());
-        model.addAttribute("hasMoreTags", tags.size() > TAG_BATCH_SIZE);
-
-        // 필터 링크가 현재 조건을 이어 가도록 선택 값을 담는다.
-        model.addAttribute("selectedCategory", category);
-        model.addAttribute("selectedSeries", series);
-        model.addAttribute("selectedTag", selectedTags.isEmpty() ? null : String.join(",", selectedTags));
-        model.addAttribute("search", search);
-        model.addAttribute("pageSize", size);
-    }
-
-    /** @param option 화면에 표시할 태그 @param selected 선택된 태그 목록 @return 클릭 시 해당 태그만 전환하는 링크 데이터 */
-    private TagChip tagChip(PostFilterOption option, List<String> selected) {
-        var next = new ArrayList<>(selected);
-        boolean active = next.remove(option.slug());
-        if (!active) next.add(option.slug());
-        return new TagChip(option.slug(), option.name(), active, next.isEmpty() ? null : String.join(",", next));
-    }
-
-    /** @param slug 태그 슬러그 @param name 표시 이름 @param selected 현재 선택 여부 @param nextTags 클릭 후 남는 태그 슬러그 문자열 */
-    public record TagChip(String slug, String name, boolean selected, String nextTags) { }
-
-    /**
      * 추가 공개 태그를 스무 개씩 응답한다.
      * @param offset 이미 표시한 태그 수
      * @return 다음 태그 구간과 뒤에 남은 태그 여부
@@ -198,8 +144,8 @@ public class BlogController {
         if (offset < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
-        var tags = postService.findTags(offset, TAG_BATCH_SIZE + 1);
-        return new TagPage(tags.stream().limit(TAG_BATCH_SIZE).toList(), tags.size() > TAG_BATCH_SIZE);
+        var tags = postService.findTags(offset, SidebarFilterModel.TAG_BATCH_SIZE + 1);
+        return new TagPage(tags.stream().limit(SidebarFilterModel.TAG_BATCH_SIZE).toList(), tags.size() > SidebarFilterModel.TAG_BATCH_SIZE);
     }
 
     /** @param tags 요청 구간의 공개 태그 @param hasMore 추가 구간 존재 여부 */
@@ -218,12 +164,6 @@ public class BlogController {
         model.addAttribute("posts", search == null ? List.of() : postService.findAll(null, null, null, search));
         model.addAttribute("pageTitle", "검색 — dean.p");
         return "search";
-    }
-
-    /** 선택한 필터는 slug 대신 표시 이름을 사용하며, 알 수 없는 값은 그대로 보존한다. */
-    private String filterName(List<com.deanp.blog.post.PostFilterOption> options, String slug) {
-        return options.stream().filter(option -> option.slug().equals(slug))
-                .map(com.deanp.blog.post.PostFilterOption::name).findFirst().orElse(slug);
     }
 
     /**
@@ -282,7 +222,7 @@ public class BlogController {
         // 상세 템플릿이 표시할 글과 첨부 파일, 사이드바 필터 상태, 브라우저 제목을 모델에 담는다.
         model.addAttribute("post", post);
         model.addAttribute("attachments", postFiles.findByPost(post.id()));
-        addFilterModel(model, normalize(category), normalize(series), selectedTags(tag), normalize(search), DEFAULT_PAGE_SIZE);
+        sidebarFilters.add(model.asMap(), normalize(category), normalize(series), selectedTags(tag), normalize(search), SidebarFilterModel.DEFAULT_PAGE_SIZE);
         model.addAttribute("pageTitle", post.title() + " — dean.p");
 
         return "post";

@@ -51,13 +51,27 @@
 <aside id="site-sidebar" class="site-sidebar" aria-label="사이트 메뉴" hidden>
   <div class="sidebar-scroll">
     <nav class="sidebar-nav" aria-label="주요 메뉴">
-      <a th:href="@{/about}">소개</a>
-      <a th:href="@{/posts}">글</a>
-      <div class="sidebar-admin" th:if="${canWritePosts}">
+      <a class="sidebar-leaf" th:href="@{/about}">소개</a>
+      <div class="sidebar-group">
+        <div class="sidebar-group-head">
+          <button class="sidebar-group-toggle" type="button" aria-controls="sidebar-posts-menu" th:if="${categories != null}"
+                  th:attr="aria-expanded=${postsMenuOpen},aria-label=${postsMenuOpen} ? '글 메뉴 접기' : '글 메뉴 펼치기'"
+                  data-group-toggle data-group-name="글">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <span class="sidebar-group-spacer" th:unless="${categories != null}" aria-hidden="true"></span>
+          <a id="sidebar-posts-title" th:href="@{/posts}">글</a>
+        </div>
+        <div id="sidebar-posts-menu" class="sidebar-subnav" role="group" aria-labelledby="sidebar-posts-title"
+             th:if="${categories != null}" th:hidden="${!postsMenuOpen}">
+          <div th:replace="~{fragments/filters :: filters}"></div>
+        </div>
+      </div>
+      <div class="sidebar-group sidebar-admin" th:if="${canWritePosts}">
         <div class="sidebar-group-head">
           <button class="sidebar-group-toggle" type="button" aria-controls="sidebar-admin-menu"
                   th:attr="aria-expanded=${adminMenu != null},aria-label=${adminMenu != null} ? '관리자 메뉴 접기' : '관리자 메뉴 펼치기'"
-                  data-group-toggle>
+                  data-group-toggle data-group-name="관리자">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <a id="sidebar-admin-title" th:href="@{/admin}">관리자</a>
@@ -72,7 +86,6 @@
         </div>
       </div>
     </nav>
-    <th:block th:if="${categories != null}"><div th:replace="~{fragments/filters :: filters}"></div></th:block>
   </div>
   <div class="sidebar-theme"><button class="theme-toggle" type="button" data-theme-toggle aria-label="다크 모드로 전환"><i data-lucide="sun-moon" aria-hidden="true"></i></button></div>
 </aside>
