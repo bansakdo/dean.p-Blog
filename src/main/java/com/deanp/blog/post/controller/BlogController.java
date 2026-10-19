@@ -1,5 +1,6 @@
 package com.deanp.blog.post.controller;
 
+import com.deanp.blog.media.service.PostFileService;
 import com.deanp.blog.post.PostView;
 import com.deanp.blog.post.PostFilterOption;
 import com.deanp.blog.post.service.PostService;
@@ -42,6 +43,7 @@ public class BlogController {
     private static final int DEFAULT_PAGE_SIZE = 20;
 
     private final PostService postService;
+    private final PostFileService postFiles;
     private final VisitorCookieIdentifier visitorCookieIdentifier;
     private final VisitorPostViewTrackingService visitorPostViewTrackingService;
     private final VisitorTrackingRequestPolicy visitorTrackingRequestPolicy;
@@ -277,8 +279,9 @@ public class BlogController {
             }
         }
 
-        // 상세 템플릿이 표시할 글, 사이드바 필터 상태, 브라우저 제목을 모델에 담는다.
+        // 상세 템플릿이 표시할 글과 첨부 파일, 사이드바 필터 상태, 브라우저 제목을 모델에 담는다.
         model.addAttribute("post", post);
+        model.addAttribute("attachments", postFiles.findByPost(post.id()));
         addFilterModel(model, normalize(category), normalize(series), selectedTags(tag), normalize(search), DEFAULT_PAGE_SIZE);
         model.addAttribute("pageTitle", post.title() + " — dean.p");
 

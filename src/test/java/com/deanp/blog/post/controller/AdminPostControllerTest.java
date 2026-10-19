@@ -5,6 +5,8 @@ import com.deanp.blog.auth.service.BlogUserDetailsService;
 import com.deanp.blog.media.service.MediaImageValidationService.MediaValidationException;
 import com.deanp.blog.media.service.PostDiagramService;
 import com.deanp.blog.media.service.PostDiagramService.PostDiagram;
+import com.deanp.blog.media.service.PostFileService;
+import com.deanp.blog.media.service.PostFileService.PostFile;
 import com.deanp.blog.media.service.PostImageService;
 import com.deanp.blog.post.service.AdminPostFilter;
 import com.deanp.blog.post.service.PostEditorService;
@@ -74,6 +76,9 @@ class AdminPostControllerTest {
 
     @MockitoBean
     private PostDiagramService postDiagrams;
+
+    @MockitoBean
+    private PostFileService postFiles;
 
     @MockitoBean
     private PostService postService;
@@ -159,6 +164,46 @@ class AdminPostControllerTest {
         mockMvc.perform(multipart("/admin/posts/{id}/diagrams", POST_ID).file(file).with(writer()).with(csrf()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Archify로 만든 HTML이 아닙니다."));
+    }
+
+    /** 첨부 파일 업로드는 본문 링크와 크기를 돌려주고, CSRF가 없으면 거부하며, 삭제한 글에는 올릴 수 없다. */
+    @Test
+    void uploadsFileAndRejectsDeletedPost() throws Exception {
+        UUID fileId = new UUID(0, 11);
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(false)));
+        when(postFiles.upload(eq(POST_ID), any())).thenReturn(new PostFile(fileId, "slides.pdf", 2048));
+        MockMultipartFile file = new MockMultipartFile("file", "slides.pdf", "application/pdf", new byte[] {1});
+
+        mockMvc.perform(multipart("/admin/posts/{id}/files", POST_ID).file(file).with(writer()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(multipart("/admin/posts/{id}/files", POST_ID).file(file).with(writer()).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(fileId.toString()))
+                .andExpect(jsonPath("$.size").value("2 KB"))
+                .andExpect(jsonPath("$.url").value("/media/files/" + fileId))
+                .andExpect(jsonPath("$.markdown").value("[slides.pdf](/media/files/" + fileId + ")"));
+
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(true)));
+        mockMvc.perform(multipart("/admin/posts/{id}/files", POST_ID).file(file).with(writer()).with(csrf()))
+                .andExpect(status().isConflict());
+        verify(postFiles).upload(eq(POST_ID), any());
+    }
+
+    /** 첨부 파일 삭제는 이 글의 첨부 파일이면 204, 아니면 404, 삭제한 글이면 409로 답한다. */
+    @Test
+    void deletesFileOfThisPostOnly() throws Exception {
+        UUID fileId = new UUID(0, 11);
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(false)));
+        when(postFiles.delete(POST_ID, fileId)).thenReturn(true);
+
+        mockMvc.perform(post("/admin/posts/{id}/files/{fileId}/delete", POST_ID, fileId).with(writer()).with(csrf()))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post("/admin/posts/{id}/files/{fileId}/delete", POST_ID, new UUID(0, 12)).with(writer()).with(csrf()))
+                .andExpect(status().isNotFound());
+
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(editView(true)));
+        mockMvc.perform(post("/admin/posts/{id}/files/{fileId}/delete", POST_ID, fileId).with(writer()).with(csrf()))
+                .andExpect(status().isConflict());
     }
 
     /** 실시간 미리보기는 글쓴이만 쓰며, 공개 화면과 같은 변환 결과를 돌려준다. 관리 화면은 iframe 삽입을 막는다. */

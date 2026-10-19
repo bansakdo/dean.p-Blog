@@ -3,6 +3,8 @@ package com.deanp.blog.post.controller;
 import com.deanp.blog.media.service.MediaImageValidationService.MediaValidationException;
 import com.deanp.blog.media.service.PostDiagramService;
 import com.deanp.blog.media.service.PostDiagramService.PostDiagram;
+import com.deanp.blog.media.service.PostFileService;
+import com.deanp.blog.media.service.PostFileService.PostFile;
 import com.deanp.blog.media.service.PostImageService;
 import com.deanp.blog.media.service.PostImageService.PostImage;
 import com.deanp.blog.post.service.AdminPostFilter;
@@ -54,6 +56,7 @@ public class AdminPostController {
     private final PostEditorService postEditor;
     private final PostImageService postImages;
     private final PostDiagramService postDiagrams;
+    private final PostFileService postFiles;
     private final PostService postService;
     private final PostRevisionService revisions;
 
@@ -295,6 +298,42 @@ public class AdminPostController {
     }
 
     /**
+     * 글에 첨부 파일을 올리고 본문에 넣을 링크를 응답한다. 삭제한 글에는 올릴 수 없다.
+     *
+     * @param id 게시글 식별자
+     * @param file 업로드한 첨부 파일
+     * @return 첨부 파일의 식별자, 파일명, 크기, 내려받기 주소, 본문 링크
+     */
+    @PostMapping("/{id}/files")
+    @ResponseBody
+    public Map<String, String> uploadFile(@PathVariable UUID id, @RequestParam("file") MultipartFile file) {
+        if (requirePost(id).deleted()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
+        }
+        PostFile attached = postFiles.upload(id, file);
+        return Map.of("id", attached.id().toString(), "name", attached.name(), "size", attached.displaySize(),
+                "url", attached.url(), "markdown", attached.markdown());
+    }
+
+    /**
+     * 글에서 첨부 파일을 지운다. 본문에 넣은 링크는 글쓴이가 따로 지운다. 삭제한 글은 업로드처럼 바꿀 수 없다.
+     *
+     * @param id 게시글 식별자
+     * @param fileId 첨부 파일 식별자
+     * @return 지웠으면 204, 이 글의 첨부 파일이 아니면 404, 삭제한 글이면 409
+     */
+    @PostMapping("/{id}/files/{fileId}/delete")
+    public ResponseEntity<Void> deleteFile(@PathVariable UUID id, @PathVariable UUID fileId) {
+        if (requirePost(id).deleted()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
+        }
+        if (!postFiles.delete(id, fileId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * 저장하지 않은 본문을 공개 화면과 같은 방식으로 HTML로 바꿔 편집기 미리보기에 돌려준다.
      *
      * @param content Markdown 본문
@@ -317,12 +356,13 @@ public class AdminPostController {
     public String preview(@PathVariable UUID id, Model model) {
         var post = postEditor.findPreview(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         model.addAttribute("post", post);
+        model.addAttribute("attachments", postFiles.findByPost(id));
         model.addAttribute("pageTitle", "미리보기: " + post.title() + " — dean.p");
         return "post";
     }
 
     /**
-     * 이미지·다이어그램 검증 실패를 업로드 스크립트가 읽을 수 있는 메시지로 응답한다.
+     * 이미지·다이어그램·첨부 파일 검증 실패를 업로드 스크립트가 읽을 수 있는 메시지로 응답한다.
      *
      * @param exception 이미지 검증 실패
      * @return 400 응답과 실패 사유
@@ -344,6 +384,8 @@ public class AdminPostController {
         model.addAttribute("post", post);
         model.addAttribute("images", post == null ? List.of() : postImages.findByPost(post.id()));
         model.addAttribute("diagrams", post == null ? List.of() : postDiagrams.findByPost(post.id()));
+        model.addAttribute("files", post == null ? List.of() : postFiles.findByPost(post.id()));
+        model.addAttribute("fileAccept", PostFileService.ACCEPT);
         model.addAttribute("revisions", post == null ? List.of() : revisions.findHistory(post.id()));
         model.addAttribute("pageTitle", (post == null ? "새 글" : "글 수정") + " — dean.p");
         return "admin/post-form";

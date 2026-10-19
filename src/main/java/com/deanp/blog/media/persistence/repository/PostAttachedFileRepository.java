@@ -4,6 +4,7 @@ import com.deanp.blog.media.persistence.entity.PostAttachedFile;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import com.deanp.blog.media.persistence.entity.PostAttachedFileId;
 
@@ -23,4 +24,10 @@ public interface PostAttachedFileRepository extends JpaRepository<PostAttachedFi
      * @return 게시글에 첨부된 파일 수
      */
     int countByIdPostDetailId(UUID postDetailId);
+
+    /**
+     * @param attachedFileId 첨부 파일 식별자
+     * @return 첨부 파일이 연결된 게시글 연결 또는 빈 값
+     */
+    Optional<PostAttachedFile> findFirstByIdAttachedFileId(UUID attachedFileId);
 }
