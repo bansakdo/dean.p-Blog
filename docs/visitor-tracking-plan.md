@@ -33,7 +33,8 @@
 - 로그인한 사용자(관리자)의 조회도 같은 방식으로 제외한다. 로그아웃한 브라우저에서 본 조회는 일반 방문자로 센다.
 - 정적 리소스는 게시글 상세 컨트롤러 경로에 도달하지 않아 방문 추적 대상이 아니다.
 - IP 주소는 원문 대신 IPv4 `/24`, IPv6 `/64` 네트워크 주소로 익명화하고, 해석할 수 없는 IP는 저장하지 않는다.
-- `X-Forwarded-For`는 요청의 remote address가 `app.visitor.trusted-proxies`에 설정된 주소/CIDR일 때만 첫 주소를 클라이언트 IP로 사용한다. 기본 trusted proxy 목록은 비어 있어 외부 클라이언트가 전달한 헤더를 신뢰하지 않는다.
+- 앱 앞의 nginx는 내부망에서 접속하므로, Tomcat(`server.forward-headers-strategy: native`)이 먼저 `X-Forwarded-For`에서 내부망이 아닌 가장 오른쪽 주소(nginx가 실제로 본 접속 주소, 운영에서는 Cloudflare 엣지)를 remote address로 삼고 `X-Forwarded-Proto`로 https 리다이렉트를 만든다. 외부에서 직접 들어온 요청의 헤더는 Tomcat이 쓰지 않는다.
+- 그 뒤 `X-Forwarded-For`는 요청의 remote address가 `app.visitor.trusted-proxies`에 설정된 주소/CIDR일 때만 첫 주소를 클라이언트 IP로 사용한다. 기본 trusted proxy 목록은 비어 있어 외부 클라이언트가 전달한 헤더를 신뢰하지 않는다.
 - UUID 쿠키는 표준 canonical 형식만 기존 식별자로 인정하고, 대문자 입력은 소문자 canonical 값으로 정규화한다.
 - 국가는 Cloudflare가 붙이는 `CF-IPCountry` 헤더의 두 글자 코드만 `visitor_event.country_code`에 저장하고, 알 수 없음(`XX`)·Tor(`T1`)·형식이 다른 값과 헤더가 없는 요청(Cloudflare를 거치지 않는 개발 서버 등)은 null로 둔다. 헤더를 그대로 믿으므로 Cloudflare를 우회한 요청은 값을 꾸밀 수 있으며, 통계 용도로만 쓴다.
 - 검색 엔진은 Referer host가 검색 결과 화면(Google·Naver·Daum·Bing 등, `visitor.service.SearchEngines`)일 때 이름을 `visitor_event.search_engine`에 저장한다. 같은 회사의 블로그·메일 같은 서비스는 검색 유입으로 보지 않으며, 검색어(`search_query`)는 저장하지 않는다.
