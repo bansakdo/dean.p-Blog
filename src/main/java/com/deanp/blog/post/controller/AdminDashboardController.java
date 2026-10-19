@@ -46,6 +46,7 @@ public class AdminDashboardController {
         model.addAttribute("posts", postEditor.summarize());
         model.addAttribute("stats", visitorStats.summarize(request.getServerName(), range));
         model.addAttribute("periods", StatsPeriod.values());
+        model.addAttribute("today", visitorStats.today());
         model.addAttribute("pageTitle", "대시보드 — dean.p");
         return "admin/dashboard";
     }

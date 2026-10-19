@@ -76,6 +76,7 @@ class AdminDashboardControllerTest {
         List<ChartPoint> chart = List.of(new ChartPoint(yesterday, yesterday, 0, 0), new ChartPoint(today, today, 1234, 56));
         StatsRange range = new StatsRange(LocalDate.of(2026, 9, 20), today, StatsPeriod.DAYS_30, null);
         when(visitorStats.resolve(null, null, null)).thenReturn(range);
+        when(visitorStats.today()).thenReturn(today);
         when(visitorStats.summarize(eq("localhost"), eq(range))).thenReturn(new VisitorStats(range,
                 new Period(1234, 56), new Period(2000, 80), new Period(5000, 300), chart, 1234,
                 List.of(new TopPost(POST_ID, "인기 글", "popular", 900, 40)),
@@ -95,7 +96,7 @@ class AdminDashboardControllerTest {
                         containsString("10월 19일 조회 1234회, 방문자 56명"),
                         containsString("최근 30일 일별 추이"), containsString("points=\"0.5,100.0 1.5,95.5\""),
                         containsString("href=\"/admin?period=30d\" aria-current=\"page\">30일"),
-                        containsString("value=\"2026-09-20\""),
+                        containsString("value=\"2026-09-20\""), containsString("max=\"2026-10-19\""),
                         containsString("인기 글"), containsString("900회 · 40명"),
                         containsString("www.google.com"), containsString("700회"),
                         containsString("대한민국 (KR)"), containsString("800회"),
