@@ -16,37 +16,39 @@ import java.util.UUID;
 public interface VisitorEventRepository extends JpaRepository<VisitorEvent, UUID> {
 
     /**
-     * 기간별 글 조회수와 고유 방문자 수를 센다.
+     * 오늘·최근 7일·조회 기간의 글 조회수와 고유 방문자 수를 센다. 조회 기간은 오늘과 겹치지 않을 수도 있다.
      *
      * @param today 오늘 0시
      * @param week 최근 7일의 시작 시각
-     * @param month 최근 30일의 시작 시각
-     * @param until 끝 시각(제외), 시계가 어긋난 미래 기록을 빼기 위해 둔다
-     * @return 오늘·7일·30일 조회수와 방문자 수
+     * @param since 조회 기간의 시작 시각
+     * @param until 조회 기간의 끝 시각(제외)
+     * @param now 내일 0시, 시계가 어긋난 미래 기록을 빼기 위해 둔다
+     * @return 오늘·7일·조회 기간의 조회수와 방문자 수
      */
     @Query(value = """
             SELECT count(*) FILTER (WHERE occurred_at >= :today) AS "todayViews",
                    count(DISTINCT visitor_id) FILTER (WHERE occurred_at >= :today) AS "todayVisitors",
                    count(*) FILTER (WHERE occurred_at >= :week) AS "weekViews",
                    count(DISTINCT visitor_id) FILTER (WHERE occurred_at >= :week) AS "weekVisitors",
-                   count(*) AS "monthViews",
-                   count(DISTINCT visitor_id) AS "monthVisitors"
+                   count(*) FILTER (WHERE occurred_at >= :since AND occurred_at < :until) AS "periodViews",
+                   count(DISTINCT visitor_id) FILTER (WHERE occurred_at >= :since AND occurred_at < :until) AS "periodVisitors"
             FROM blog.visitor_event
-            WHERE event_type = 'POST_VIEW' AND occurred_at >= :month AND occurred_at < :until
+            WHERE event_type = 'POST_VIEW' AND occurred_at >= LEAST(CAST(:week AS timestamptz), CAST(:since AS timestamptz)) AND occurred_at < :now
             """, nativeQuery = true)
-    ViewTotals countViews(@Param("today") Instant today, @Param("week") Instant week, @Param("month") Instant month,
-                          @Param("until") Instant until);
+    ViewTotals countViews(@Param("today") Instant today, @Param("week") Instant week, @Param("since") Instant since,
+                          @Param("until") Instant until, @Param("now") Instant now);
 
     /**
-     * 날짜별 글 조회수와 고유 방문자 수를 센다. 조회가 없는 날은 행이 없다.
+     * 날짜 단위(하루 또는 월요일에 시작하는 한 주)별 글 조회수와 고유 방문자 수를 센다. 조회가 없는 단위는 행이 없다.
      *
      * @param since 시작 시각
      * @param until 끝 시각(제외)
      * @param zone 날짜를 나눌 시간대 이름
-     * @return 날짜(yyyy-MM-dd)순 조회수와 방문자 수
+     * @param unit 묶는 단위, {@code day} 또는 {@code week}
+     * @return 단위 시작 날짜(yyyy-MM-dd)순 조회수와 방문자 수
      */
     @Query(value = """
-            SELECT to_char(occurred_at AT TIME ZONE :zone, 'YYYY-MM-DD') AS "day",
+            SELECT to_char(date_trunc(:unit, occurred_at AT TIME ZONE :zone), 'YYYY-MM-DD') AS "day",
                    count(*) AS "views",
                    count(DISTINCT visitor_id) AS "visitors"
             FROM blog.visitor_event
@@ -54,8 +56,8 @@ public interface VisitorEventRepository extends JpaRepository<VisitorEvent, UUID
             GROUP BY 1
             ORDER BY 1
             """, nativeQuery = true)
-    List<DailyViews> countDailyViews(@Param("since") Instant since, @Param("until") Instant until,
-                                     @Param("zone") String zone);
+    List<DailyViews> countViewsByUnit(@Param("since") Instant since, @Param("until") Instant until,
+                                      @Param("zone") String zone, @Param("unit") String unit);
 
     /**
      * 기간 안에 많이 본 글을 고른다. 삭제한 글은 뺀다.
@@ -151,17 +153,17 @@ public interface VisitorEventRepository extends JpaRepository<VisitorEvent, UUID
         /** @return 최근 7일 방문자 수 */
         long getWeekVisitors();
 
-        /** @return 최근 30일 조회수 */
-        long getMonthViews();
+        /** @return 조회 기간 조회수 */
+        long getPeriodViews();
 
-        /** @return 최근 30일 방문자 수 */
-        long getMonthVisitors();
+        /** @return 조회 기간 방문자 수 */
+        long getPeriodVisitors();
     }
 
-    /** 하루의 조회수와 방문자 수다. */
+    /** 날짜 단위 하나의 조회수와 방문자 수다. */
     interface DailyViews {
 
-        /** @return 날짜(yyyy-MM-dd) */
+        /** @return 단위 시작 날짜(yyyy-MM-dd) */
         String getDay();
 
         /** @return 조회수 */

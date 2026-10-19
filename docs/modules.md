@@ -184,7 +184,7 @@ Markdown/Git 발행과 콘텐츠 이력을 담당합니다.
 - `visitor_daily_summary`: 일별 집계
 - `post_detail`: 게시글별 조회 대상
 
-관리 대시보드(`/admin`, `post.controller.AdminDashboardController`)는 `visitor.service.VisitorStatsService`로 최근 30일 조회 통계(오늘·7일·30일 합계, 일별 추이, 삭제한 글을 뺀 많이 본 글, Referer 호스트별 유입 경로, 검색 엔진별 검색 유입, 접속 국가)를, `PostEditorService.summarize()`로 상태별 글 수와 예약·최근 고친 글을 모읍니다. 통계는 일별 요약(UTC 날짜) 대신 `visitor_event`를 한국 시간 날짜로 묶어 세며, 블로그 자신의 호스트에서 온 조회는 ‘블로그 안 이동’으로 표시합니다. 로그인 후 첫 화면이 대시보드입니다.
+관리 대시보드(`/admin`, `post.controller.AdminDashboardController`)는 `visitor.service.VisitorStatsService`로 고른 기간의 조회 통계(오늘·최근 7일·조회 기간 합계, 조회수 막대와 방문자 꺾은선을 겹친 추이, 삭제한 글을 뺀 많이 본 글, Referer 호스트별 유입 경로, 검색 엔진별 검색 유입, 접속 국가)를, `PostEditorService.summarize()`로 상태별 글 수와 예약·최근 고친 글을 모읍니다. 통계는 일별 요약(UTC 날짜) 대신 `visitor_event`를 한국 시간 날짜로 묶어 세며, 블로그 자신의 호스트에서 온 조회는 ‘블로그 안 이동’으로 표시합니다. 조회 기간은 기간 버튼(`period=7d|30d|90d|6m|1y`, 기본 30일, 오늘로 끝남)이나 시작일·종료일(`from`·`to`, 오늘 이전, 최대 366일)로 고르며, 잘못된 값이면 최근 30일과 안내 문구를 보여 줍니다. 92일 이하는 하루씩, 넘으면 월요일에 시작하는 주 단위로 묶어 그립니다. 로그인 후 첫 화면이 대시보드입니다.
 
 원본 이벤트 저장은 단순 insert Repository를 사용할 수 있습니다. 기간, 국가, 검색엔진, 게시글별 집계와 유일 방문자 수 조회는 Querydsl 또는 집계 전용 SQL을 사용합니다.
 
