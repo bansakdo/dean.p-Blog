@@ -1,6 +1,7 @@
 package com.deanp.blog.e2e;
 
 import com.microsoft.playwright.FrameLocator;
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import org.junit.jupiter.api.Test;
 
@@ -77,9 +78,13 @@ class ContentBlocksE2eTest extends E2eTestSupport {
         assertThat(response.headers().get("content-security-policy")).startsWith("sandbox allow-scripts");
         assertThat(status("/media/diagrams/" + java.util.UUID.randomUUID())).isEqualTo(404);
 
-        // 대시보드: 방금 공개 화면에서 본 글이 많이 본 글에 잡힌다.
+        // 대시보드: 로그인한 관리자가 본 조회는 세지 않고, 로그인하지 않은 방문자가 본 조회만 많이 본 글에 잡힌다.
+        Locator topPost = page.locator("[aria-labelledby=dashboard-top-posts] a", new Page.LocatorOptions().setHasText("E2E 블록 " + stamp));
         page.navigate("/admin");
-        expect(page.locator("[aria-labelledby=dashboard-top-posts] a", new Page.LocatorOptions().setHasText("E2E 블록 " + stamp))).isVisible();
+        expect(topPost).hasCount(0);
+        anonymousVisit("/posts/" + slug);
+        page.navigate("/admin");
+        expect(topPost).isVisible();
 
         assertNoMobileOverflow("/posts/" + slug, "/admin/posts/" + postId + "/edit", "/admin");
         publicPage.close();

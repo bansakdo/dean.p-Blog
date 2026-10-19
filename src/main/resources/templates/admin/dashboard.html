@@ -70,6 +70,29 @@
   </div>
 
   <div class="dashboard-columns">
+    <section class="dashboard-section" aria-labelledby="dashboard-search-engines">
+      <h2 id="dashboard-search-engines">검색 유입 <small>최근 30일</small></h2>
+      <p class="empty-state" th:if="${stats.searchEngines.isEmpty()}">아직 검색으로 들어온 조회가 없습니다.</p>
+      <ol class="dashboard-rank" th:unless="${stats.searchEngines.isEmpty()}">
+        <li th:each="engine : ${stats.searchEngines}">
+          <span class="dashboard-rank-name" th:text="${engine.label}">Google</span>
+          <span th:text="|${#numbers.formatInteger(engine.views, 1, 'COMMA')}회|">0회</span>
+        </li>
+      </ol>
+    </section>
+    <section class="dashboard-section" aria-labelledby="dashboard-countries">
+      <h2 id="dashboard-countries">국가 <small>최근 30일</small></h2>
+      <p class="empty-state" th:if="${stats.countries.isEmpty()}">아직 조회 기록이 없습니다.</p>
+      <ol class="dashboard-rank" th:unless="${stats.countries.isEmpty()}">
+        <li th:each="country : ${stats.countries}">
+          <span class="dashboard-rank-name" th:text="${country.label}">대한민국 (KR)</span>
+          <span th:text="|${#numbers.formatInteger(country.views, 1, 'COMMA')}회|">0회</span>
+        </li>
+      </ol>
+    </section>
+  </div>
+
+  <div class="dashboard-columns">
     <section class="dashboard-section" aria-labelledby="dashboard-upcoming">
       <h2 id="dashboard-upcoming">예약한 글</h2>
       <p class="empty-state" th:if="${posts.upcoming.isEmpty()}">예약한 글이 없습니다.</p>

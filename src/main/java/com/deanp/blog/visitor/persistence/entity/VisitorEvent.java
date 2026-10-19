@@ -101,6 +101,8 @@ public class VisitorEvent {
         event.referrerHost = metadata.referrerHost();
         event.userAgent = metadata.userAgent();
         event.requestId = metadata.requestId();
+        event.countryCode = metadata.countryCode();
+        event.searchEngine = metadata.searchEngine();
         return event;
     }
 }

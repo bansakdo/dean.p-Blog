@@ -81,15 +81,21 @@ public class VisitorStatsService {
                 .map(post -> new TopPost(post.getPostId(), post.getTitle(), post.getSlug(), post.getViews(), post.getVisitors()))
                 .toList();
         String own = withoutWww(siteHost == null ? "" : siteHost.toLowerCase(Locale.ROOT));
-        List<Referrer> referrers = events.findTopReferrers(month, until, TOP_LIMIT).stream()
-                .map(referrer -> new Referrer(label(referrer.getHost(), own), referrer.getViews()))
+        List<NamedCount> referrers = events.findTopReferrers(month, until, TOP_LIMIT).stream()
+                .map(referrer -> new NamedCount(label(referrer.getHost(), own), referrer.getViews()))
+                .toList();
+        List<NamedCount> countries = events.findTopCountries(month, until, TOP_LIMIT).stream()
+                .map(country -> new NamedCount(countryName(country.getName()), country.getViews()))
+                .toList();
+        List<NamedCount> searchEngines = events.findTopSearchEngines(month, until, TOP_LIMIT).stream()
+                .map(engine -> new NamedCount(engine.getName(), engine.getViews()))
                 .toList();
 
         return new VisitorStats(
                 new Period(totals.getTodayViews(), totals.getTodayVisitors()),
                 new Period(totals.getWeekViews(), totals.getWeekVisitors()),
                 new Period(totals.getMonthViews(), totals.getMonthVisitors()),
-                daily, peak, posts, referrers);
+                daily, peak, posts, referrers, countries, searchEngines);
     }
 
     /**
@@ -113,6 +119,18 @@ public class VisitorStatsService {
     }
 
     /**
+     * @param code 국가 코드 또는 null
+     * @return 한국어 국가 이름, 모르면 안내 문구
+     */
+    private static String countryName(String code) {
+        if (code == null) {
+            return "알 수 없음";
+        }
+        String name = Locale.of("", code).getDisplayCountry(Locale.KOREAN);
+        return name.isBlank() || name.equals(code) ? code : name + " (" + code + ")";
+    }
+
+    /**
      * www.가 붙은 주소와 붙지 않은 주소를 같은 사이트로 본다.
      *
      * @param host 소문자 호스트
@@ -132,9 +150,12 @@ public class VisitorStatsService {
      * @param peak 일별 조회수 최댓값, 막대 높이의 기준
      * @param topPosts 최근 30일 많이 본 글
      * @param referrers 최근 30일 유입 경로
+     * @param countries 최근 30일 접속 국가
+     * @param searchEngines 최근 30일 검색 유입
      */
     public record VisitorStats(Period today, Period week, Period month, List<DayViews> daily, long peak,
-                               List<TopPost> topPosts, List<Referrer> referrers) {
+                               List<TopPost> topPosts, List<NamedCount> referrers, List<NamedCount> countries,
+                               List<NamedCount> searchEngines) {
 
         /**
          * @param views 그날 조회수
@@ -177,11 +198,11 @@ public class VisitorStatsService {
     }
 
     /**
-     * 유입 경로 하나다.
+     * 유입 경로·국가·검색 엔진처럼 이름과 조회수만 있는 통계 한 줄이다.
      *
      * @param label 화면에 보일 이름
      * @param views 조회수
      */
-    public record Referrer(String label, long views) {
+    public record NamedCount(String label, long views) {
     }
 }

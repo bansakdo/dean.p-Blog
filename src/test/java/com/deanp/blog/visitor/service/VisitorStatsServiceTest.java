@@ -2,10 +2,11 @@ package com.deanp.blog.visitor.service;
 
 import com.deanp.blog.visitor.persistence.repository.VisitorEventRepository;
 import com.deanp.blog.visitor.persistence.repository.VisitorEventRepository.DailyViews;
+import com.deanp.blog.visitor.persistence.repository.VisitorEventRepository.NamedViews;
 import com.deanp.blog.visitor.persistence.repository.VisitorEventRepository.ReferrerViews;
 import com.deanp.blog.visitor.persistence.repository.VisitorEventRepository.ViewTotals;
 import com.deanp.blog.visitor.service.VisitorStatsService.DayViews;
-import com.deanp.blog.visitor.service.VisitorStatsService.Referrer;
+import com.deanp.blog.visitor.service.VisitorStatsService.NamedCount;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -47,6 +48,11 @@ class VisitorStatsServiceTest {
         when(events.countViews(TODAY, WEEK, MONTH, UNTIL)).thenReturn(totals);
         when(events.countDailyViews(MONTH, UNTIL, "Asia/Seoul")).thenReturn(List.of(quiet, busy));
         when(events.findTopReferrers(eq(MONTH), eq(UNTIL), anyInt())).thenReturn(List.of(own, direct, google, ownWww));
+        NamedViews korea = named("KR", 6);
+        NamedViews unknown = named(null, 2);
+        NamedViews naver = named("Naver", 4);
+        when(events.findTopCountries(eq(MONTH), eq(UNTIL), anyInt())).thenReturn(List.of(korea, unknown));
+        when(events.findTopSearchEngines(eq(MONTH), eq(UNTIL), anyInt())).thenReturn(List.of(naver));
 
         var stats = service.summarize("Blog.Example");
 
@@ -62,9 +68,11 @@ class VisitorStatsServiceTest {
         assertThat(stats.barHeight(0)).isZero();
         assertThat(stats.barHeight(2)).isEqualTo(25);
         assertThat(stats.referrers()).containsExactly(
-                new Referrer("블로그 안 이동", 5), new Referrer("직접 방문·알 수 없음", 4), new Referrer("www.google.com", 3),
-                new Referrer("블로그 안 이동", 1));
+                new NamedCount("블로그 안 이동", 5), new NamedCount("직접 방문·알 수 없음", 4), new NamedCount("www.google.com", 3),
+                new NamedCount("블로그 안 이동", 1));
         assertThat(stats.topPosts()).isEmpty();
+        assertThat(stats.countries()).containsExactly(new NamedCount("대한민국 (KR)", 6), new NamedCount("알 수 없음", 2));
+        assertThat(stats.searchEngines()).containsExactly(new NamedCount("Naver", 4));
     }
 
     /** @return 오늘 8회·3명, 7일 20회·4명, 30일 30회·5명 */
@@ -86,6 +94,18 @@ class VisitorStatsServiceTest {
         when(daily.getViews()).thenReturn(views);
         when(daily.getVisitors()).thenReturn(visitors);
         return daily;
+    }
+
+    /**
+     * @param name 국가 코드나 검색 엔진 이름 또는 null
+     * @param views 조회수
+     * @return 이름별 합계
+     */
+    private static NamedViews named(String name, long views) {
+        NamedViews named = mock(NamedViews.class);
+        when(named.getName()).thenReturn(name);
+        when(named.getViews()).thenReturn(views);
+        return named;
     }
 
     /** @param host 호스트 또는 null @param views 조회수 @return 유입 호스트 합계 */

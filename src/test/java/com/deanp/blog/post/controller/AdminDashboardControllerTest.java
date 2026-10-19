@@ -8,7 +8,7 @@ import com.deanp.blog.post.service.PostEditorService.PostSummary;
 import com.deanp.blog.visitor.service.VisitorStatsService;
 import com.deanp.blog.visitor.service.VisitorStatsService.DayViews;
 import com.deanp.blog.visitor.service.VisitorStatsService.Period;
-import com.deanp.blog.visitor.service.VisitorStatsService.Referrer;
+import com.deanp.blog.visitor.service.VisitorStatsService.NamedCount;
 import com.deanp.blog.visitor.service.VisitorStatsService.TopPost;
 import com.deanp.blog.visitor.service.VisitorStatsService.VisitorStats;
 import org.junit.jupiter.api.Test;
@@ -73,7 +73,9 @@ class AdminDashboardControllerTest {
         when(visitorStats.summarize(eq("localhost"))).thenReturn(new VisitorStats(
                 new Period(1234, 56), new Period(2000, 80), new Period(5000, 300), daily, 1234,
                 List.of(new TopPost(POST_ID, "인기 글", "popular", 900, 40)),
-                List.of(new Referrer("www.google.com", 700))));
+                List.of(new NamedCount("www.google.com", 700)),
+                List.of(new NamedCount("대한민국 (KR)", 800)),
+                List.of(new NamedCount("Naver", 300))));
 
         mockMvc.perform(get("/admin").with(user("admin").authorities(new SimpleGrantedAuthority(BlogUserDetailsService.POST_WRITE))))
                 .andExpect(status().isOk())
@@ -87,6 +89,8 @@ class AdminDashboardControllerTest {
                         containsString("10월 19일 조회 1234회, 방문자 56명"),
                         containsString("인기 글"), containsString("900회 · 40명"),
                         containsString("www.google.com"), containsString("700회"),
+                        containsString("대한민국 (KR)"), containsString("800회"),
+                        containsString("Naver"), containsString("300회"),
                         containsString("다음 글"), containsString("10.20 09:00"),
                         containsString("고친 초안"))));
     }

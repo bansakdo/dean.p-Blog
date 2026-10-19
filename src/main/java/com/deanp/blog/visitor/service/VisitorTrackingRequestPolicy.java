@@ -57,6 +57,11 @@ public class VisitorTrackingRequestPolicy {
             return false;
         }
 
+        // 로그인한 관리자가 자기 글을 확인하는 조회는 방문자 통계에 넣지 않는다. 익명 사용자는 principal이 없다.
+        if (request.getUserPrincipal() != null) {
+            return false;
+        }
+
         // 알려진 봇, 크롤러, 모니터링 에이전트는 방문자 통계에 포함하지 않는다.
         return !hasAutomationUserAgent(request.getHeader(HttpHeaders.USER_AGENT));
     }

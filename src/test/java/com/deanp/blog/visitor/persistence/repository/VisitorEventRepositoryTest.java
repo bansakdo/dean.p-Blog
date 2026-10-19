@@ -4,6 +4,7 @@ import com.deanp.blog.persistence.TestPostgresql;
 import com.deanp.blog.visitor.persistence.entity.Visitor;
 import com.deanp.blog.visitor.persistence.entity.VisitorEvent;
 import com.deanp.blog.visitor.persistence.repository.VisitorEventRepository.DailyViews;
+import com.deanp.blog.visitor.persistence.repository.VisitorEventRepository.NamedViews;
 import com.deanp.blog.visitor.persistence.repository.VisitorEventRepository.PostViews;
 import com.deanp.blog.visitor.persistence.repository.VisitorEventRepository.ReferrerViews;
 import com.deanp.blog.visitor.service.VisitorRequestMetadata;
@@ -73,16 +74,16 @@ class VisitorEventRepositoryTest {
         Visitor second = visitors.save(Visitor.create("stats-second", MARCH_SECOND));
 
         // UTC로는 3월 1일이지만 한국 시간으로는 3월 2일 0시 30분이다.
-        view(first, POST, MARCH_SECOND.plusSeconds(1800), "https://www.Google.com/search");
-        view(first, POST, MARCH_SECOND.plusSeconds(3600), "https://blog.example/posts/a");
-        view(second, POST, MARCH_SECOND.plusSeconds(7200), null);
+        view(first, POST, MARCH_SECOND.plusSeconds(1800), "https://www.Google.com/search", "KR");
+        view(first, POST, MARCH_SECOND.plusSeconds(3600), "https://blog.example/posts/a", "KR");
+        view(second, POST, MARCH_SECOND.plusSeconds(7200), null, "US");
         // 한국 시간 3월 1일 23시 59분은 전날로 센다.
-        view(second, OTHER_POST, MARCH_SECOND.minusSeconds(60), "www.google.com");
+        view(second, OTHER_POST, MARCH_SECOND.minusSeconds(60), "https://search.naver.com/search.naver", null);
         // 한국 시간 2월 25일: 30일 합계에만 들고, 삭제한 글이라 많이 본 글에서는 빠진다.
         Visitor third = visitors.save(Visitor.create("stats-third", MARCH_SECOND));
-        view(third, DELETED_POST, MARCH_SECOND.minusSeconds(5 * 86_400), null);
+        view(third, DELETED_POST, MARCH_SECOND.minusSeconds(5 * 86_400), null, "KR");
         // 끝 시각(3월 3일 0시)부터는 세지 않는다.
-        view(third, POST, MARCH_SECOND.plusSeconds(86_400), null);
+        view(third, POST, MARCH_SECOND.plusSeconds(86_400), "https://www.google.com/", "JP");
 
         Instant week = MARCH_SECOND.minusSeconds(86_400);
         Instant since = MARCH_SECOND.minusSeconds(10 * 86_400);
@@ -103,7 +104,14 @@ class VisitorEventRepositoryTest {
                 .containsExactly(tuple("많이 본 글", "stats-post", 3L, 2L), tuple("덜 본 글", "stats-other", 1L, 1L));
         assertThat(events.findTopReferrers(since, until, 10))
                 .extracting(ReferrerViews::getHost, ReferrerViews::getViews)
-                .containsExactly(tuple("www.google.com", 2L), tuple(null, 2L), tuple("blog.example", 1L));
+                .containsExactly(tuple(null, 2L), tuple("blog.example", 1L), tuple("search.naver.com", 1L),
+                        tuple("www.google.com", 1L));
+        assertThat(events.findTopCountries(since, until, 10))
+                .extracting(NamedViews::getName, NamedViews::getViews)
+                .containsExactly(tuple("KR", 3L), tuple("US", 1L), tuple(null, 1L));
+        assertThat(events.findTopSearchEngines(since, until, 10))
+                .extracting(NamedViews::getName, NamedViews::getViews)
+                .containsExactly(tuple("Google", 1L), tuple("Naver", 1L));
         assertThat(events.findTopPosts(since, until, 1)).hasSize(1);
     }
 
@@ -112,9 +120,10 @@ class VisitorEventRepositoryTest {
      * @param postId 본 글
      * @param occurredAt 본 시각
      * @param referrer Referer 헤더 값 또는 null
+     * @param country 국가 헤더 값 또는 null
      */
-    private void view(Visitor visitor, UUID postId, Instant occurredAt, String referrer) {
+    private void view(Visitor visitor, UUID postId, Instant occurredAt, String referrer, String country) {
         events.saveAndFlush(VisitorEvent.postView(visitor.getId(), postId, occurredAt,
-                new VisitorRequestMetadata(null, referrer, null, null)));
+                new VisitorRequestMetadata(null, referrer, null, null, country)));
     }
 }

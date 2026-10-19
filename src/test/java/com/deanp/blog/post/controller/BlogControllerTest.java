@@ -760,6 +760,27 @@ class BlogControllerTest {
     }
 
     /**
+     * 로그인한 관리자의 상세 조회는 페이지를 렌더링하되 방문 쿠키와 추적 저장을 생략한다.
+     *
+     * @throws Exception MVC 요청 처리 중 예외가 발생한 경우
+     */
+    @Test
+    void skipsVisitorTrackingForLoggedInAdmin() throws Exception {
+        when(postService.findBySlug("real-post")).thenReturn(Optional.of(postView()));
+
+        mockMvc.perform(get("/posts/real-post")
+                        .with(user("admin").authorities(new SimpleGrantedAuthority(BlogUserDetailsService.POST_WRITE))))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+
+        verify(visitorPostViewTrackingService, never()).recordPostView(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(VisitorRequestMetadata.class)
+        );
+    }
+
+    /**
      * 헬스체크 URI는 상세 컨트롤러에 도달하지 않아 방문 쿠키와 추적 저장이 없다.
      *
      * @throws Exception MVC 요청 처리 중 예외가 발생한 경우

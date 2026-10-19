@@ -176,6 +176,18 @@ abstract class E2eTestSupport {
     }
 
     /**
+     * 로그인하지 않은 새 브라우저로 화면을 한 번 열고 닫는다. 방문 통계에 잡히는 조회를 만들 때 쓴다.
+     *
+     * @param path 서버 경로
+     */
+    protected void anonymousVisit(String path) {
+        try (BrowserContext anonymous = browser.newContext(new Browser.NewContextOptions()
+                .setBaseURL("http://localhost:" + port))) {
+            anonymous.newPage().navigate(path);
+        }
+    }
+
+    /**
      * 현재 화면이 가로로 넘친 정도를 잰다.
      *
      * @return 가로 넘침 픽셀 수

@@ -97,6 +97,45 @@ public interface VisitorEventRepository extends JpaRepository<VisitorEvent, UUID
     List<ReferrerViews> findTopReferrers(@Param("since") Instant since, @Param("until") Instant until,
                                          @Param("limit") int limit);
 
+    /**
+     * 기간 안의 글 조회를 접속 국가별로 센다. 국가를 모르면 null로 묶는다.
+     *
+     * @param since 시작 시각
+     * @param until 끝 시각(제외)
+     * @param limit 최대 개수
+     * @return 조회수가 많은 순서의 국가 코드
+     */
+    @Query(value = """
+            SELECT country_code AS "name", count(*) AS "views"
+            FROM blog.visitor_event
+            WHERE event_type = 'POST_VIEW' AND occurred_at >= :since AND occurred_at < :until
+            GROUP BY 1
+            ORDER BY "views" DESC, 1 NULLS LAST
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<NamedViews> findTopCountries(@Param("since") Instant since, @Param("until") Instant until,
+                                      @Param("limit") int limit);
+
+    /**
+     * 기간 안의 글 조회 가운데 검색 결과에서 들어온 조회를 검색 엔진별로 센다.
+     *
+     * @param since 시작 시각
+     * @param until 끝 시각(제외)
+     * @param limit 최대 개수
+     * @return 조회수가 많은 순서의 검색 엔진 이름
+     */
+    @Query(value = """
+            SELECT search_engine AS "name", count(*) AS "views"
+            FROM blog.visitor_event
+            WHERE event_type = 'POST_VIEW' AND occurred_at >= :since AND occurred_at < :until
+              AND search_engine IS NOT NULL
+            GROUP BY 1
+            ORDER BY "views" DESC, 1
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<NamedViews> findTopSearchEngines(@Param("since") Instant since, @Param("until") Instant until,
+                                          @Param("limit") int limit);
+
     /** 기간별 조회수와 방문자 수다. */
     interface ViewTotals {
 
@@ -149,6 +188,16 @@ public interface VisitorEventRepository extends JpaRepository<VisitorEvent, UUID
 
         /** @return 방문자 수 */
         long getVisitors();
+    }
+
+    /** 국가나 검색 엔진 하나의 조회수다. */
+    interface NamedViews {
+
+        /** @return 국가 코드나 검색 엔진 이름, 국가를 모르면 null */
+        String getName();
+
+        /** @return 조회수 */
+        long getViews();
     }
 
     /** 유입 호스트 하나의 조회수다. */

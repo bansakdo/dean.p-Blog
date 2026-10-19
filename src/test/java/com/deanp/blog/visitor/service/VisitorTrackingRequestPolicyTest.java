@@ -25,6 +25,17 @@ class VisitorTrackingRequestPolicyTest {
     }
 
     /**
+     * 로그인한 사용자(관리자)의 조회는 추적하지 않는다.
+     */
+    @Test
+    void excludesLoggedInUser() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/posts/real-post");
+        request.setUserPrincipal(() -> "admin");
+
+        assertThat(policy.shouldTrack(request)).isFalse();
+    }
+
+    /**
      * 헬스체크 URI는 User-Agent와 무관하게 추적하지 않는다.
      */
     @Test
