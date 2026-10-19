@@ -5,6 +5,9 @@ import com.deanp.blog.post.PostFilterOption;
 import com.deanp.blog.post.PostSeriesOption;
 import com.deanp.blog.post.persistence.query.PublicPostRow;
 import com.deanp.blog.post.persistence.repository.PostDetailRepository;
+import com.vladsch.flexmark.ext.autolink.AutolinkExtension;
+import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension;
+import com.vladsch.flexmark.ext.tables.TablesExtension;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.data.MutableDataSet;
@@ -14,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -21,6 +25,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 게시글 조회 결과를 화면 표시용 모델로 변환하고 Markdown 렌더링을 담당한다.
@@ -30,6 +37,9 @@ public class PostService {
 
     private static final ZoneId DISPLAY_ZONE = ZoneId.of("Asia/Seoul");
     private static final int READING_CHARS_PER_MINUTE = 500;
+    /** 코드 영역(1번 그룹)은 건너뛰고, 렌더러가 글자로 이스케이프한 &nbsp만 찾는다. */
+    private static final Pattern LITERAL_NBSP = Pattern.compile(
+            "(<pre[^>]*>.*?</pre>|<code>.*?</code>)|&amp;nbsp;?", Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
 
     private final PostDetailRepository posts;
     private final Parser markdownParser;
@@ -44,13 +54,18 @@ public class PostService {
         this.posts = posts;
 
         // 사용자 콘텐츠의 HTML 실행을 막도록 Markdown 렌더러 옵션을 고정한다.
+        // 기존 글이 GFM 방식으로 작성되어 표·취소선·URL 자동 링크를 켜고, 문단 안 줄바꿈을 그대로 줄바꿈으로 표시한다.
         MutableDataSet options = new MutableDataSet()
+                .set(Parser.EXTENSIONS, List.of(
+                        TablesExtension.create(), StrikethroughExtension.create(), AutolinkExtension.create()))
+                .set(HtmlRenderer.SOFT_BREAK, "<br />\n")
                 .set(HtmlRenderer.ESCAPE_HTML, true)
                 .set(HtmlRenderer.ESCAPE_INLINE_HTML, true);
 
         // 동일한 옵션으로 파서와 렌더러를 구성해 이후 변환에서 재사용한다.
         this.markdownParser = Parser.builder(options).build();
-        this.htmlRenderer = HtmlRenderer.builder(options).build();
+        // ```mermaid 와 ```archify 블록은 다이어그램 자리로 바꾼다.
+        this.htmlRenderer = HtmlRenderer.builder(options).nodeRendererFactory(ignored -> new DiagramBlockRenderer()).build();
     }
 
     /**
@@ -191,11 +206,45 @@ public class PostService {
                 LocalDate.ofInstant(row.publishedAt(), DISPLAY_ZONE),
                 readingMinutes(content),
                 List.copyOf(tags),
-                htmlRenderer.render(markdownParser.parse(content)),
+                renderHtml(content),
                 row.representativeImageName() == null ? null
                         : "/media/posts/" + row.id() + "/" + row.representativeImageName(),
                 row.categoryName(), row.seriesSlug(), row.seriesName(), row.seriesOrder()
         );
+    }
+
+    /**
+     * 공개 여부와 관계없이 글 하나를 공개 화면과 같은 방식으로 변환한다. 글 관리의 미리보기에 쓴다.
+     *
+     * @param id 게시글 식별자
+     * @param slug URL 식별자
+     * @param title 제목
+     * @param summary 요약
+     * @param content Markdown 본문
+     * @param publishedAt 발행 시각, 아직 발행하지 않았으면 null
+     * @param tags 태그 이름 목록
+     * @return 상세 템플릿에서 사용할 게시글 표시 모델
+     */
+    public PostView preview(UUID id, String slug, String title, String summary, String content,
+                            Instant publishedAt, List<String> tags) {
+        // 발행 전 글은 오늘 날짜로 보여 준다.
+        return new PostView(id, slug, title, summary,
+                LocalDate.ofInstant(publishedAt == null ? Instant.now() : publishedAt, DISPLAY_ZONE),
+                readingMinutes(content), List.copyOf(tags), renderHtml(content));
+    }
+
+    /**
+     * Markdown 본문을 HTML로 바꾸고, 글자로 노출되는 &nbsp를 공백으로 바꾼다. 관리 화면 실시간 미리보기도 이 변환을 쓴다.
+     *
+     * @param content Markdown 원문 본문
+     * @return 화면에 그대로 출력할 본문 HTML
+     */
+    public String renderHtml(String content) {
+        String html = htmlRenderer.render(markdownParser.parse(content));
+
+        // 세미콜론 없이 적은 &nbsp는 엔티티로 인식되지 않아 글자로 보이므로, 코드 밖에서만 줄바꿈 없는 공백으로 바꾼다.
+        return LITERAL_NBSP.matcher(html).replaceAll(match ->
+                match.group(1) != null ? Matcher.quoteReplacement(match.group(1)) : "&nbsp;");
     }
 
     /**

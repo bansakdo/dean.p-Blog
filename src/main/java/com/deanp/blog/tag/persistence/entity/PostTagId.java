@@ -20,4 +20,13 @@ public class PostTagId {
     private UUID postDetailId;
     @Column(name = "tag_id")
     private UUID tagId;
+
+    /**
+     * @param postDetailId 게시글 식별자
+     * @param tagId 태그 식별자
+     */
+    public PostTagId(UUID postDetailId, UUID tagId) {
+        this.postDetailId = postDetailId;
+        this.tagId = tagId;
+    }
 }

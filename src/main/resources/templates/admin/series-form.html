@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/site :: head(${pageTitle})}"></head>
+<body class="admin-page">
+<header th:replace="~{fragments/site :: header}"></header>
+<main class="shell page-space">
+  <header class="admin-heading">
+    <div><h1 th:text="${seriesId == null} ? '새 시리즈' : '시리즈 수정'">새 시리즈</h1></div>
+    <a th:href="@{/admin/series}">← 시리즈 목록</a>
+  </header>
+  <p class="admin-notice" th:if="${param.saved}" role="status">저장했습니다.</p>
+  <p class="admin-notice" th:if="${param.postsSaved}" role="status">시리즈의 글을 고쳤습니다.</p>
+  <p class="admin-error" th:if="${error}" th:text="${error}" role="alert">오류</p>
+  <p class="admin-error" th:if="${categoryChoices.isEmpty()}" role="alert">시리즈에는 대표 카테고리가 필요합니다. 먼저 <a th:href="@{/admin/categories}">카테고리</a>를 만드세요.</p>
+
+  <form class="admin-form" method="post" th:object="${form}"
+        th:action="${seriesId == null} ? @{/admin/series} : @{/admin/series/{id}(id=${seriesId})}">
+    <label for="series-name">이름</label>
+    <input id="series-name" type="text" th:field="*{name}" maxlength="150" required>
+
+    <label for="series-slug">주소(slug)</label>
+    <input id="series-slug" type="text" th:field="*{slug}" maxlength="150" aria-describedby="series-slug-help">
+    <p class="admin-help" id="series-slug-help">비우면 이름으로 만듭니다. 바꾸면 기존 시리즈 링크가 끊깁니다.</p>
+
+    <label for="series-category">대표 카테고리</label>
+    <select id="series-category" th:field="*{categoryId}" required aria-describedby="series-category-help">
+      <option value="">선택</option>
+      <option th:each="category : ${categoryChoices}" th:value="${category.id}" th:text="${category.name}">카테고리</option>
+    </select>
+    <p class="admin-help" id="series-category-help">시리즈에 속한 글은 이 카테고리를 따릅니다. 바꾸면 속한 글의 카테고리도 함께 바뀝니다.</p>
+
+    <label for="series-description">소개</label>
+    <textarea id="series-description" th:field="*{description}" rows="3"></textarea>
+
+    <label for="series-status">상태</label>
+    <select id="series-status" th:field="*{status}" aria-describedby="series-status-help">
+      <option value="ACTIVE">연재 중</option>
+      <option value="COMPLETED">완결</option>
+      <option value="HIDDEN">숨김</option>
+    </select>
+    <p class="admin-help" id="series-status-help">숨김 시리즈는 공개 화면의 시리즈 목록에 나오지 않습니다. 글 자체는 그대로 공개됩니다.</p>
+
+    <label for="series-sort-order">정렬 순서</label>
+    <input id="series-sort-order" type="number" th:field="*{sortOrder}" required>
+
+    <div class="admin-actions">
+      <button class="admin-button primary" type="submit" th:text="${seriesId == null} ? '만들기' : '저장'">저장</button>
+    </div>
+  </form>
+
+  <section class="admin-images" th:if="${seriesId != null}" aria-labelledby="series-posts-title">
+    <h2 id="series-posts-title">시리즈의 글</h2>
+    <p class="admin-help">순서가 작을수록 앞입니다. 순서를 바꾸려면 숫자를 고치고 ‘순서 저장’을 누르세요. 같은 순서는 둘 수 없습니다.</p>
+    <p class="admin-help" th:if="${members.isEmpty()}">아직 속한 글이 없습니다.</p>
+    <ul class="admin-terms" th:unless="${members.isEmpty()}">
+      <li class="admin-term" th:each="member : ${members}">
+        <form class="admin-term-form admin-member-form" method="post" th:action="@{/admin/series/{id}/posts(id=${seriesId})}">
+          <input type="hidden" name="postId" th:value="${member.id}">
+          <label class="admin-term-order"><span>순서</span><input type="number" name="seriesOrder" th:value="${member.seriesOrder}" min="1" required></label>
+          <a class="admin-member-title" th:href="@{/admin/posts/{id}/edit(id=${member.id})}" th:text="${member.title}">글 제목</a>
+          <span class="admin-badge" th:classappend="${member.scheduled} ? 'is-scheduled' : (${member.status == 'PUBLISHED'} ? 'is-published' : (${member.status == 'DELETED'} ? 'is-deleted'))"
+                th:text="${member.scheduled} ? '예약' : (${member.status == 'PUBLISHED'} ? '공개' : (${member.status == 'DELETED'} ? '삭제됨' : '초안'))">초안</span>
+          <button class="admin-button" type="submit">순서 저장</button>
+        </form>
+        <form method="post" th:action="@{/admin/series/{id}/posts/{postId}/remove(id=${seriesId},postId=${member.id})}">
+          <button class="admin-link-button" type="submit">시리즈에서 빼기</button>
+        </form>
+      </li>
+    </ul>
+
+    <form class="admin-filter" method="post" th:action="@{/admin/series/{id}/posts(id=${seriesId})}" th:unless="${candidates.isEmpty()}">
+      <label class="visually-hidden" for="series-add-post">넣을 글</label>
+      <select id="series-add-post" name="postId" required>
+        <option value="">넣을 글 선택</option>
+        <option th:each="candidate : ${candidates}" th:value="${candidate.id}"
+                th:text="${candidate.scheduled} ? |${candidate.title} (예약)| : (${candidate.status == 'PUBLISHED'} ? ${candidate.title} : |${candidate.title} (초안)|)">글</option>
+      </select>
+      <label class="visually-hidden" for="series-add-order">순서</label>
+      <input id="series-add-order" class="admin-order-input" type="number" name="seriesOrder" th:value="${nextOrder}" min="1" required>
+      <button class="admin-button" type="submit">글 넣기</button>
+    </form>
+    <p class="admin-help" th:unless="${candidates.isEmpty()}">넣은 글의 카테고리는 시리즈 대표 카테고리로 바뀝니다.</p>
+  </section>
+
+  <form class="admin-danger-zone" method="post" th:if="${seriesId != null}"
+        th:action="@{/admin/series/{id}/delete(id=${seriesId})}" data-confirm="이 시리즈를 삭제할까요?">
+    <button class="admin-button danger" type="submit">시리즈 삭제</button>
+    <p class="admin-help">속한 글이 있으면 먼저 빼야 합니다.</p>
+  </form>
+</main>
+<footer th:replace="~{fragments/site :: footer}"></footer>
+<script defer th:src="@{/js/admin-post-editor.js}"></script>
+</body>
+</html>

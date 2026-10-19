@@ -39,21 +39,23 @@
           <input type="hidden" name="tag" th:if="${selectedTag != null}" th:value="${selectedTag}">
           <input type="hidden" name="q" th:if="${search != null}" th:value="${search}">
           <label for="post-page-size">페이지당 글</label>
-          <select id="post-page-size" name="size">
+          <select id="post-page-size" name="size" onchange="this.form.submit()">
             <option value="10" th:selected="${pageSize == 10}">10개</option>
             <option value="20" th:selected="${pageSize == 20}">20개</option>
             <option value="50" th:selected="${pageSize == 50}">50개</option>
           </select>
-          <button type="submit">적용</button>
         </form>
       </div>
       <div class="post-list" th:if="${!posts.isEmpty()}">
-        <article th:each="post : ${posts}">
-          <div class="post-meta"><span class="post-category" th:if="${post.categoryName != null}" th:text="${post.categoryName}">카테고리</span><time th:datetime="${post.publishedAt}" th:text="${#temporals.format(post.publishedAt, 'yyyy.MM.dd')}"></time><span th:text="|· ${post.readingMinutes}분 읽기|">· 5분 읽기</span></div>
-          <h2><a th:href="@{/posts/{slug}(slug=${post.slug})}"><span class="series-number" th:if="${selectedSeries != null && post.seriesSlug != null && post.seriesOrder != null}" th:text="${#numbers.formatInteger(post.seriesOrder, 2) + '. '}">01. </span><span th:text="${post.title}">글 제목</span></a></h2>
-          <p class="post-summary" th:text="${post.summary}">요약</p>
-          <ul class="tag-list"><li th:each="tag : ${post.tags}" th:text="|# ${tag}|">태그</li></ul>
-          <a class="post-series-link" th:if="${post.seriesSlug != null}" th:href="@{/posts(series=${post.seriesSlug}, size=${pageSize})}" th:text="|▤ ${post.seriesName} · ${post.seriesOrder}편 →|">시리즈 바로가기</a>
+        <article th:each="post : ${posts}" th:classappend="${post.representativeImageUrl != null} ? 'has-thumbnail'">
+          <div class="post-list-body">
+            <div class="post-meta"><span class="post-category" th:if="${post.categoryName != null}" th:text="${post.categoryName}">카테고리</span><time th:datetime="${post.publishedAt}" th:text="${#temporals.format(post.publishedAt, 'yyyy.MM.dd')}"></time><span th:text="|· ${post.readingMinutes}분 읽기|">· 5분 읽기</span></div>
+            <h2><a th:href="@{/posts/{slug}(slug=${post.slug})} + ${postLinkQuery}"><span class="series-number" th:if="${selectedSeries != null && post.seriesSlug != null && post.seriesOrder != null}" th:text="${#numbers.formatInteger(post.seriesOrder, 2) + '. '}">01. </span><span th:text="${post.title}">글 제목</span></a></h2>
+            <p class="post-summary" th:text="${post.summary}">요약</p>
+            <ul class="tag-list"><li th:each="tag : ${post.tags}" th:text="|# ${tag}|">태그</li></ul>
+            <a class="post-series-link" th:if="${post.seriesSlug != null}" th:href="@{/posts(series=${post.seriesSlug}, size=${pageSize})}" th:text="|▤ ${post.seriesName} · ${post.seriesOrder}편 →|">시리즈 바로가기</a>
+          </div>
+          <img class="post-list-thumbnail" th:if="${post.representativeImageUrl != null}" th:src="${post.representativeImageUrl}" alt="" width="213" height="120" loading="lazy">
         </article>
       </div>
       <p class="empty-state" th:if="${posts.isEmpty()}" th:text="${hasFilters ? '선택한 조건에 맞는 글이 없습니다.' : '아직 공개된 글이 없습니다.'}">아직 공개된 글이 없습니다.</p>

@@ -1,12 +1,12 @@
-# Production
+# 운영
 
-## Status
+## 상태
 
 - 문서 상태: 초안
 - 마지막 갱신: 2026-08-31
 - 현재 배포 상태: 실제 운영 배포 전
 
-## Runtime
+## 실행 환경
 
 - Java 25 LTS
 - Spring Boot 4.1.1
@@ -17,7 +17,7 @@
 - `main` Jenkins 빌드가 CI 검증 후 제한된 SSH 키로 Mac mini의 `deploy.py`에 커밋 SHA만 전달하는 배포 경로를 준비했습니다. 스크립트는 현재 `main` SHA와 운영 DB migration 버전 집합이 소스와 같은지 확인한 뒤 이미지를 빌드·교체하고 localhost HTTP 응답을 검사합니다. 실패 시 이전 이미지로 돌아가며, 최초 실패 시 새 컨테이너만 제거합니다. **DB migration 및 데이터는 이미지 롤백으로 되돌아가지 않습니다.**
 - Jenkins 에이전트에 Docker socket을 연결하지 않습니다. 도메인·프록시·Prometheus/Grafana는 아직 구성하지 않았습니다. Dockerfile 자체는 배포 스크립트가 아닙니다. SSH 키 설치와 PR 병합, 실제 Jenkins 실행·재부팅 검증 전에는 운영 배포 완료로 보지 않습니다.
 
-## Profiles
+## 프로필
 
 - 기본 프로필: 화면 템플릿 검증용. DataSource 자동 설정을 제외합니다.
 - `dev`: 개발용 외부 PostgreSQL 연결
@@ -32,7 +32,7 @@ SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
 SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
 ```
 
-## Database Configuration
+## 데이터베이스 설정
 
 DB 접속 정보는 환경변수로만 주입합니다.
 
@@ -46,17 +46,17 @@ DB_PASSWORD
 - 비밀번호와 토큰을 문서, 로그, 저장소에 기록하지 않습니다.
 - 실제 외부 DB 연결 상태와 권한은 운영 환경에서 별도로 확인해야 합니다.
 
-## CI database tests
+## CI 데이터베이스 테스트
 
-로컬 `./gradlew test`는 기존처럼 Testcontainers의 일회용 PostgreSQL을 사용합니다. Jenkinsfile은 외부 CI 전용 DB 작업 `./gradlew --no-daemon --max-workers=1 ciDbIntegrationTest bootJar`를 호출합니다. Jenkins 작업 매개변수로 CI DB 접속 주소·서버 기대값을 주입하고, 별도 Credential ID `dean-p-blog-ci-db`로 `CI_DB_USER`, `CI_DB_PASSWORD`를 바인딩합니다. 암호를 소스·로그·명령 인수로 전달하지 마세요.
+로컬 `./gradlew test`는 기존처럼 Testcontainers의 일회용 PostgreSQL을 사용합니다. Jenkinsfile은 외부 CI 전용 DB 작업 `./gradlew --no-daemon --max-workers=1 ciDbIntegrationTest ciDbE2eTest bootJar`를 호출합니다. Jenkins 작업 매개변수로 CI DB 접속 주소·서버 기대값을 주입하고, 별도 Credential ID `dean-p-blog-ci-db`로 `CI_DB_USER`, `CI_DB_PASSWORD`를 바인딩합니다. 암호를 소스·로그·명령 인수로 전달하지 마세요.
 
-CI 작업은 별도 JVM에서 접속 사전 검증 → V3~V10 드리프트 재현 테스트(테스트마다 `blog` 스키마 clean) → `blog` 스키마 clean 및 최신 마이그레이션 적용 → 스키마 검증 → 일반 테스트 순으로 진행합니다. `CI_DB_ALLOWED_HOST`, `CI_DB_ALLOWED_PORT`는 허용할 접속 대상(URL과 정확히 일치해야 함), `CI_DB_SERVER_ADDR`, `CI_DB_SERVER_PORT`는 독립적으로 확인한 PostgreSQL 서버의 `inet_server_addr()`·`inet_server_port()` 기대값으로 Jenkins의 비밀 아닌 환경설정에 각각 주입합니다. 모두 필수이며 기본값은 없습니다. NAT가 있으면 외부 접속 주소·포트와 실제 서버가 보고하는 내부 주소·포트가 다를 수 있으므로 후자를 복사해 외부값으로 가정하지 마세요. 기대값을 확인할 수 없으면 CI 작업을 실행하지 않습니다.
+CI 작업은 별도 JVM에서 접속 사전 검증 → V3~V10 드리프트 재현 테스트(테스트마다 `blog` 스키마 clean) → `blog` 스키마 clean 및 최신 마이그레이션 적용 → 스키마 검증 → 일반 테스트 → 브라우저 E2E 테스트(`ciDbE2eTest`, 데이터를 커밋하므로 마지막) 순으로 진행합니다. E2E 실패 화면은 빌드 산출물 `build/reports/e2e/*.png`로 보관합니다. E2E는 화면이 쓰는 외부 CDN(Tailwind, htmx, lucide, highlight.js)을 내려받으므로 Jenkins 에이전트에서 인터넷에 접속할 수 있어야 합니다. 테스트 연결 풀은 CI에서만 작게(최대 4개, 쉬는 연결 10초 뒤 종료) 잡아, 캐시된 테스트 컨텍스트들이 CI DB 연결 수를 다 쓰지 않게 합니다. `CI_DB_ALLOWED_HOST`, `CI_DB_ALLOWED_PORT`는 허용할 접속 대상(URL과 정확히 일치해야 함), `CI_DB_SERVER_ADDR`, `CI_DB_SERVER_PORT`는 독립적으로 확인한 PostgreSQL 서버의 `inet_server_addr()`·`inet_server_port()` 기대값으로 Jenkins의 비밀 아닌 환경설정에 각각 주입합니다. 모두 필수이며 기본값은 없습니다. NAT가 있으면 외부 접속 주소·포트와 실제 서버가 보고하는 내부 주소·포트가 다를 수 있으므로 후자를 복사해 외부값으로 가정하지 마세요. 기대값을 확인할 수 없으면 CI 작업을 실행하지 않습니다.
 
 사전 검증은 접속 URL·계정과 실제 연결의 `current_database()`(`dean_p_blog_ci`), `current_user`(`dean_p_blog_app_ci`), 서버 주소·포트, 계정 관리자 권한을 확인합니다. URL과 허용 대상을 동일한 잘못된 값으로 설정하면 두 입력의 일치만으로 안전을 보증하지 못합니다. 허용 대상과 서버 기대값은 서로 다른 근거로 확인하고, DB명·계정·권한 검사를 추가 방어선으로 유지합니다. 계정의 다른 DB 접속 권한 제한도 별도로 유지해야 합니다.
 
 이 DB는 테스트가 스키마 전체를 지우므로 다른 작업과 공유하지 마세요. Jenkins는 CI DB 사용 작업을 직렬 실행하며 빌드가 성공해야 배포 단계로 넘어갑니다. CI 전용 DB 외에서는 이 작업을 실행하지 마세요. 운영 DB 및 배포 경로는 별도 검증 대상입니다.
 
-## Database Bootstrap
+## 데이터베이스 초기 구성
 
 초기 PostgreSQL 사용자·데이터베이스·스키마 설정 스크립트:
 
@@ -88,8 +88,18 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 - V9는 과거 개발 스키마에서 문자 컬럼이 일괄 `varchar(255)`로 생성된 드리프트만 V1-V8 migration의 명시 타입으로 복구합니다. 축소되는 컬럼은 `char_length` 최대값을 먼저 검사하며, 실패 오류에는 테이블·컬럼·최대 길이만 포함하고 실제 값은 노출하지 않습니다.
 - V9 적용 전 운영 백업을 확보하고 Flyway validation을 통과시켜야 합니다. V6 checksum repair는 별도 운영 절차이며 애플리케이션이나 migration에서 validation을 자동 우회하지 않습니다.
 - V10은 상위 게시판 `post`를 제거합니다. 적용 전 스키마 백업과 카테고리·시리즈 slug 중복 여부를 확인해야 하며, 중복 시 데이터 변경 없이 중단합니다. `post_detail`·카테고리·시리즈·태그·방문 이력은 보존합니다. 기존 애플리케이션은 V10 스키마와 호환되지 않으므로 적용과 코드 교체를 함께 계획해야 합니다.
+- V11은 `post_detail_slug_key` 고유 제약을 `status <> 'DELETED'`인 행에만 거는 부분 고유 인덱스 `ux_post_detail_slug_active`로 바꿉니다. 데이터는 바꾸지 않습니다. 되돌릴 때는 삭제한 글끼리 slug가 겹치지 않는지 먼저 확인해야 원래 제약을 다시 만들 수 있습니다.
 
-## Visitor Tracking
+## 관리자 계정
+
+글 관리 화면(`/admin/**`)은 폼 로그인과 `POST_WRITE` 권한이 필요하며, 나머지 공개 화면은 로그인 없이 열려 있습니다.
+
+- `ADMIN_LOGIN_ID`, `ADMIN_PASSWORD`를 함께 설정하면 기동 시 관리자 계정·`관리자` 그룹·`/admin/posts` 메뉴의 `WRITE` 권한·소속을 없는 것만 만듭니다. 둘 다 비우면 아무것도 하지 않고, 한쪽만 있거나 비밀번호가 10자 미만이면 기동을 멈춥니다.
+- 환경변수가 비밀번호의 기준입니다. 저장된 해시가 `ADMIN_PASSWORD`와 다르면 기동 때마다 새 값으로 교체하므로, 비밀번호는 환경변수를 바꾸고 재시작해서 변경합니다. 값은 `secrets/.env.prod`에만 두고 로그에 남기지 않습니다.
+- 같은 아이디로 틀릴 때마다 실패를 누적하고(직전 실패 후 15분이 지나면 새로 셈), 5번째 실패부터 마지막 실패 후 15분 동안 맞는 비밀번호도 거부합니다. 기록은 메모리에만 있어 재시작하면 사라지고, 단일 인스턴스를 전제로 합니다. 잠금 안내는 존재하는 아이디에만 표시됩니다.
+- 현재 운영은 LAN 내부 HTTP이므로 비밀번호와 세션 쿠키가 암호화되지 않은 채 전송됩니다. 외부에 공개하기 전에는 HTTPS를 적용하고 `server.servlet.session.cookie.secure=true`를 설정해야 합니다.
+
+## 방문자 추적
 
 - `prod`에서는 `app.visitor.cookie-secure=true`로 HTTPS 쿠키를 사용합니다.
 - `X-Forwarded-For`는 `VISITOR_TRUSTED_PROXIES`에 설정한 reverse proxy 주소/CIDR에서 온 요청에만 신뢰하며, 오른쪽부터 확인한 첫 번째 비신뢰 주소를 클라이언트로 사용합니다. 잘못된 체인은 remote address로 대체하고, 기본값은 빈 값입니다.
@@ -97,7 +107,7 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 - 예: `VISITOR_TRUSTED_PROXIES=10.0.0.0/8,192.0.2.10/32`
 - 실제 프록시 네트워크가 확정되지 않은 상태에서 해당 환경변수를 설정하지 않습니다.
 
-## Deployment Checklist
+## 배포 점검 목록
 
 - [ ] Java 25 런타임 확인
 - [ ] `prod` 프로필 확인
@@ -112,7 +122,7 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 - [ ] RSS, 사이트맵, robots.txt, 검색 메타데이터 확인
 - [ ] 운영 장애 시 롤백 절차 확인
 
-## Not Yet Verified
+## 아직 검증하지 않은 항목
 
 - 실제 운영 서버 배포
 - 실제 운영 서버의 외부 PostgreSQL 접속

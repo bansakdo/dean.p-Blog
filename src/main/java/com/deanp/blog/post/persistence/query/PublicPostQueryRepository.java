@@ -64,7 +64,7 @@ public interface PublicPostQueryRepository {
     /** @return 미분류 글까지 포함한 전체 공개 글 수 */
     long countPublishedPosts();
 
-    /** @return 공개 글에 사용된 카테고리 선택지 */
+    /** @return 공개 글에 사용된 카테고리 선택지, 관리 화면의 정렬 순서대로 */
     List<PostFilterOption> findPublishedCategories();
 
     /** @return 공개 글에 사용된 태그 선택지 */

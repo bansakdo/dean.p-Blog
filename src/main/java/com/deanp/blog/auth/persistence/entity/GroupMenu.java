@@ -35,4 +35,17 @@ public class GroupMenu {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "menu_id", insertable = false, updatable = false)
     private Menu menu;
+
+    /**
+     * 그룹에 메뉴 권한을 부여한다.
+     *
+     * @param id 그룹·메뉴·권한 코드 복합키
+     * @return 저장할 권한 연결
+     */
+    public static GroupMenu create(GroupMenuId id) {
+        GroupMenu groupMenu = new GroupMenu();
+        groupMenu.id = id;
+        groupMenu.createdAt = Instant.now();
+        return groupMenu;
+    }
 }

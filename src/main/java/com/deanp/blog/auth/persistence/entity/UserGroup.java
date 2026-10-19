@@ -34,4 +34,17 @@ public class UserGroup {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id", insertable = false, updatable = false)
     private AuthGroup group;
+
+    /**
+     * 사용자를 그룹에 넣는다.
+     *
+     * @param id 사용자·그룹 복합키
+     * @return 저장할 소속 연결
+     */
+    public static UserGroup create(UserGroupId id) {
+        UserGroup userGroup = new UserGroup();
+        userGroup.id = id;
+        userGroup.createdAt = Instant.now();
+        return userGroup;
+    }
 }

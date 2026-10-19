@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/site :: head(${pageTitle})}"></head>
+<body class="admin-page">
+<header th:replace="~{fragments/site :: header}"></header>
+<main class="shell page-space">
+  <header class="admin-heading">
+    <div><h1>글 관리</h1><p th:text="|${filtered ? '검색 결과' : '전체'} ${totalPosts}편 · 최근 수정순|">전체 0편 · 최근 수정순</p></div>
+    <a class="admin-button primary" th:href="@{/admin/posts/new}">새 글</a>
+  </header>
+  <p class="admin-notice" th:if="${param.deleted}" role="status">글을 삭제했습니다. 상태를 ‘삭제됨’으로 골라 복구할 수 있습니다.</p>
+  <form class="admin-filter" method="get" th:action="@{/admin/posts}" role="search">
+    <label class="visually-hidden" for="admin-post-query">제목 검색</label>
+    <input id="admin-post-query" type="search" name="q" th:value="${q}" placeholder="제목 검색">
+    <label class="visually-hidden" for="admin-post-status">상태</label>
+    <select id="admin-post-status" name="status">
+      <option value="" th:selected="${status == ''}">전체</option>
+      <option value="draft" th:selected="${status == 'draft'}">초안</option>
+      <option value="published" th:selected="${status == 'published'}">공개</option>
+      <option value="deleted" th:selected="${status == 'deleted'}">삭제됨</option>
+    </select>
+    <button class="admin-button" type="submit">검색</button>
+    <a th:if="${filtered}" th:href="@{/admin/posts}">조건 지우기</a>
+  </form>
+  <p class="empty-state" th:if="${posts.isEmpty()}" th:text="${filtered} ? '조건에 맞는 글이 없습니다.' : '아직 글이 없습니다.'">아직 글이 없습니다.</p>
+  <div class="admin-table-scroll" th:unless="${posts.isEmpty()}">
+    <table class="admin-table">
+      <thead><tr><th scope="col">제목</th><th scope="col">상태</th><th scope="col">수정일</th><th scope="col"><span class="visually-hidden">동작</span></th></tr></thead>
+      <tbody>
+        <tr th:each="post : ${posts}">
+          <td><a th:href="@{/admin/posts/{id}/edit(id=${post.id})}" th:text="${post.title}">제목</a></td>
+          <td><span class="admin-badge" th:classappend="${post.scheduled} ? 'is-scheduled' : (${post.published} ? 'is-published' : (${post.deleted} ? 'is-deleted'))" th:text="${post.scheduled} ? '예약' : (${post.published} ? '공개' : (${post.deleted} ? '삭제됨' : '초안'))">초안</span>
+            <time class="admin-scheduled-at" th:if="${post.scheduled}" th:datetime="${post.publishedAt}" th:text="${#temporals.format(post.publishedAt, 'MM.dd HH:mm')}">10.20 09:00</time></td>
+          <td><time th:datetime="${post.updatedAt}" th:text="${#temporals.format(post.updatedAt, 'yyyy.MM.dd HH:mm')}">2026.01.01 00:00</time></td>
+          <td><a th:if="${post.published and !post.scheduled}" th:href="@{/posts/{slug}(slug=${post.slug})}">보기</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <nav class="admin-pagination" aria-label="글 관리 페이지" th:if="${totalPages > 1}">
+    <a th:if="${currentPage > 1}" th:href="@{/admin/posts(page=${currentPage - 1},status=${status},q=${q})}">이전</a>
+    <span th:text="|${currentPage} / ${totalPages}|">1 / 1</span>
+    <a th:if="${currentPage < totalPages}" th:href="@{/admin/posts(page=${currentPage + 1},status=${status},q=${q})}">다음</a>
+  </nav>
+</main>
+<footer th:replace="~{fragments/site :: footer}"></footer>
+</body>
+</html>

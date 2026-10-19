@@ -3,6 +3,8 @@ package com.deanp.blog.media.controller;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
+
+import com.deanp.blog.auth.controller.SecurityConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** 공개 게시글 이미지 경로만 외부 저장소에서 제공하는지 검증한다. */
 @WebMvcTest(PublicMediaConfigurationTest.EmptyController.class)
-@Import(PublicMediaConfiguration.class)
+@Import({PublicMediaConfiguration.class, SecurityConfiguration.class})
 class PublicMediaConfigurationTest {
     @TempDir
     static Path storageRoot;

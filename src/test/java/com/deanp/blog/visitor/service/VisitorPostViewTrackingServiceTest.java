@@ -53,9 +53,10 @@ class VisitorPostViewTrackingServiceTest {
         when(events.saveAndFlush(any(VisitorEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
         VisitorRequestMetadata metadata = new VisitorRequestMetadata(
                 "203.0.113.10",
-                "example.com",
+                "https://www.google.co.kr/",
                 "JUnit Browser",
-                "request-123"
+                "request-123",
+                "kr"
         );
 
         service.recordPostView(ANONYMOUS_KEY, POST_DETAIL_ID, metadata);
@@ -69,7 +70,9 @@ class VisitorPostViewTrackingServiceTest {
                         && "POST_VIEW".equals(event.getEventType())
                         && NOW.equals(event.getOccurredAt())
                         && "203.0.113.0".equals(event.getIpAddress())
-                        && "example.com".equals(event.getReferrerHost())
+                        && "www.google.co.kr".equals(event.getReferrerHost())
+                        && "KR".equals(event.getCountryCode())
+                        && "Google".equals(event.getSearchEngine())
                         && "JUnit Browser".equals(event.getUserAgent())
                         && "request-123".equals(event.getRequestId())
         ));

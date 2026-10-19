@@ -1,5 +1,9 @@
 package com.deanp.blog.post.controller;
 
+import com.deanp.blog.auth.controller.SecurityConfiguration;
+import com.deanp.blog.auth.service.BlogUserDetailsService;
+import com.deanp.blog.media.service.PostFileService;
+import com.deanp.blog.media.service.PostFileService.PostFile;
 import com.deanp.blog.post.PostView;
 import com.deanp.blog.post.PostSeriesOption;
 import com.deanp.blog.post.service.PostService;
@@ -19,6 +23,7 @@ import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -41,6 +46,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -51,14 +57,43 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(BlogController.class)
 @Import({VisitorCookieIdentifier.class, VisitorTrackingRequestPolicy.class,
-        TrustedProxyMatcher.class, VisitorRequestMetadataFactory.class})
+        TrustedProxyMatcher.class, VisitorRequestMetadataFactory.class, SecurityConfiguration.class,
+        SidebarFilterModel.class})
 class BlogControllerTest {
+
+    /** 헤더와 메뉴가 공통 높이 변수를 사용하고 모바일 높이는 유지되는지 확인한다. */
+    @Test
+    void sidebarHeightMatchesDesktopHeader() throws Exception {
+        mockMvc.perform(get("/css/site.css"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("--site-header-height: 74px;")))
+                .andExpect(content().string(containsString("height: var(--site-header-height);")))
+                .andExpect(content().string(containsString(".site-sidebar { top: var(--site-header-height); height: calc(100dvh - var(--site-header-height));")))
+                .andExpect(content().string(not(containsString(".site-sidebar { top: 88px;"))))
+                .andExpect(content().string(containsString(":root { --site-header-height: 72px; }")))
+                .andExpect(content().string(containsString(".sidebar-backdrop { top: var(--site-header-height); }")));
+    }
+
+    /** 글 상세에 사용하는 웹폰트 파일과 글꼴 선언을 제공하는지 확인한다. */
+    @Test
+    void servesArticleFont() throws Exception {
+        mockMvc.perform(get("/fonts/pretendard/PretendardVariable.woff2"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/css/site.css"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("font-family: \"Pretendard Article\"")))
+                .andExpect(content().string(containsString(".post-detail-page .article-header")))
+                .andExpect(content().string(containsString("margin: 0 auto 65px; text-align: left;")));
+    }
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
     private PostService postService;
+
+    @MockitoBean
+    private PostFileService postFiles;
 
     @MockitoBean
     private VisitorPostViewTrackingService visitorPostViewTrackingService;
@@ -85,24 +120,78 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString("/posts/" + post.slug())));
     }
 
-    /** 검색 페이지에는 공통 메뉴만 표시하고 글 분류는 표시하지 않는다. */
+    /** 목록에서 고른 분류가 글 링크로 전달되어 상세 사이드바에 유지되고, 상세의 태그는 날짜 아래에 표시된다. */
     @Test
-    void searchSidebarOmitsPostFilters() throws Exception {
+    void postDetailKeepsSidebarFiltersAndShowsTagsBelowDate() throws Exception {
+        when(postService.findCategories()).thenReturn(List.of(
+                new com.deanp.blog.post.PostFilterOption("dev", "개발", 2),
+                new com.deanp.blog.post.PostFilterOption("life", "일상", 1)));
+        when(postService.findSeries("dev")).thenReturn(List.of());
+        when(postService.findPage("dev", null, List.of(), null, 1, 20))
+                .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(0, 20), 1));
+        when(postService.findBySlug("real-post")).thenReturn(Optional.of(postView()));
+
+        mockMvc.perform(get("/posts").param("category", "dev"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/posts/real-post?category=dev\"")));
+        mockMvc.perform(get("/posts"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("postLinkQuery", ""));
+
+        String detail = mockMvc.perform(get("/posts/real-post").param("category", "dev"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("selectedCategory", "dev"))
+                .andExpect(content().string(containsString("class=\"sidebar-filters\"")))
+                .andExpect(content().string(containsString("href=\"/posts?category=life&amp;tag=&amp;q=&amp;size=20\"")))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String activeCategory = detail.substring(detail.indexOf("aria-current=\"true\""));
+        org.junit.jupiter.api.Assertions.assertTrue(
+                activeCategory.indexOf("개발") < activeCategory.indexOf("</a>"), "선택한 카테고리가 활성 상태여야 한다");
+        org.junit.jupiter.api.Assertions.assertTrue(
+                detail.indexOf("class=\"post-meta\"") < detail.indexOf("class=\"tag-list\""), "태그는 날짜 아래에 있어야 한다");
+        Path output = Path.of("build/reports/ui-preview/post-detail.html");
+        Files.createDirectories(output.getParent());
+        Files.writeString(output, detail);
+    }
+
+    /** 검색 페이지에서도 사이드 메뉴 ‘글’ 아래에 분류 필터를 두되, 글 화면이 아니므로 접어 둔다. */
+    @Test
+    void searchSidebarKeepsPostFiltersCollapsed() throws Exception {
         mockMvc.perform(get("/search"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("class=\"sidebar-filters\""))))
+                .andExpect(content().string(containsString("class=\"sidebar-filters\"")))
+                .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"글 메뉴 펼치기\"")))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"sidebar-posts-menu\"[^>]*hidden.*")))
                 .andExpect(content().string(containsString("id=\"site-sidebar\"")))
                 .andExpect(content().string(containsString("aria-controls=\"site-sidebar\"")));
     }
 
-    /** 인증 미구현 상태에서 사용자 메뉴는 비활성 로그인 안내만 제공한다. */
+    /** 로그인하지 않은 사용자의 메뉴는 로그인 링크만 제공하고 관리·로그아웃은 숨긴다. */
     @Test
-    void accountMenuShowsHonestLoginPlaceholder() throws Exception {
+    void accountMenuShowsLoginLinkToAnonymousUser() throws Exception {
         mockMvc.perform(get("/search"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("aria-controls=\"account-panel\"")))
-                .andExpect(content().string(containsString("로그인 기능을 준비하고 있습니다.")))
-                .andExpect(content().string(containsString("type=\"button\" disabled")))
+                .andExpect(content().string(containsString("글을 쓰려면 로그인하세요.")))
+                .andExpect(content().string(containsString("href=\"/login\"")))
+                .andExpect(content().string(not(containsString("href=\"/admin\""))))
+                .andExpect(content().string(not(containsString("sidebar-admin"))))
+                .andExpect(content().string(not(containsString("action=\"/logout\""))));
+    }
+
+    /** 글 관리 권한이 있는 사용자의 메뉴는 관리 대시보드 링크와 로그아웃을 제공한다. */
+    @Test
+    void accountMenuShowsAdminLinksToWriter() throws Exception {
+        mockMvc.perform(get("/search").with(user("admin").authorities(new SimpleGrantedAuthority(BlogUserDetailsService.POST_WRITE))))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("admin 님으로 로그인했습니다.")))
+                .andExpect(content().string(containsString("href=\"/admin\"")))
+                .andExpect(content().string(containsString("<a id=\"sidebar-admin-title\" href=\"/admin\">관리자</a>")))
+                .andExpect(content().string(containsString("href=\"/admin/categories\"")))
+                .andExpect(content().string(not(containsString("aria-current=\"page\""))))
+                .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"관리자 메뉴 펼치기\"")))
+                .andExpect(content().string(containsString("role=\"group\" aria-labelledby=\"sidebar-admin-title\" hidden")))
+                .andExpect(content().string(containsString("action=\"/logout\"")))
                 .andExpect(content().string(not(containsString("href=\"/login\""))));
     }
 
@@ -133,12 +222,14 @@ class BlogControllerTest {
         verify(postService).findAll(null, null, null, "missing");
     }
 
-    /** 공통 메뉴에는 소개·글만 순서대로 표시하고 테마 버튼은 유지한다. */
+    /** 공통 메뉴에는 소개·글만 순서대로 표시하고, 글 화면에서는 ‘글’ 하위 메뉴(분류 필터)를 펼치며 테마 버튼은 유지한다. */
     @Test
     void sidebarNavigationAndThemeAreRendered() throws Exception {
         mockMvc.perform(get("/posts"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(matchesPattern("(?s).*class=\"sidebar-nav\"[^>]*>\\s*<a href=\"/about\">소개</a>\\s*<a href=\"/posts\">글</a>\\s*</nav>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*class=\"sidebar-nav\"[^>]*>\\s*<a class=\"sidebar-leaf\" href=\"/about\">소개</a>\\s*<div class=\"sidebar-group\">.*<a id=\"sidebar-posts-title\" href=\"/posts\">글</a>.*</nav>.*")))
+                .andExpect(content().string(containsString("aria-expanded=\"true\" aria-label=\"글 메뉴 접기\"")))
+                .andExpect(content().string(not(matchesPattern("(?s).*id=\"sidebar-posts-menu\"[^>]*hidden.*"))))
                 .andExpect(content().string(not(containsString(">검색</a>"))))
                 .andExpect(content().string(not(containsString("<strong>메뉴</strong>"))))
                 .andExpect(content().string(not(containsString("<span>테마</span>"))))
@@ -233,7 +324,9 @@ class BlogControllerTest {
         mockMvc.perform(get("/posts").param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("pageSize", 10))
-                .andExpect(content().string(containsString("size=10")));
+                .andExpect(content().string(containsString("size=10")))
+                .andExpect(content().string(containsString("name=\"size\" onchange=\"this.form.submit()\"")))
+                .andExpect(content().string(not(containsString("<button type=\"submit\">적용</button>"))));
         mockMvc.perform(get("/posts").param("page", "0")).andExpect(status().isBadRequest());
         mockMvc.perform(get("/posts").param("size", "30")).andExpect(status().isBadRequest());
         mockMvc.perform(get("/posts").param("page", "4")).andExpect(status().isNotFound());
@@ -275,7 +368,7 @@ class BlogControllerTest {
                 "설계한 데이터를 화면으로 연결합니다. 글 목록과 상세 페이지를 차근차근 만들어 봅니다.");
         var posts = IntStream.range(0, 3).mapToObj(i -> new PostView(new UUID(0, i + 100),
                 "preview-" + i, titles.get(i), summaries.get(i), LocalDate.of(2026, 9, 18).minusDays(i),
-                6, List.of("Java", i == 0 ? "Spring" : "PostgreSQL"), "", "/media/should-not-render.png",
+                6, List.of("Java", i == 0 ? "Spring" : "PostgreSQL"), "", i == 0 ? "/media/list-thumbnail.png" : null,
                 "개발", "spring-blog", selected.name(), i * 2 + 1)).toList();
         when(postService.findPage("dev", "spring-blog", List.of(), null, 1, 20))
                 .thenReturn(new PageImpl<>(posts, PageRequest.of(0, 20), 3));
@@ -289,7 +382,7 @@ class BlogControllerTest {
                 .andExpect(content().string(containsString("aria-current=\"true\"")))
                 .andExpect(content().string(containsString("개발 ×")))
                 .andExpect(content().string(containsString("Spring으로 블로그 만들기 · 3편 →")))
-                .andExpect(content().string(not(containsString("should-not-render.png"))))
+                .andExpect(content().string(containsString("class=\"post-list-thumbnail\" src=\"/media/list-thumbnail.png\"")))
                 .andReturn();
         Path output = Path.of("build/reports/ui-preview/selected.html");
         Files.createDirectories(output.getParent());
@@ -332,11 +425,34 @@ class BlogControllerTest {
         mockMvc.perform(get("/posts/real-post"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("post"))
+                .andExpect(content().string(not(containsString("class=\"article-summary\""))))
                 .andExpect(content().string(containsString("<strong>Markdown</strong> 본문")));
 
         mockMvc.perform(get("/about"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("about"));
+    }
+
+    /** 첨부 파일이 있으면 글 끝에 이름·크기와 내려받기 링크 목록을 붙이고, 없으면 목록을 그리지 않는다. */
+    @Test
+    void rendersAttachmentListBelowArticle() throws Exception {
+        UUID postId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID fileId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        PostView post = new PostView(postId, "real-post", "실제 발행 글", "요약", LocalDate.of(2026, 8, 31), 1,
+                List.of(), "<p>본문</p>\n");
+        when(postService.findBySlug("real-post")).thenReturn(Optional.of(post));
+
+        mockMvc.perform(get("/posts/real-post"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("article-attachments"))));
+
+        when(postFiles.findByPost(postId)).thenReturn(List.of(new PostFile(fileId, "slides.pdf", 1_572_864)));
+        mockMvc.perform(get("/posts/real-post"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("class=\"article-attachments\"")))
+                .andExpect(content().string(containsString("href=\"/media/files/" + fileId + "\"")))
+                .andExpect(content().string(containsString("slides.pdf")))
+                .andExpect(content().string(containsString("1.5 MB")));
     }
 
     /**
@@ -656,7 +772,8 @@ class BlogControllerTest {
                         )))
                 .andExpect(status().isOk())
                 .andExpect(view().name("post"))
-                .andExpect(content().string(containsString("PostgreSQL에서 읽은 글입니다.")));
+                .andExpect(content().string(not(containsString("class=\"article-summary\""))))
+                .andExpect(content().string(containsString("<strong>Markdown</strong> 본문")));
     }
 
     /**
@@ -670,6 +787,27 @@ class BlogControllerTest {
 
         mockMvc.perform(get("/posts/real-post")
                         .header(HttpHeaders.USER_AGENT, "Mozilla/5.0 (compatible; Googlebot/2.1)"))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+
+        verify(visitorPostViewTrackingService, never()).recordPostView(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(VisitorRequestMetadata.class)
+        );
+    }
+
+    /**
+     * 로그인한 관리자의 상세 조회는 페이지를 렌더링하되 방문 쿠키와 추적 저장을 생략한다.
+     *
+     * @throws Exception MVC 요청 처리 중 예외가 발생한 경우
+     */
+    @Test
+    void skipsVisitorTrackingForLoggedInAdmin() throws Exception {
+        when(postService.findBySlug("real-post")).thenReturn(Optional.of(postView()));
+
+        mockMvc.perform(get("/posts/real-post")
+                        .with(user("admin").authorities(new SimpleGrantedAuthority(BlogUserDetailsService.POST_WRITE))))
                 .andExpect(status().isOk())
                 .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
 

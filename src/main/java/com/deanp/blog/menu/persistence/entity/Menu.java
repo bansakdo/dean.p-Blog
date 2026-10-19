@@ -50,4 +50,24 @@ public class Menu {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id", insertable = false, updatable = false)
     private Menu parent;
+
+    /**
+     * 최상위 활성 메뉴를 만든다.
+     *
+     * @param name 메뉴 이름
+     * @param path 메뉴가 가리키는 경로
+     * @return 저장할 메뉴
+     */
+    public static Menu create(String name, String path) {
+        Menu menu = new Menu();
+        Instant now = Instant.now();
+        menu.id = UUID.randomUUID();
+        menu.name = name;
+        menu.path = path;
+        menu.sortOrder = 0;
+        menu.status = "ACTIVE";
+        menu.createdAt = now;
+        menu.updatedAt = now;
+        return menu;
+    }
 }

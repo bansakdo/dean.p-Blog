@@ -41,6 +41,60 @@ class PostServiceTest {
         assertThat(post.htmlContent()).contains("<h1>제목</h1>", "<strong>강조</strong>");
     }
 
+    /** mermaid 블록은 이스케이프한 원문을 담은 pre.mermaid로, 일반 코드 블록은 언어 class를 단 코드로 그린다. */
+    @Test
+    void rendersMermaidBlockAsEscapedSourceAndKeepsCodeBlocks() {
+        String html = service.renderHtml("```mermaid\nflowchart LR\n  A[\"<script>x</script>\"] --> B\n```\n\n```java\nint a = 1 &nbsp;\n```\n");
+
+        assertThat(html).contains("<pre class=\"mermaid\">flowchart LR\n  A[&quot;&lt;script&gt;x&lt;/script&gt;&quot;] --&gt; B\n</pre>");
+        assertThat(html).contains("<pre><code class=\"language-java\">int a = 1 &amp;nbsp;\n</code></pre>");
+        assertThat(html).doesNotContain("<script>");
+    }
+
+    /** archify 블록의 UUID는 격리한 iframe으로, 언어 표시 뒤 글은 이스케이프한 캡션으로 넣고, 형식이 틀리면 코드로 둔다. */
+    @Test
+    void rendersArchifyBlockAsSandboxedIframe() {
+        UUID id = UUID.fromString("0f8fad5b-d9cb-469f-a165-70867728950e");
+        String html = service.renderHtml("```archify 서비스 <b>구조</b> \"x\" onload='y' &nbsp\n" + id + "\n```\n\n```archify\n../../etc/passwd\n```\n");
+
+        assertThat(html).contains("<iframe data-archify-src=\"/media/diagrams/" + id + "\"",
+                "sandbox=\"allow-scripts allow-downloads allow-popups\"",
+                "title=\"서비스 &lt;b&gt;구조&lt;/b&gt; &quot;x&quot; onload='y' &nbsp;\"",
+                "<span>서비스 &lt;b&gt;구조&lt;/b&gt; &quot;x&quot; onload='y' &nbsp;</span>",
+                "<a href=\"/media/diagrams/" + id + "\" target=\"_blank\" rel=\"noopener\">새 창에서 크게 보기</a>");
+        assertThat(html).doesNotContain("allow-same-origin", "<b>", " src=", "\"x\"");
+        assertThat(html).contains("<pre><code class=\"language-archify\">../../etc/passwd\n</code></pre>");
+    }
+
+    /** 본문에 글자로 적힌 &nbsp는 공백으로 바꾸되 코드 안의 표기는 그대로 둔다. */
+    @Test
+    void rendersLiteralNbspAsSpaceOutsideCode() {
+        String content = "첫 문단\n\n&nbsp\n\n둘째&nbsp;문단 &NBSP 끝\n\n`&nbsp` 설명\n\n```\na&nbsp;b &nbsp\n```\n";
+        when(repository.findPublishedRowsBySlug("nbsp-post")).thenReturn(List.of(
+                row(UUID.randomUUID(), "nbsp-post", "Nbsp Post", null, content, Instant.parse("2026-08-31T00:00:00Z"), null)
+        ));
+
+        String html = service.findBySlug("nbsp-post").orElseThrow().htmlContent();
+
+        assertThat(html).contains("<p>&nbsp;</p>", "둘째\u00a0문단 &nbsp; 끝");
+        assertThat(html).contains("<code>&amp;nbsp</code> 설명", "a&amp;nbsp;b &amp;nbsp\n</code></pre>");
+    }
+
+    /** 문단 안 줄바꿈, 인용문, 표, 취소선, URL 자동 링크를 GFM 방식으로 변환하고 HTML 이스케이프는 유지한다. */
+    @Test
+    void rendersGfmLineBreaksQuotesTablesStrikethroughAndAutolinks() {
+        String content = "첫 줄\n둘째 줄\n\n> 인용문\n\n| 이름 | 값 |\n|---|---|\n| a | 1 |\n\n~~취소~~ https://example.com/a <b>굵게</b>\n";
+        when(repository.findPublishedRowsBySlug("gfm-post")).thenReturn(List.of(
+                row(UUID.randomUUID(), "gfm-post", "Gfm Post", null, content, Instant.parse("2026-08-31T00:00:00Z"), null)
+        ));
+
+        String html = service.findBySlug("gfm-post").orElseThrow().htmlContent();
+
+        assertThat(html).contains("첫 줄<br />\n둘째 줄", "<blockquote>\n<p>인용문</p>\n</blockquote>");
+        assertThat(html).contains("<table>", "<th>이름</th>", "<td>1</td>", "<del>취소</del>");
+        assertThat(html).contains("<a href=\"https://example.com/a\">https://example.com/a</a>", "&lt;b&gt;굵게&lt;/b&gt;");
+    }
+
     @Test
     void escapesInlineHtmlBeforeTemplateRendersTrustedGeneratedMarkdownHtml() {
         UUID postId = UUID.randomUUID();

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/site :: head(${pageTitle})}"></head>
+<body class="admin-page">
+<header th:replace="~{fragments/site :: header}"></header>
+<main class="shell page-space">
+  <header class="admin-heading">
+    <div>
+      <h1 th:text="|버전 ${revision.revisionNo}|">버전 1</h1>
+      <p>
+        <span th:text="${revision.changeType}">저장</span> ·
+        <time th:datetime="${revision.createdAt}" th:text="${#temporals.format(revision.createdAt, 'yyyy.MM.dd HH:mm')}">2026.01.01 00:00</time>
+        <th:block th:if="${revision.changedBy != null}"> · <span th:text="${revision.changedBy}">admin</span></th:block>
+      </p>
+    </div>
+    <a th:href="@{/admin/posts/{id}/edit(id=${post.id})}">← 글 수정</a>
+  </header>
+
+  <p class="admin-notice" role="status"
+     th:text="${revision.titleDiffers or revision.summaryDiffers or revision.contentDiffers} ? '현재 글과 다른 항목에 ‘현재와 다름’을 표시했습니다.' : '현재 글과 제목·요약·본문이 같습니다.'">현재 글과 같습니다.</p>
+
+  <dl class="admin-revision">
+    <dt>제목 <span class="admin-badge is-published" th:if="${revision.titleDiffers}">현재와 다름</span></dt>
+    <dd th:text="${revision.title}">제목</dd>
+    <dt>요약 <span class="admin-badge is-published" th:if="${revision.summaryDiffers}">현재와 다름</span></dt>
+    <dd th:text="${revision.summary} ?: '없음'">요약</dd>
+    <dt>본문 (Markdown) <span class="admin-badge is-published" th:if="${revision.contentDiffers}">현재와 다름</span></dt>
+    <dd><pre class="admin-revision-content" th:text="${revision.content}">본문</pre></dd>
+  </dl>
+
+  <form class="admin-actions" method="post" th:unless="${post.deleted}"
+        th:action="@{/admin/posts/{id}/revisions/{no}/revert(id=${post.id},no=${revision.revisionNo})}"
+        th:attr="data-confirm=${post.published} ? '이 버전으로 되돌릴까요? 공개 중인 글이라 바로 공개 화면에 반영됩니다.' : '이 버전으로 되돌릴까요?'">
+    <button class="admin-button primary" type="submit">이 버전으로 되돌리기</button>
+    <p class="admin-help">제목·요약·본문만 바꾸고, 주소·분류·태그·공개 상태는 그대로 둡니다. 되돌린 결과도 새 버전으로 남습니다.</p>
+  </form>
+  <p class="admin-help" th:if="${post.deleted}">삭제한 글입니다. 복구한 뒤에 되돌릴 수 있습니다.</p>
+</main>
+<footer th:replace="~{fragments/site :: footer}"></footer>
+<script defer th:src="@{/js/admin-post-editor.js}"></script>
+</body>
+</html>

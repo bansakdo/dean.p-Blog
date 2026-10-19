@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="generator" content="archify 3.1.0">
+  <title>E2E 다이어그램</title>
+</head>
+<body>
+<!-- E2E 전용 Archify 대역: 블로그 화면(부모)과 저장소에 접근할 수 있는지 스스로 기록한다. -->
+<p id="state">loading</p>
+<script>
+  let parentAccess;
+  try { parentAccess = parent.document.title ? 'open' : 'open'; } catch (error) { parentAccess = 'parent-blocked'; }
+  let cookieAccess;
+  try { cookieAccess = document.cookie === '' ? 'no-cookie' : 'cookie'; } catch (error) { cookieAccess = 'cookie-blocked'; }
+  const theme = new URLSearchParams(location.search).get('theme');
+  document.getElementById('state').textContent = `archify-ok ${parentAccess} ${cookieAccess} theme=${theme}`;
+</script>
+</body>
+</html>

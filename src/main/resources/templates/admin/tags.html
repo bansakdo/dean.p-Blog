@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/site :: head(${pageTitle})}"></head>
+<body class="admin-page">
+<header th:replace="~{fragments/site :: header}"></header>
+<main class="shell page-space">
+  <header class="admin-heading">
+    <div><h1>태그</h1><p th:text="|${tagRows.size()}개 · 이름순|">0개</p></div>
+  </header>
+  <p class="admin-error" th:if="${param.conflict}" role="alert">다른 요청과 겹쳐 저장하지 못했습니다. 화면을 새로 보고 다시 시도하세요.</p>
+  <p class="admin-notice" th:if="${param.merged}" role="status">태그를 병합했습니다.</p>
+  <p class="admin-notice" th:if="${param.deleted}" role="status">태그를 삭제했습니다.</p>
+  <p class="empty-state" th:if="${tagRows.isEmpty()}">아직 태그가 없습니다. 글을 저장할 때 태그를 적으면 만들어집니다.</p>
+  <div class="admin-table-scroll" th:unless="${tagRows.isEmpty()}">
+    <table class="admin-table">
+      <thead><tr><th scope="col">이름</th><th scope="col">주소(slug)</th><th scope="col">글</th></tr></thead>
+      <tbody>
+        <tr th:each="tag : ${tagRows}">
+          <td><a th:href="@{/admin/tags/{id}(id=${tag.id})}" th:text="${tag.name}">태그</a></td>
+          <td th:text="${tag.slug}">slug</td>
+          <td th:text="|${tag.postCount}편|">0편</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+<footer th:replace="~{fragments/site :: footer}"></footer>
+</body>
+</html>

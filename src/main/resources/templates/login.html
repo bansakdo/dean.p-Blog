@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/site :: head(${pageTitle})}"></head>
+<body class="admin-page">
+<header th:replace="~{fragments/site :: header}"></header>
+<main class="shell page-space">
+  <section class="login-box" aria-labelledby="login-title">
+    <h1 id="login-title">로그인</h1>
+    <p class="admin-error" th:if="${param.error}" role="alert">아이디 또는 비밀번호가 올바르지 않습니다.</p>
+    <p class="admin-error" th:if="${param.locked}" role="alert">로그인에 여러 번 실패해 잠시 막았습니다. 15분 뒤에 다시 시도하세요.</p>
+    <p class="admin-notice" th:if="${param.logout}" role="status">로그아웃했습니다.</p>
+    <form class="admin-form" method="post" th:action="@{/login}">
+      <label for="username">아이디</label>
+      <input id="username" name="username" type="text" autocomplete="username" required autofocus>
+      <label for="password">비밀번호</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <div class="admin-actions"><button class="admin-button primary" type="submit">로그인</button></div>
+    </form>
+  </section>
+</main>
+<footer th:replace="~{fragments/site :: footer}"></footer>
+</body>
+</html>
