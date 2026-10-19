@@ -4,7 +4,6 @@
 <body class="admin-page">
 <header th:replace="~{fragments/site :: header}"></header>
 <main class="shell page-space">
-  <nav th:replace="~{fragments/admin :: nav('posts')}"></nav>
   <header class="admin-heading">
     <div><h1>글 관리</h1><p th:text="|${filtered ? '검색 결과' : '전체'} ${totalPosts}편 · 최근 수정순|">전체 0편 · 최근 수정순</p></div>
     <a class="admin-button primary" th:href="@{/admin/posts/new}">새 글</a>

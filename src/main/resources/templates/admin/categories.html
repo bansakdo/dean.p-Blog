@@ -4,7 +4,6 @@
 <body class="admin-page">
 <header th:replace="~{fragments/site :: header}"></header>
 <main class="shell page-space">
-  <nav th:replace="~{fragments/admin :: nav('categories')}"></nav>
   <header class="admin-heading">
     <div><h1>카테고리</h1><p th:text="|${categoryRows.size()}개 · 정렬 순서가 작을수록 앞에 보입니다|">0개</p></div>
   </header>

@@ -1,6 +1,7 @@
 package com.deanp.blog.auth.controller;
 
 import com.deanp.blog.auth.service.BlogUserDetailsService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -29,6 +30,29 @@ public class CurrentUserAdvice {
     public boolean canWritePosts(Authentication authentication) {
         return isLoggedIn(authentication) && authentication.getAuthorities().stream()
                 .anyMatch(authority -> BlogUserDetailsService.POST_WRITE.equals(authority.getAuthority()));
+    }
+
+    /**
+     * 사이드 메뉴의 관리 묶음에서 지금 보고 있는 화면을 표시하기 위해 요청 주소로 관리 메뉴를 고른다.
+     *
+     * @param request 현재 요청
+     * @return dashboard·new·posts·categories·series·tags 중 하나, 관리 화면이 아니면 null
+     */
+    @ModelAttribute("adminMenu")
+    public String adminMenu(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        if (path.equals("/admin")) {
+            return "dashboard";
+        }
+        if (path.equals("/admin/posts/new")) {
+            return "new";
+        }
+        for (String menu : new String[] {"posts", "categories", "series", "tags"}) {
+            if (path.equals("/admin/" + menu) || path.startsWith("/admin/" + menu + "/")) {
+                return menu;
+            }
+        }
+        return null;
     }
 
     /**

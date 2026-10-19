@@ -4,7 +4,6 @@
 <body class="admin-page">
 <header th:replace="~{fragments/site :: header}"></header>
 <main class="shell page-space">
-  <nav th:replace="~{fragments/admin :: nav('tags')}"></nav>
   <header class="admin-heading">
     <div><h1 th:text="${tagRow.name}">태그</h1><p th:text="|글 ${tagRow.postCount}편에 붙어 있습니다 (삭제한 글 포함)|">글 0편</p></div>
     <a th:href="@{/admin/tags}">← 태그 목록</a>

@@ -19,8 +19,10 @@ class TaxonomyE2eTest extends E2eTestSupport {
         String tagB = "e2e-tag-b-" + stamp;
         login();
 
-        // 카테고리: 가장 작은 순서로 추가하면 맨 위에 오고, 같은 이름은 거부한다.
-        page.click(".admin-nav a:text('카테고리')");
+        // 카테고리: 사이드 메뉴의 관리 묶음에서 들어가 가장 작은 순서로 추가하면 맨 위에 오고, 같은 이름은 거부한다.
+        page.click(".menu-toggle");
+        page.click(".sidebar-admin a:text-is('카테고리')");
+        expect(page.locator(".sidebar-admin a[aria-current=page]")).hasText("카테고리");
         Locator form = page.locator("section form.admin-term-form");
         form.locator("input[name=name]").fill(categoryName);
         form.locator("input[name=slug]").fill(categorySlug);

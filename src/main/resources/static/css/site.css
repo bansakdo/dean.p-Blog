@@ -355,6 +355,10 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .sidebar-nav { display: grid; gap: 8px; }
 .sidebar-nav a { padding: 10px 12px; border-radius: 8px; }
 .sidebar-nav a:hover { background: var(--accent-soft); }
+.sidebar-admin { margin: 0 0 28px; padding-top: 20px; border-top: 1px solid var(--line); gap: 2px; }
+.sidebar-admin h2 { margin: 0 0 8px; padding: 0 12px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.sidebar-admin a { padding: 8px 12px; font-size: 14px; }
+.sidebar-admin a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 .sidebar-filters { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
 .sidebar-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / .4); z-index: 99; }
 .posts-page .browse-layout { display: block; }
@@ -442,10 +446,6 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .admin-revision dt { margin-top: 16px; color: var(--muted); font-size: 13px; font-weight: 650; }
 .admin-revision dd { margin: 0; overflow-wrap: anywhere; }
 .admin-revision-content { margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 8px; max-height: 70vh; overflow: auto; font-family: "SFMono-Regular", Consolas, monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
-.admin-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; font-size: 14px; }
-.admin-nav a { padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
-.admin-nav a:hover { color: var(--accent); }
-.admin-nav a[aria-current="page"] { border-color: var(--accent); color: var(--accent); font-weight: 650; }
 .dashboard-section { margin-bottom: 36px; min-width: 0; }
 .dashboard-section h2 { margin: 0 0 14px; font-size: 18px; font-weight: 750; }
 .dashboard-section h2 small { margin-left: 6px; color: var(--muted); font-size: 12px; font-weight: 500; }

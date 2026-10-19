@@ -4,7 +4,6 @@
 <body class="admin-page">
 <header th:replace="~{fragments/site :: header}"></header>
 <main class="shell page-space">
-  <nav th:replace="~{fragments/admin :: nav('series')}"></nav>
   <header class="admin-heading">
     <div><h1>시리즈</h1><p th:text="|${seriesRows.size()}개 · 정렬 순서가 작을수록 앞에 보입니다|">0개</p></div>
     <a class="admin-button primary" th:href="@{/admin/series/new}">새 시리즈</a>

@@ -104,13 +104,18 @@ class AdminPostControllerTest {
                 .andExpect(status().isForbidden());
     }
 
-    /** 글 관리 권한이 있으면 목록을 저장 금지 헤더와 함께 보여 준다. */
+    /** 글 관리 권한이 있으면 목록을 저장 금지 헤더와 함께 보여 주고, 사이드 메뉴에 지금 화면(글·새 글)을 표시한다. */
     @Test
     void showsListToWriter() throws Exception {
         mockMvc.perform(get("/admin/posts").with(writer()))
                 .andExpect(status().isOk())
                 .andExpect(view().name("admin/posts"))
-                .andExpect(header().string("Cache-Control", "no-store"));
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(content().string(containsString("href=\"/admin/posts\" aria-current=\"page\">글</a>")));
+        mockMvc.perform(get("/admin/posts/new").with(writer()))
+                .andExpect(content().string(allOf(
+                        containsString("href=\"/admin/posts/new\" aria-current=\"page\">새 글</a>"),
+                        containsString("href=\"/admin/posts\">글</a>"))));
     }
 
     /** CSRF 토큰 없는 저장 요청은 권한이 있어도 거부하고 서비스를 호출하지 않는다. */

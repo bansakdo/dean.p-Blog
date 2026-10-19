@@ -4,7 +4,6 @@
 <body class="admin-page">
 <header th:replace="~{fragments/site :: header}"></header>
 <main class="shell page-space">
-  <nav th:replace="~{fragments/admin :: nav('dashboard')}"></nav>
   <header class="admin-heading">
     <div><h1>대시보드</h1><p>조회 통계는 글 상세 화면을 연 횟수이며 한국 시간 기준입니다.</p></div>
     <a class="admin-button primary" th:href="@{/admin/posts/new}">새 글</a>
