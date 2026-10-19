@@ -36,7 +36,7 @@ public class SecurityConfiguration {
                         .anyRequest().permitAll())
                 .formLogin(login -> login
                         .loginPage("/login")
-                        .defaultSuccessUrl("/admin/posts")
+                        .defaultSuccessUrl("/admin")
                         .failureHandler(loginFailureHandler()))
                 .logout(logout -> logout.logoutSuccessUrl("/"))
                 // 공개 화면의 정적 파일 캐시 동작을 바꾸지 않도록 캐시 금지 헤더는 관리 화면에서만 직접 붙인다.

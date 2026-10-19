@@ -41,7 +41,7 @@
       </th:block>
       <th:block th:if="${currentUserName != null}">
         <p class="account-description" th:text="|${currentUserName} 님으로 로그인했습니다.|">로그인했습니다.</p>
-        <a class="account-action" th:if="${canWritePosts}" th:href="@{/admin/posts}"><span>글 관리</span></a>
+        <a class="account-action" th:if="${canWritePosts}" th:href="@{/admin}"><span>관리</span></a>
         <form method="post" th:action="@{/logout}"><button class="account-action" type="submit"><span>로그아웃</span></button></form>
       </th:block>
     </section>

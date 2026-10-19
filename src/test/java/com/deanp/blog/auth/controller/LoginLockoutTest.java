@@ -55,11 +55,11 @@ class LoginLockoutTest {
                 eq(BlogUserDetailsService.WRITE_PERMISSION))).thenReturn(true);
     }
 
-    /** 맞는 비밀번호는 글 관리 화면으로 보낸다. */
+    /** 맞는 비밀번호는 관리 대시보드로 보낸다. */
     @Test
     void logsInWithCorrectPassword() throws Exception {
         mockMvc.perform(formLogin("/login").user("admin").password(PASSWORD))
-                .andExpect(redirectedUrl("/admin/posts"));
+                .andExpect(redirectedUrl("/admin"));
     }
 
     /** 다섯 번 틀린 뒤에는 맞는 비밀번호도 거부하고 잠금 안내로 보낸다. */

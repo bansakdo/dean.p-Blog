@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 /**
  * 방문자 이벤트에 저장할 요청 메타데이터를 개인정보 최소화 규칙으로 정제한다.
@@ -12,13 +14,19 @@ import java.net.URISyntaxException;
  * @param referrerHost Referer의 호스트명
  * @param userAgent 정제된 User-Agent
  * @param requestId 요청 식별자
+ * @param countryCode 접속 국가 ISO 3166-1 alpha-2 코드, 모르면 null
  */
 public record VisitorRequestMetadata(
         String ipAddress,
         String referrerHost,
         String userAgent,
-        String requestId
+        String requestId,
+        String countryCode
 ) {
+
+    /** Cloudflare가 방문자 IP로 판단해 붙이는 국가 헤더 */
+    static final String COUNTRY_HEADER = "CF-IPCountry";
+    private static final Pattern COUNTRY_CODE = Pattern.compile("[A-Z]{2}");
 
     private static final int MAX_USER_AGENT_LENGTH = 512;
     private static final int MAX_REQUEST_ID_LENGTH = 100;
@@ -31,6 +39,16 @@ public record VisitorRequestMetadata(
         referrerHost = normalizeReferrerHost(referrerHost);
         userAgent = truncateAndRemoveControlCharacters(userAgent, MAX_USER_AGENT_LENGTH);
         requestId = truncateAndRemoveControlCharacters(requestId, MAX_REQUEST_ID_LENGTH);
+        countryCode = normalizeCountryCode(countryCode);
+    }
+
+    /**
+     * Referer 호스트가 검색 결과 화면이면 검색 엔진 이름을 돌려준다.
+     *
+     * @return 검색 엔진 이름, 검색 유입이 아니면 null
+     */
+    public String searchEngine() {
+        return SearchEngines.fromHost(referrerHost);
     }
 
     /**
@@ -39,7 +57,7 @@ public record VisitorRequestMetadata(
      * @return 모든 값이 없는 메타데이터
      */
     public static VisitorRequestMetadata empty() {
-        return new VisitorRequestMetadata(null, null, null, null);
+        return new VisitorRequestMetadata(null, null, null, null, null);
     }
 
     /**
@@ -54,7 +72,8 @@ public record VisitorRequestMetadata(
                 clientIpAddress(request, trustedProxyMatcher),
                 request.getHeader("Referer"),
                 request.getHeader("User-Agent"),
-                request.getHeader("X-Request-ID")
+                request.getHeader("X-Request-ID"),
+                request.getHeader(COUNTRY_HEADER)
         );
     }
 
@@ -121,6 +140,20 @@ public record VisitorRequestMetadata(
                 && value.matches("[A-Za-z0-9.-]+")
                 && !value.startsWith(".")
                 && !value.endsWith(".");
+    }
+
+    /**
+     * 두 글자 국가 코드만 남긴다. Cloudflare가 알 수 없음(XX)·Tor(T1)로 붙인 값과 형식이 다른 값은 버린다.
+     *
+     * @param value 국가 헤더 값
+     * @return 대문자 두 글자 국가 코드 또는 null
+     */
+    private static String normalizeCountryCode(String value) {
+        if (value == null) {
+            return null;
+        }
+        String code = value.trim().toUpperCase(Locale.ROOT);
+        return COUNTRY_CODE.matcher(code).matches() && !"XX".equals(code) ? code : null;
     }
 
     private static String truncateAndRemoveControlCharacters(String value, int maxLength) {

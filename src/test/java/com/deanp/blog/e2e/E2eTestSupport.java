@@ -146,13 +146,13 @@ abstract class E2eTestSupport {
         }
     }
 
-    /** 테스트용 관리자로 로그인하고 글 목록에 도착한 것을 확인한다. */
+    /** 테스트용 관리자로 로그인하고 관리 대시보드에 도착한 것을 확인한다. */
     protected void login() {
         page.navigate("/login");
         page.fill("#username", ADMIN_LOGIN_ID);
         page.fill("#password", ADMIN_PASSWORD);
         page.click("button[type=submit]");
-        page.waitForURL("**/admin/posts");
+        page.waitForURL("**/admin");
     }
 
     /**
@@ -190,6 +190,18 @@ abstract class E2eTestSupport {
             return anonymous.get(path, RequestOptions.create().setMaxRedirects(0)).status();
         } finally {
             anonymous.dispose();
+        }
+    }
+
+    /**
+     * 로그인하지 않은 새 브라우저로 화면을 한 번 열고 닫는다. 방문 통계에 잡히는 조회를 만들 때 쓴다.
+     *
+     * @param path 서버 경로
+     */
+    protected void anonymousVisit(String path) {
+        try (BrowserContext anonymous = browser.newContext(new Browser.NewContextOptions()
+                .setBaseURL("http://localhost:" + port))) {
+            anonymous.newPage().navigate(path);
         }
     }
 
