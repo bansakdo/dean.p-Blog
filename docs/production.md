@@ -106,6 +106,7 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 - reverse proxy는 외부 요청의 기존 `X-Forwarded-For` 값을 제거·재작성해야 합니다.
 - 예: `VISITOR_TRUSTED_PROXIES=10.0.0.0/8,192.0.2.10/32`
 - 실제 프록시 네트워크가 확정되지 않은 상태에서 해당 환경변수를 설정하지 않습니다.
+- 내부망(사설·루프백 대역)에서 온 조회는 방문 통계에서 뺍니다(`app.visitor.exclude-private-networks=true`). 서버가 쓰는 공인 IP처럼 더 뺄 주소는 `VISITOR_EXCLUDED_NETWORKS`에 쉼표로 구분한 CIDR로 지정합니다(예: `VISITOR_EXCLUDED_NETWORKS=198.51.100.7/32`). 공인 IP가 바뀌면 이 값도 바꿔야 하며, 잘못된 CIDR이면 앱이 시작하지 않습니다.
 
 ## 배포 점검 목록
 
