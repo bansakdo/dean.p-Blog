@@ -6,6 +6,8 @@ import com.deanp.blog.media.service.PostFileService;
 import com.deanp.blog.media.service.PostFileService.PostFile;
 import com.deanp.blog.post.PostView;
 import com.deanp.blog.post.PostSeriesOption;
+import com.deanp.blog.post.service.BoardService;
+import com.deanp.blog.post.service.BoardService.BoardView;
 import com.deanp.blog.post.service.PostService;
 import com.deanp.blog.visitor.controller.VisitorCookieIdentifier;
 import com.deanp.blog.visitor.service.VisitorPostViewTrackingService;
@@ -61,6 +63,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         SidebarFilterModel.class})
 class BlogControllerTest {
 
+    private static final BoardView DEV_BOARD = new BoardView(new UUID(0, 0xb1), "dev", "개발", "개발하며 배운 것들, 만들어 가는 이야기.");
+    private static final BoardView NOTES_BOARD = new BoardView(new UUID(0, 0xb2), "notes", "노트", "개발 밖의 정보와 생각을 나눕니다.");
+
     /** 헤더와 메뉴가 공통 높이 변수를 사용하고 모바일 높이는 유지되는지 확인한다. */
     @Test
     void sidebarHeightMatchesDesktopHeader() throws Exception {
@@ -93,6 +98,9 @@ class BlogControllerTest {
     private PostService postService;
 
     @MockitoBean
+    private BoardService boardService;
+
+    @MockitoBean
     private PostFileService postFiles;
 
     @MockitoBean
@@ -118,11 +126,11 @@ class BlogControllerTest {
     /** 조건 없는 글 목록은 색인하고, 필터·페이지 조건이 붙은 목록과 검색 화면은 색인에서 뺀다. */
     @Test
     void filteredListsAndSearchAreNotIndexed() throws Exception {
-        mockMvc.perform(get("/posts"))
-                .andExpect(content().string(containsString("<link rel=\"canonical\" href=\"http://localhost/posts\">")))
+        mockMvc.perform(get("/dev"))
+                .andExpect(content().string(containsString("<link rel=\"canonical\" href=\"http://localhost/dev\">")))
                 .andExpect(content().string(containsString("<meta name=\"description\" content=\"개발 공부를 하며 배운 것과 나만의 이야기를 기록하는 dean.p의 개인 공간입니다.\">")))
                 .andExpect(content().string(not(containsString("name=\"robots\""))));
-        mockMvc.perform(get("/posts").param("category", "dev"))
+        mockMvc.perform(get("/dev").param("category", "dev"))
                 .andExpect(content().string(containsString("<meta name=\"robots\" content=\"noindex, follow\">")))
                 .andExpect(content().string(not(containsString("rel=\"canonical\""))));
         mockMvc.perform(get("/search").param("q", "spring"))
@@ -154,18 +162,18 @@ class BlogControllerTest {
     /** 목록에서 고른 분류가 글 링크로 전달되어 상세 사이드바에 유지되고, 상세의 태그는 날짜 아래에 표시된다. */
     @Test
     void postDetailKeepsSidebarFiltersAndShowsTagsBelowDate() throws Exception {
-        when(postService.findCategories()).thenReturn(List.of(
+        when(postService.findCategories("dev")).thenReturn(List.of(
                 new com.deanp.blog.post.PostFilterOption("dev", "개발", 2),
                 new com.deanp.blog.post.PostFilterOption("life", "일상", 1)));
-        when(postService.findSeries("dev")).thenReturn(List.of());
-        when(postService.findPage("dev", null, List.of(), null, 1, 20))
+        when(postService.findSeries("dev", "dev")).thenReturn(List.of());
+        when(postService.findPage("dev", "dev", null, List.of(), null, 1, 20))
                 .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(0, 20), 1));
         when(postService.findBySlug("real-post")).thenReturn(Optional.of(postView()));
 
-        mockMvc.perform(get("/posts").param("category", "dev"))
+        mockMvc.perform(get("/dev").param("category", "dev"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("href=\"/posts/real-post?category=dev\"")));
-        mockMvc.perform(get("/posts"))
+        mockMvc.perform(get("/dev"))
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("postLinkQuery", ""));
 
@@ -173,7 +181,7 @@ class BlogControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("selectedCategory", "dev"))
                 .andExpect(content().string(containsString("class=\"sidebar-filters\"")))
-                .andExpect(content().string(containsString("href=\"/posts?category=life&amp;tag=&amp;q=&amp;size=20\"")))
+                .andExpect(content().string(containsString("href=\"/dev?category=life&amp;tag=&amp;q=&amp;size=20\"")))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         String activeCategory = detail.substring(detail.indexOf("aria-current=\"true\""));
         org.junit.jupiter.api.Assertions.assertTrue(
@@ -185,14 +193,79 @@ class BlogControllerTest {
         Files.writeString(output, detail);
     }
 
-    /** 검색 페이지에서도 사이드 메뉴 ‘글’ 아래에 분류 필터를 두되, 글 화면이 아니므로 접어 둔다. */
+    /** 예전 글 목록 주소는 필터 쿼리를 유지한 채 기본 게시판 목록으로 영구 이동한다. */
     @Test
-    void searchSidebarKeepsPostFiltersCollapsed() throws Exception {
+    void legacyPostListRedirectsToDefaultBoard() throws Exception {
+        mockMvc.perform(get("/posts"))
+                .andExpect(status().isMovedPermanently())
+                .andExpect(header().string("Location", "/dev"));
+        mockMvc.perform(get("/posts?category=algorithm&size=50"))
+                .andExpect(status().isMovedPermanently())
+                .andExpect(header().string("Location", "/dev?category=algorithm&size=50"));
+    }
+
+    /** 노트 게시판 목록은 노트 글만 조회하고, 제목·소개·필터 링크·사이드 메뉴를 노트 기준으로 그린다. 없는 게시판은 404다. */
+    @Test
+    void rendersNotesBoardAndRejectsUnknownBoard() throws Exception {
+        when(postService.findPage("notes", null, null, List.of(), null, 1, 20))
+                .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/notes"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<h1>노트</h1>")))
+                .andExpect(content().string(containsString("개발 밖의 정보와 생각을 나눕니다.")))
+                .andExpect(content().string(containsString("aria-expanded=\"true\" aria-label=\"노트 메뉴 접기\"")))
+                .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"개발 메뉴 펼치기\"")))
+                .andExpect(content().string(containsString("태그로 좁혀보기")))
+                .andExpect(content().string(containsString("href=\"/notes?tag=&amp;q=&amp;size=20\"")))
+                .andExpect(content().string(containsString("<link rel=\"canonical\" href=\"http://localhost/notes\">")));
+        verify(postService).findPage("notes", null, null, List.of(), null, 1, 20);
+        verify(postService).findCategories("notes");
+
+        mockMvc.perform(get("/no-such-board")).andExpect(status().isNotFound());
+    }
+
+    /** 게시판 주소는 점이 없는 한 단어만 받으므로 사이트 최상위의 정적 파일은 그대로 열린다. */
+    @Test
+    void boardPathDoesNotShadowRootStaticFiles() throws Exception {
+        mockMvc.perform(get("/google7427df080ec63bba.html"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("google-site-verification: google7427df080ec63bba.html"));
+    }
+
+    /** 노트 글 상세는 사이드 메뉴 필터와 목록으로 돌아가는 링크를 그 글의 게시판 기준으로 그린다. */
+    @Test
+    void postDetailUsesItsBoard() throws Exception {
+        PostView note = new PostView(new UUID(0, 9), "note-post", "노트 글", "요약", LocalDate.of(2026, 10, 1), 1,
+                List.of(), "<p>본문</p>", null, null, null, null, null, "notes", "노트");
+        when(postService.findBySlug("note-post")).thenReturn(Optional.of(note));
+
+        mockMvc.perform(get("/posts/note-post"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<a class=\"back-link\" href=\"/notes\">← 노트</a>")))
+                .andExpect(content().string(containsString("aria-expanded=\"true\" aria-label=\"노트 메뉴 접기\"")))
+                .andExpect(content().string(containsString("태그로 좁혀보기")));
+        verify(postService).findCategories("notes");
+    }
+
+    /** 게시판이 아닌 화면에서도 모든 게시판의 카테고리 하위 메뉴를 접힌 채로 두고, 시리즈·태그 같은 상세 조건은 두지 않는다. */
+    @Test
+    void searchSidebarKeepsBoardMenusCollapsed() throws Exception {
+        when(postService.findCategories("dev")).thenReturn(List.of(new com.deanp.blog.post.PostFilterOption("algorithm", "알고리즘", 3)));
+        when(postService.findCategories("notes")).thenReturn(List.of(new com.deanp.blog.post.PostFilterOption("conference", "컨퍼런스", 1)));
+        when(postService.countPublishedPosts("notes")).thenReturn(2L);
+
         mockMvc.perform(get("/search"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("class=\"sidebar-filters\"")))
-                .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"글 메뉴 펼치기\"")))
-                .andExpect(content().string(matchesPattern("(?s).*id=\"sidebar-posts-menu\"[^>]*hidden.*")))
+                .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"개발 메뉴 펼치기\"")))
+                .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"노트 메뉴 펼치기\"")))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"sidebar-board-dev-menu\"[^>]*hidden.*")))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"sidebar-board-notes-menu\"[^>]*hidden.*")))
+                .andExpect(content().string(containsString("href=\"/dev?category=algorithm\"")))
+                .andExpect(content().string(containsString("href=\"/notes?category=conference\"")))
+                .andExpect(content().string(matchesPattern("(?s).*href=\"/notes\">\\s*<span>전체 글</span><span class=\"filter-count\">2</span>.*")))
+                .andExpect(content().string(not(containsString("태그로 좁혀보기"))))
+                .andExpect(content().string(not(containsString("series-filter-title"))))
                 .andExpect(content().string(containsString("id=\"site-sidebar\"")))
                 .andExpect(content().string(containsString("aria-controls=\"site-sidebar\"")));
     }
@@ -253,14 +326,16 @@ class BlogControllerTest {
         verify(postService).findAll(null, null, null, "missing");
     }
 
-    /** 공통 메뉴에는 소개·글만 순서대로 표시하고, 글 화면에서는 ‘글’ 하위 메뉴(분류 필터)를 펼치며 테마 버튼은 유지한다. */
+    /** 공통 메뉴에는 소개와 게시판(개발·노트)을 순서대로 표시하고, 게시판 목록에서는 그 게시판의 하위 메뉴(분류 필터)를 펼치며 테마 버튼은 유지한다. */
     @Test
     void sidebarNavigationAndThemeAreRendered() throws Exception {
-        mockMvc.perform(get("/posts"))
+        mockMvc.perform(get("/dev"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(matchesPattern("(?s).*class=\"sidebar-nav\"[^>]*>\\s*<a class=\"sidebar-leaf\" href=\"/about\">소개</a>\\s*<div class=\"sidebar-group\">.*<a id=\"sidebar-posts-title\" href=\"/posts\">글</a>.*</nav>.*")))
-                .andExpect(content().string(containsString("aria-expanded=\"true\" aria-label=\"글 메뉴 접기\"")))
-                .andExpect(content().string(not(matchesPattern("(?s).*id=\"sidebar-posts-menu\"[^>]*hidden.*"))))
+                .andExpect(content().string(matchesPattern("(?s).*class=\"sidebar-nav\"[^>]*>\\s*<a class=\"sidebar-leaf\" href=\"/about\">소개</a>\\s*<div class=\"sidebar-group\">.*<a id=\"sidebar-board-dev-title\" href=\"/dev\">개발</a>.*<a id=\"sidebar-board-notes-title\" href=\"/notes\">노트</a>.*</nav>.*")))
+                .andExpect(content().string(containsString("aria-expanded=\"true\" aria-label=\"개발 메뉴 접기\"")))
+                .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"노트 메뉴 펼치기\"")))
+                .andExpect(content().string(not(matchesPattern("(?s).*id=\"sidebar-board-dev-menu\"[^>]*hidden.*"))))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"sidebar-board-notes-menu\"[^>]*hidden.*")))
                 .andExpect(content().string(not(containsString(">검색</a>"))))
                 .andExpect(content().string(not(containsString("<strong>메뉴</strong>"))))
                 .andExpect(content().string(not(containsString("<span>테마</span>"))))
@@ -280,15 +355,15 @@ class BlogControllerTest {
         var first = IntStream.range(0, 21)
                 .mapToObj(index -> new com.deanp.blog.post.PostFilterOption("tag-" + index, "태그" + index))
                 .toList();
-        when(postService.findTags(0, 21)).thenReturn(first);
-        mockMvc.perform(get("/posts"))
+        when(postService.findTags("dev", 0, 21)).thenReturn(first);
+        mockMvc.perform(get("/dev"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-offset=\"20\"")))
                 .andExpect(content().string(containsString("태그19</a>")))
                 .andExpect(content().string(not(containsString("태그20</a>"))));
 
-        when(postService.findTags(20, 21)).thenReturn(List.of(first.get(20)));
-        mockMvc.perform(get("/posts/tags/more").param("offset", "20"))
+        when(postService.findTags("dev", 20, 21)).thenReturn(List.of(first.get(20)));
+        mockMvc.perform(get("/posts/tags/more").param("board", "dev").param("offset", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tags[0].slug").value("tag-20"))
                 .andExpect(jsonPath("$.hasMore").value(false));
@@ -301,19 +376,19 @@ class BlogControllerTest {
     void rendersMultipleTagFiltersAndKeepsCategorySelection() throws Exception {
         var options = List.of(new com.deanp.blog.post.PostFilterOption("java", "Java"),
                 new com.deanp.blog.post.PostFilterOption("spring", "Spring"));
-        when(postService.findCategories()).thenReturn(List.of(new com.deanp.blog.post.PostFilterOption("dev", "개발", 2)));
-        when(postService.findTags()).thenReturn(options);
-        when(postService.findTags(0, 21)).thenReturn(options);
-        when(postService.findPage("dev", null, List.of("java", "spring"), null, 1, 20))
+        when(postService.findCategories("dev")).thenReturn(List.of(new com.deanp.blog.post.PostFilterOption("dev", "개발", 2)));
+        when(postService.findTags("dev")).thenReturn(options);
+        when(postService.findTags("dev", 0, 21)).thenReturn(options);
+        when(postService.findPage("dev", "dev", null, List.of("java", "spring"), null, 1, 20))
                 .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(0, 20), 1));
 
-        mockMvc.perform(get("/posts").param("category", "dev").param("tag", " java , spring, java "))
+        mockMvc.perform(get("/dev").param("category", "dev").param("tag", " java , spring, java "))
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("selectedTag", "java,spring"))
                 .andExpect(content().string(containsString("Java ×")))
                 .andExpect(content().string(containsString("Spring ×")))
                 .andExpect(content().string(not(containsString("aria-hidden=\"true\"> ✓</span>"))));
-        verify(postService).findPage("dev", null, List.of("java", "spring"), null, 1, 20);
+        verify(postService).findPage("dev", "dev", null, List.of("java", "spring"), null, 1, 20);
     }
 
     /** 첫 태그 구간 밖에서 선택한 태그도 사이드바 상단에 활성 상태로 유지한다. */
@@ -321,10 +396,10 @@ class BlogControllerTest {
     void keepsSelectedTagVisibleOutsideInitialBatch() throws Exception {
         var first = new com.deanp.blog.post.PostFilterOption("java", "Java");
         var selected = new com.deanp.blog.post.PostFilterOption("kotlin", "Kotlin");
-        when(postService.findTags(0, 21)).thenReturn(List.of(first));
-        when(postService.findTags()).thenReturn(List.of(first, selected));
+        when(postService.findTags("dev", 0, 21)).thenReturn(List.of(first));
+        when(postService.findTags("dev")).thenReturn(List.of(first, selected));
 
-        mockMvc.perform(get("/posts").param("tag", "kotlin"))
+        mockMvc.perform(get("/dev").param("tag", "kotlin"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-tag-slug=\"kotlin\"")))
                 .andExpect(content().string(containsString("Kotlin ×")));
@@ -333,46 +408,49 @@ class BlogControllerTest {
     /** 기본 20개·선택한 페이지 크기·페이지 이동과 필터 유지 및 범위 오류를 검증한다. */
     @Test
     void rendersPostPaginationAndPageSizeChoices() throws Exception {
-        when(postService.findPage(null, null, List.of(), null, 1, 20))
+        when(postService.findPage("dev", null, null, List.of(), null, 1, 20))
                 .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(0, 20), 41));
-        when(postService.findPage(null, null, List.of(), null, 2, 20))
+        when(postService.findPage("dev", null, null, List.of(), null, 2, 20))
                 .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(1, 20), 41));
-        when(postService.findPage(null, null, List.of(), null, 1, 10))
+        when(postService.findPage("dev", null, null, List.of(), null, 1, 10))
                 .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(0, 10), 41));
-        when(postService.findPage(null, null, List.of(), null, 4, 20))
+        when(postService.findPage("dev", null, null, List.of(), null, 4, 20))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(3, 20), 41));
 
-        mockMvc.perform(get("/posts"))
+        mockMvc.perform(get("/dev"))
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("pageSize", 20))
                 .andExpect(model().attribute("totalPages", 3))
                 .andExpect(content().string(containsString("41편")))
                 .andExpect(content().string(containsString("글 목록 페이지")));
-        mockMvc.perform(get("/posts").param("page", "2"))
+        mockMvc.perform(get("/dev").param("page", "2"))
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("currentPage", 2))
                 .andExpect(content().string(containsString("aria-current=\"page\"")));
-        mockMvc.perform(get("/posts").param("size", "10"))
+        mockMvc.perform(get("/dev").param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("pageSize", 10))
                 .andExpect(content().string(containsString("size=10")))
                 .andExpect(content().string(containsString("name=\"size\" onchange=\"this.form.submit()\"")))
                 .andExpect(content().string(not(containsString("<button type=\"submit\">적용</button>"))));
-        mockMvc.perform(get("/posts").param("page", "0")).andExpect(status().isBadRequest());
-        mockMvc.perform(get("/posts").param("size", "30")).andExpect(status().isBadRequest());
-        mockMvc.perform(get("/posts").param("page", "4")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/dev").param("page", "0")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/dev").param("size", "30")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/dev").param("page", "4")).andExpect(status().isNotFound());
     }
 
     /** 목록 템플릿이 필터 목록을 반복할 수 있도록 기본 빈 선택지를 제공한다. */
     @BeforeEach
     void defaultFilterOptions() {
+        when(boardService.findActive()).thenReturn(List.of(DEV_BOARD, NOTES_BOARD));
+        when(boardService.findActive("dev")).thenReturn(Optional.of(DEV_BOARD));
+        when(boardService.findActive("notes")).thenReturn(Optional.of(NOTES_BOARD));
         when(postService.findAll(any(), any(), any(), any())).thenReturn(List.of());
-        when(postService.findPage(any(), any(), any(), any(), anyInt(), anyInt()))
+        when(postService.findPage(any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
-        when(postService.findCategories()).thenReturn(List.of());
-        when(postService.findSeries(null)).thenReturn(List.of());
-        when(postService.findSeries(null, null)).thenReturn(Optional.empty());
-        when(postService.findTags()).thenReturn(List.of());
+        when(postService.findCategories("dev")).thenReturn(List.of());
+        when(postService.findSeries("dev", null)).thenReturn(List.of());
+        when(postService.findSeries("dev", null, null)).thenReturn(Optional.empty());
+        when(postService.findTags("dev")).thenReturn(List.of());
     }
 
     /** 실제 템플릿으로 시안의 목록·선택 표시·편수·원본 연재 번호를 검증한다. */
@@ -380,19 +458,19 @@ class BlogControllerTest {
     void rendersArchiveDesignAndWritesBrowserFixtures() throws Exception {
         var selected = new PostSeriesOption("spring-blog", "Spring으로 블로그 만들기",
                 "프로젝트 준비부터 배포까지, 작은 블로그를 완성하는 과정입니다.", "dev", 3, "ACTIVE");
-        when(postService.countPublishedPosts()).thenReturn(12L);
-        when(postService.findCategories()).thenReturn(List.of(
+        when(postService.countPublishedPosts("dev")).thenReturn(12L);
+        when(postService.findCategories("dev")).thenReturn(List.of(
                 new com.deanp.blog.post.PostFilterOption("dev", "개발", 8),
                 new com.deanp.blog.post.PostFilterOption("project", "프로젝트", 2),
                 new com.deanp.blog.post.PostFilterOption("life", "일상", 2)));
-        when(postService.findTags()).thenReturn(List.of(
+        when(postService.findTags("dev")).thenReturn(List.of(
                 new com.deanp.blog.post.PostFilterOption("java", "Java"),
                 new com.deanp.blog.post.PostFilterOption("spring", "Spring"),
                 new com.deanp.blog.post.PostFilterOption("postgres", "PostgreSQL")));
         var series = List.of(selected, new PostSeriesOption("database", "처음 배우는 데이터베이스",
                 "데이터베이스를 차근차근 배웁니다.", "dev", 4, "COMPLETED"));
-        when(postService.findSeries("dev")).thenReturn(series);
-        when(postService.findSeries("dev", "spring-blog")).thenReturn(Optional.of(selected));
+        when(postService.findSeries("dev", "dev")).thenReturn(series);
+        when(postService.findSeries("dev", "dev", "spring-blog")).thenReturn(Optional.of(selected));
         var titles = List.of("Spring Boot로 나만의 블로그 시작하기", "카테고리와 태그, 단순하지만 유연하게", "글 목록과 상세 화면 만들기");
         var summaries = List.of("작게 시작해서 오래 운영할 수 있는 블로그. 첫 번째로 프로젝트의 구조와 기본 설정을 정리했습니다.",
                 "글을 쉽게 찾을 수 있도록 분류를 설계합니다. 복잡한 계층 대신 단순한 관계부터 시작합니다.",
@@ -401,9 +479,9 @@ class BlogControllerTest {
                 "preview-" + i, titles.get(i), summaries.get(i), LocalDate.of(2026, 9, 18).minusDays(i),
                 6, List.of("Java", i == 0 ? "Spring" : "PostgreSQL"), "", i == 0 ? "/media/list-thumbnail.png" : null,
                 "개발", "spring-blog", selected.name(), i * 2 + 1)).toList();
-        when(postService.findPage("dev", "spring-blog", List.of(), null, 1, 20))
+        when(postService.findPage("dev", "dev", "spring-blog", List.of(), null, 1, 20))
                 .thenReturn(new PageImpl<>(posts, PageRequest.of(0, 20), 3));
-        var result = mockMvc.perform(get("/posts").param("category", "dev").param("series", "spring-blog"))
+        var result = mockMvc.perform(get("/dev").param("category", "dev").param("series", "spring-blog"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("전체 3편 · 연재 중")))
                 .andExpect(content().string(containsString("4편 · 완결")))
@@ -418,7 +496,7 @@ class BlogControllerTest {
         Path output = Path.of("build/reports/ui-preview/selected.html");
         Files.createDirectories(output.getParent());
         Files.writeString(output, result.getResponse().getContentAsString(StandardCharsets.UTF_8));
-        var empty = mockMvc.perform(get("/posts").param("q", "<script>alert(1)</script>"))
+        var empty = mockMvc.perform(get("/dev").param("q", "<script>alert(1)</script>"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("선택한 조건에 맞는 글이 없습니다.")))
                 .andExpect(content().string(not(containsString("<script>alert(1)</script>"))))
@@ -439,7 +517,7 @@ class BlogControllerTest {
                 "<p><strong>Markdown</strong> 본문</p>\n"
         );
         when(postService.findAll()).thenReturn(List.of(post));
-        when(postService.findPage(null, null, List.of(), null, 1, 20))
+        when(postService.findPage("dev", null, null, List.of(), null, 1, 20))
                 .thenReturn(new PageImpl<>(List.of(post), PageRequest.of(0, 20), 1));
         when(postService.findBySlug("real-post")).thenReturn(Optional.of(post));
 
@@ -448,7 +526,7 @@ class BlogControllerTest {
                 .andExpect(view().name("home"))
                 .andExpect(content().string(containsString("실제 발행 글")));
 
-        mockMvc.perform(get("/posts"))
+        mockMvc.perform(get("/dev"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("posts"))
                 .andExpect(content().string(containsString("PostgreSQL에서 읽은 글입니다.")));
@@ -512,8 +590,8 @@ class BlogControllerTest {
                             .attribute("featuredPosts", posts.stream().limit(6).toList()))
                     .andExpect(model()
                             .attribute("recentPosts", posts.stream().skip(1).toList()))
-                    .andExpect(content().string(containsString("href=\"/posts\" aria-label=\"최근 생각 더 보기\"")))
-                    .andExpect(content().string(containsString("href=\"/posts\" aria-label=\"새로운 글 더 보기\"")))
+                    .andExpect(content().string(containsString("href=\"/dev\" aria-label=\"최근 생각 더 보기\"")))
+                    .andExpect(content().string(containsString("href=\"/dev\" aria-label=\"새로운 글 더 보기\"")))
                     .andReturn();
             String html = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
             org.junit.jupiter.api.Assertions.assertEquals(Math.min(count, 6),
@@ -560,7 +638,7 @@ class BlogControllerTest {
                 .andExpect(view().name("home"))
                 .andExpect(content().string(containsString("아직 공개된 글이 없습니다.")));
 
-        mockMvc.perform(get("/posts"))
+        mockMvc.perform(get("/dev"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("posts"))
                 .andExpect(content().string(containsString("아직 공개된 글이 없습니다.")));
@@ -572,19 +650,19 @@ class BlogControllerTest {
      */
     @Test
     void rendersCombinedFiltersAndEmptyResults() throws Exception {
-        when(postService.findCategories()).thenReturn(List.of(
+        when(postService.findCategories("dev")).thenReturn(List.of(
                 new com.deanp.blog.post.PostFilterOption("dev", "개발"),
                 new com.deanp.blog.post.PostFilterOption("life", "일상")));
-        when(postService.findTags()).thenReturn(List.of(
+        when(postService.findTags("dev")).thenReturn(List.of(
                 new com.deanp.blog.post.PostFilterOption("java", "Java"),
                 new com.deanp.blog.post.PostFilterOption("spring", "Spring")));
-        when(postService.findSeries("dev")).thenReturn(List.of(
+        when(postService.findSeries("dev", "dev")).thenReturn(List.of(
                 new PostSeriesOption("boot-camp", "부트 캠프", "소개", "dev")));
-        when(postService.findPage("dev", "boot-camp", List.of("java"), "검색어", 1, 20))
+        when(postService.findPage("dev", "dev", "boot-camp", List.of("java"), "검색어", 1, 20))
                 .thenReturn(new PageImpl<>(List.of(postView()), PageRequest.of(0, 20), 1));
-        when(postService.findSeries("dev", "boot-camp")).thenReturn(Optional.of(
+        when(postService.findSeries("dev", "dev", "boot-camp")).thenReturn(Optional.of(
                 new PostSeriesOption("boot-camp", "부트 캠프", "소개", "dev")));
-        var result = mockMvc.perform(get("/posts")
+        var result = mockMvc.perform(get("/dev")
                         .param("category", " dev ")
                         .param("series", " boot-camp ")
                         .param("tag", " java ")
@@ -601,15 +679,15 @@ class BlogControllerTest {
         Path output = Path.of("build/reports/series/selected.html");
         Files.createDirectories(output.getParent());
         Files.writeString(output, result.getResponse().getContentAsString(StandardCharsets.UTF_8));
-        verify(postService).findPage("dev", "boot-camp", List.of("java"), "검색어", 1, 20);
+        verify(postService).findPage("dev", "dev", "boot-camp", List.of("java"), "검색어", 1, 20);
 
-        mockMvc.perform(get("/posts").param("tag", "missing"))
+        mockMvc.perform(get("/dev").param("tag", "missing"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("선택한 조건에 맞는 글이 없습니다.")))
                 .andExpect(model().attribute("selectedTag", "missing"));
-        mockMvc.perform(get("/posts").param("category", " ").param("tag", ""))
+        mockMvc.perform(get("/dev").param("category", " ").param("tag", ""))
                 .andExpect(status().isOk()).andExpect(model().attribute("hasFilters", false));
-        verify(postService).findPage(null, null, List.of(), null, 1, 20);
+        verify(postService).findPage("dev", null, null, List.of(), null, 1, 20);
     }
 
     @Test
@@ -624,16 +702,16 @@ class BlogControllerTest {
                 List.of(),
                 "<p>본문</p>\n"
         );
-        when(postService.findPage("spring", null, List.of(), null, 1, 20))
+        when(postService.findPage("dev", "spring", null, List.of(), null, 1, 20))
                 .thenReturn(new PageImpl<>(List.of(post), PageRequest.of(0, 20), 1));
-        when(postService.findSeries("spring")).thenReturn(List.of());
+        when(postService.findSeries("dev", "spring")).thenReturn(List.of());
 
-        mockMvc.perform(get("/posts").param("category", "spring"))
+        mockMvc.perform(get("/dev").param("category", "spring"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("posts"))
                 .andExpect(content().string(containsString("Spring 카테고리 글")));
 
-        verify(postService).findPage("spring", null, List.of(), null, 1, 20);
+        verify(postService).findPage("dev", "spring", null, List.of(), null, 1, 20);
     }
 
     /**

@@ -30,6 +30,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ActiveProfiles("dev")
 @Transactional
 class PostEditorServiceTest {
+    /** V12가 만든 개발·노트 게시판 식별자 */
+    private static final UUID DEV_BOARD = UUID.fromString("00000000-0000-4000-8000-000000000001");
+    private static final UUID NOTES_BOARD = UUID.fromString("00000000-0000-4000-8000-000000000002");
+
 
     private static final TestPostgresql DB = new TestPostgresql();
     private static final String AUTHOR = "editor-user";
@@ -63,6 +67,39 @@ class PostEditorServiceTest {
         jdbc.update("INSERT INTO blog.app_user (id, login_id, password_hash, name) VALUES (?, ?, 'hash', '작성자')", id(1), AUTHOR);
         jdbc.update("INSERT INTO blog.post_category (id, slug, name) VALUES (?, 'editor-dev', '개발')", id(10));
         jdbc.update("INSERT INTO blog.post_category (id, slug, name) VALUES (?, 'editor-life', '일상')", id(11));
+    }
+
+    /** 게시판을 고르면 그 게시판에 두고, 다른 게시판의 카테고리는 거부하며, 고칠 때 게시판을 고르지 않으면 그대로 둔다. */
+    @Test
+    void keepsPostAndCategoryInTheSameBoard() {
+        UUID note = service.create(new PostEditCommand("노트 글", "note-post", null, "본문", null, List.of(), null,
+                PublishAction.KEEP, null, NOTES_BOARD), AUTHOR);
+        UUID dev = service.create(command("개발 글", "dev-post", List.of(), PublishAction.KEEP), AUTHOR);
+        entityManager.flush();
+        assertThat(board(note)).isEqualTo(NOTES_BOARD);
+        assertThat(board(dev)).isEqualTo(DEV_BOARD);
+
+        // 노트 게시판에 개발 게시판 카테고리를 지정하면 거부한다.
+        assertThatThrownBy(() -> service.create(new PostEditCommand("섞인 글", "mixed-post", null, "본문", id(10),
+                List.of(), null, PublishAction.KEEP, null, NOTES_BOARD), AUTHOR))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("게시판");
+        assertThatThrownBy(() -> service.update(dev, new PostEditCommand("개발 글", "dev-post", null, "본문", id(10),
+                List.of(), null, PublishAction.KEEP, null, NOTES_BOARD), AUTHOR))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("게시판");
+
+        // 게시판을 고르지 않고 고치면 그대로 두고, 카테고리 없이 노트를 고르면 옮긴다.
+        service.update(dev, command("개발 글", "dev-post", List.of(), PublishAction.KEEP), AUTHOR);
+        entityManager.flush();
+        assertThat(board(dev)).isEqualTo(DEV_BOARD);
+        service.update(dev, new PostEditCommand("개발 글", "dev-post", null, "본문", null, List.of(), null,
+                PublishAction.KEEP, null, NOTES_BOARD), AUTHOR);
+        entityManager.flush();
+        assertThat(board(dev)).isEqualTo(NOTES_BOARD);
+    }
+
+    /** @param postId 게시글 식별자 @return 글이 속한 게시판 식별자 */
+    private UUID board(UUID postId) {
+        return jdbc.queryForObject("SELECT board_id FROM blog.post_detail WHERE id = ?", UUID.class, postId);
     }
 
     /** 새 글은 초안으로 저장되고 같은 이름의 태그는 대소문자와 관계없이 한 번만 연결된다. */

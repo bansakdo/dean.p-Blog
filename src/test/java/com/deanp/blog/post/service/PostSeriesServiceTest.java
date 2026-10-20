@@ -23,6 +23,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ActiveProfiles("dev")
 @Transactional
 class PostSeriesServiceTest {
+    /** V12가 만든 노트 게시판 식별자 */
+    private static final UUID NOTES_BOARD = UUID.fromString("00000000-0000-4000-8000-000000000002");
+
 
     private static final TestPostgresql DB = new TestPostgresql();
 
@@ -97,6 +100,16 @@ class PostSeriesServiceTest {
         service.assignPost(seriesId, id(22), 2);
         entityManager.flush();
         assertThat(column("category_id", 22)).isEqualTo(id(10));
+    }
+
+    /** 다른 게시판의 글은 시리즈에 넣지 못한다. 시리즈 글은 대표 카테고리의 게시판을 따르기 때문이다. */
+    @Test
+    void rejectsPostFromAnotherBoard() {
+        UUID seriesId = service.createSeries(command(10, "boot", "부트", null));
+        jdbc.update("UPDATE blog.post_detail SET category_id = NULL, board_id = ? WHERE id = ?", NOTES_BOARD, id(21));
+
+        assertThatThrownBy(() -> service.assignPost(seriesId, id(21), 1))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("다른 게시판");
     }
 
     /** 게시글 시리즈 연결만 제거하고 카테고리는 현재 값을 유지한다. */

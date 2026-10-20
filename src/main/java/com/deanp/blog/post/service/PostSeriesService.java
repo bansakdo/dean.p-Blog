@@ -73,8 +73,14 @@ public class PostSeriesService {
                 normalized.sortOrder(),
                 normalized.status()
         );
-        postDetails.findBySeriesId(target.getId())
-                .forEach(post -> post.changeCategory(target.getCategoryId()));
+        // 시리즈 글은 대표 카테고리와 그 게시판을 따른다.
+        UUID boardId = requireCategory(target.getCategoryId()).getBoardId();
+        postDetails.findBySeriesId(target.getId()).forEach(post -> {
+            post.changeCategory(target.getCategoryId());
+            if (!boardId.equals(post.getBoardId())) {
+                post.changeBoard(boardId);
+            }
+        });
     }
 
     /**
@@ -97,6 +103,9 @@ public class PostSeriesService {
         }
         validateMembership(target, post);
         validateSeriesOrder(target, post, seriesOrder);
+        if (!requireCategory(target.getCategoryId()).getBoardId().equals(post.getBoardId())) {
+            throw new IllegalArgumentException("다른 게시판의 시리즈에는 넣을 수 없습니다. 글의 게시판을 먼저 바꾸세요.");
+        }
 
         post.assignToSeries(target, seriesOrder);
     }

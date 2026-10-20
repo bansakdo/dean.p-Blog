@@ -29,6 +29,9 @@ public class PostCategory {
     @Column(name = "parent_id")
     private UUID parentId;
 
+    @Column(name = "board_id")
+    private UUID boardId;
+
     @Column(name = "name")
     private String name;
 
@@ -54,15 +57,17 @@ public class PostCategory {
     /**
      * 최상위 활성 카테고리를 만든다.
      *
+     * @param boardId 속한 게시판 식별자
      * @param name 표시 이름
      * @param slug URL 식별자
      * @param sortOrder 목록 정렬 순서
      * @return 저장할 카테고리
      */
-    public static PostCategory create(String name, String slug, int sortOrder) {
+    public static PostCategory create(UUID boardId, String name, String slug, int sortOrder) {
         PostCategory category = new PostCategory();
         Instant now = Instant.now();
         category.id = UUID.randomUUID();
+        category.boardId = boardId;
         category.name = name;
         category.slug = slug;
         category.sortOrder = sortOrder;
@@ -83,6 +88,16 @@ public class PostCategory {
         this.name = name;
         this.slug = slug;
         this.sortOrder = sortOrder;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * 카테고리를 다른 게시판으로 옮긴다. 이 카테고리의 글도 함께 옮기는 것은 호출하는 서비스가 맡는다.
+     *
+     * @param boardId 새 게시판 식별자
+     */
+    public void changeBoard(UUID boardId) {
+        this.boardId = boardId;
         this.updatedAt = Instant.now();
     }
 }

@@ -25,10 +25,11 @@
   <p class="empty-state" th:if="${posts.isEmpty()}" th:text="${filtered} ? '조건에 맞는 글이 없습니다.' : '아직 글이 없습니다.'">아직 글이 없습니다.</p>
   <div class="admin-table-scroll" th:unless="${posts.isEmpty()}">
     <table class="admin-table">
-      <thead><tr><th scope="col">제목</th><th scope="col">상태</th><th scope="col">수정일</th><th scope="col"><span class="visually-hidden">동작</span></th></tr></thead>
+      <thead><tr><th scope="col">제목</th><th scope="col">게시판</th><th scope="col">상태</th><th scope="col">수정일</th><th scope="col"><span class="visually-hidden">동작</span></th></tr></thead>
       <tbody>
         <tr th:each="post : ${posts}">
           <td><a th:href="@{/admin/posts/{id}/edit(id=${post.id})}" th:text="${post.title}">제목</a></td>
+          <td th:text="${post.boardName}">개발</td>
           <td><span class="admin-badge" th:classappend="${post.scheduled} ? 'is-scheduled' : (${post.published} ? 'is-published' : (${post.deleted} ? 'is-deleted'))" th:text="${post.scheduled} ? '예약' : (${post.published} ? '공개' : (${post.deleted} ? '삭제됨' : '초안'))">초안</span>
             <time class="admin-scheduled-at" th:if="${post.scheduled}" th:datetime="${post.publishedAt}" th:text="${#temporals.format(post.publishedAt, 'MM.dd HH:mm')}">10.20 09:00</time></td>
           <td><time th:datetime="${post.updatedAt}" th:text="${#temporals.format(post.updatedAt, 'yyyy.MM.dd HH:mm')}">2026.01.01 00:00</time></td>

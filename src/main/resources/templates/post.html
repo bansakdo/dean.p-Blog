@@ -6,7 +6,7 @@
 <main>
   <article class="article">
     <header class="article-header">
-      <a class="back-link" th:href="@{/posts}">← 모든 글</a>
+      <a class="back-link" th:href="@{${post.boardPath()}}" th:text="|← ${post.boardName ?: '모든 글'}|">← 모든 글</a>
       <h1 th:text="${post.title}">글 제목</h1>
 
       <div class="post-meta"><time th:text="${post.publishedAt}"></time><span th:text="|${post.readingMinutes}분 읽기|">5분 읽기</span></div>

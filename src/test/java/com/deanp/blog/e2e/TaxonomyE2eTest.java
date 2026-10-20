@@ -22,9 +22,9 @@ class TaxonomyE2eTest extends E2eTestSupport {
         // 사이드 메뉴: 소개 화면에서는 글·관리자 하위 메뉴가 접혀 있고 아이콘으로 펴며, '관리자'를 누르면 대시보드로 간다.
         page.navigate("/about");
         page.click(".menu-toggle");
-        expect(page.locator("#sidebar-posts-menu")).isHidden();
-        page.click("[aria-controls=sidebar-posts-menu]");
-        expect(page.locator("#sidebar-posts-menu .sidebar-filters")).isVisible();
+        expect(page.locator("#sidebar-board-dev-menu")).isHidden();
+        page.click("[aria-controls=sidebar-board-dev-menu]");
+        expect(page.locator("#sidebar-board-dev-menu .sidebar-filters")).isVisible();
         expect(page.locator("#sidebar-admin-menu")).isHidden();
         page.click("[aria-controls=sidebar-admin-menu]");
         expect(page.locator("#sidebar-admin-menu")).isVisible();
@@ -57,7 +57,7 @@ class TaxonomyE2eTest extends E2eTestSupport {
         expect(page.locator(".admin-heading .admin-badge")).hasText("공개");
         String postId = idFromUrl();
         Page publicPage = context.newPage();
-        publicPage.navigate("/posts");
+        publicPage.navigate("/dev");
         expect(publicPage.locator("a[href*='category=']:not([href*='series='])").first()).containsText(categoryName);
         publicPage.close();
 

@@ -11,13 +11,14 @@
     error.hidden = true;
     try {
       const offset = Number(button.dataset.offset);
-      const response = await fetch(`/posts/tags/more?offset=${offset}`, { headers: { Accept: 'application/json' } });
+      const board = encodeURIComponent(button.dataset.board || '');
+      const response = await fetch(`/posts/tags/more?board=${board}&offset=${offset}`, { headers: { Accept: 'application/json' } });
       if (!response.ok) throw new Error('태그 조회 실패');
       const page = await response.json();
 
       for (const tag of page.tags) {
         if ([...list.querySelectorAll('[data-tag-slug]')].some(link => link.dataset.tagSlug === tag.slug)) continue;
-        const url = new URL('/posts', location.origin);
+        const url = new URL(button.dataset.listPath || '/dev', location.origin);
         for (const key of ['category', 'series', 'q', 'size']) {
           if (filters.has(key)) url.searchParams.set(key, filters.get(key));
         }

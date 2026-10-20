@@ -2,6 +2,7 @@ package com.deanp.blog.seo.controller;
 
 import com.deanp.blog.post.persistence.query.PublishedPostLink;
 import com.deanp.blog.post.persistence.repository.PostDetailRepository;
+import com.deanp.blog.post.service.BoardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -15,7 +16,6 @@ import org.springframework.web.util.UriUtils;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 
 /**
  * 검색엔진이 읽는 robots.txt와 sitemap.xml을 응답한다.
@@ -26,10 +26,8 @@ public class SearchEngineController {
 
     private static final MediaType TEXT_PLAIN_UTF8 = new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8);
     private static final MediaType XML_UTF8 = new MediaType(MediaType.APPLICATION_XML, StandardCharsets.UTF_8);
-    /** 글 외에 사이트맵에 넣는 공개 화면 경로다. */
-    private static final List<String> FIXED_PATHS = List.of("/", "/posts", "/about");
-
     private final PostDetailRepository posts;
+    private final BoardService boards;
 
     @Value("${app.seo.indexable:true}")
     private boolean indexable;
@@ -56,7 +54,7 @@ public class SearchEngineController {
     }
 
     /**
-     * 고정 공개 화면과 공개 글 주소를 사이트맵 형식으로 응답한다. 색인을 허용하지 않는 서버는 404로 응답한다.
+     * 홈·게시판 목록·소개 화면과 공개 글 주소를 사이트맵 형식으로 응답한다. 색인을 허용하지 않는 서버는 404로 응답한다.
      *
      * @return sitemap.xml 본문
      */
@@ -69,8 +67,10 @@ public class SearchEngineController {
         StringBuilder xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
                 .append("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
 
-        // 고정 화면은 수정 시각 없이 주소만 넣는다.
-        FIXED_PATHS.forEach(path -> appendUrl(xml, siteUrl + path, null));
+        // 홈·게시판 목록·소개 화면은 수정 시각 없이 주소만 넣는다.
+        appendUrl(xml, siteUrl + "/", null);
+        boards.findActive().forEach(board -> appendUrl(xml, siteUrl + board.path(), null));
+        appendUrl(xml, siteUrl + "/about", null);
 
         // 공개 글은 한글 슬러그를 UTF-8로 인코딩하고 마지막 수정일을 함께 넣는다.
         for (PublishedPostLink link : posts.findPublishedPostLinks()) {

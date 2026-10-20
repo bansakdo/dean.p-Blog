@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import com.deanp.blog.post.service.BoardService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -55,6 +56,9 @@ class AdminTaxonomyControllerTest {
 
     @MockitoBean
     private CategoryAdminService categoryAdmin;
+
+    @MockitoBean
+    private BoardService boardService;
     @MockitoBean
     private PostSeriesService seriesService;
     @MockitoBean
@@ -101,7 +105,7 @@ class AdminTaxonomyControllerTest {
         when(seriesService.findForEdit(ID)).thenReturn(Optional.of(new PostSeriesCommand(OTHER, "boot", "부트", null, 0, "HIDDEN")));
         when(seriesService.findMembers(ID)).thenReturn(List.of(new SeriesMember(OTHER, "첫 글", "PUBLISHED", 1, true)));
         when(seriesService.findCandidates()).thenReturn(List.of(new SeriesMember(ID, "넣을 글", "DRAFT", null, false)));
-        when(postEditor.findCategoryChoices()).thenReturn(List.of(new PostEditorService.CategoryChoice(OTHER, "개발")));
+        when(postEditor.findCategoryChoices()).thenReturn(List.of(new PostEditorService.CategoryChoice(OTHER, "개발", null)));
 
         mockMvc.perform(get("/admin/series/{id}/edit", ID).with(writer()))
                 .andExpect(status().isOk())

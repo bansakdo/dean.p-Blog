@@ -110,52 +110,64 @@ public class PostService {
         return toPostViews(posts.findPublishedRows(categorySlug, seriesSlug, tagSlug, search));
     }
 
-    /** @param categorySlug 선택 카테고리 @param seriesSlug 선택 시리즈 @param tagSlugs OR 태그 목록 @param search 검색어 @param page 1부터 시작하는 페이지 @param size 페이지당 글 수 @return 글 단위 조회 페이지 */
-    public Page<PostView> findPage(String categorySlug, String seriesSlug, List<String> tagSlugs,
+    /** @param categorySlug 선택 카테고리 @param seriesSlug 선택 시리즈 @param tagSlugs OR 태그 목록 @param search 검색어 @param page 1부터 시작하는 페이지 @param size 페이지당 글 수 @return 글 단위 조회 페이지
+     * @param boardSlug 게시판 주소, null이면 모든 게시판
+     */
+    public Page<PostView> findPage(String boardSlug, String categorySlug, String seriesSlug, List<String> tagSlugs,
                                    String search, int page, int size) {
-        var result = posts.findPublishedPage(categorySlug, seriesSlug, tagSlugs, search, (long) (page - 1) * size, size);
+        var result = posts.findPublishedPage(boardSlug, categorySlug, seriesSlug, tagSlugs, search, (long) (page - 1) * size, size);
         return new PageImpl<>(toPostViews(result.rows()), PageRequest.of(page - 1, size), result.total());
     }
 
-    /** @return 미분류 글을 포함한 전체 공개 글 수 */
-    public long countPublishedPosts() {
-        return posts.countPublishedPosts();
+    /** @return 미분류 글을 포함한 전체 공개 글 수
+     * @param boardSlug 게시판 주소, null이면 모든 게시판
+     */
+    public long countPublishedPosts(String boardSlug) {
+        return posts.countPublishedPosts(boardSlug);
     }
 
-    /** @return 공개 글 카테고리 선택지 */
-    public List<PostFilterOption> findCategories() {
-        return posts.findPublishedCategories();
+    /** @return 공개 글 카테고리 선택지
+     * @param boardSlug 게시판 주소, null이면 모든 게시판
+     */
+    public List<PostFilterOption> findCategories(String boardSlug) {
+        return posts.findPublishedCategories(boardSlug);
     }
 
-    /** @return 공개 글 태그 선택지 */
-    public List<PostFilterOption> findTags() {
-        return posts.findPublishedTags();
+    /** @return 공개 글 태그 선택지
+     * @param boardSlug 게시판 주소, null이면 모든 게시판
+     */
+    public List<PostFilterOption> findTags(String boardSlug) {
+        return posts.findPublishedTags(boardSlug);
     }
 
-    /** @param offset 건너뛸 태그 수 @param limit 조회할 최대 태그 수 @return 공개 글 태그 구간 */
-    public List<PostFilterOption> findTags(long offset, int limit) {
-        return posts.findPublishedTags(offset, limit);
+    /** @param offset 건너뛸 태그 수 @param limit 조회할 최대 태그 수 @return 공개 글 태그 구간
+     * @param boardSlug 게시판 주소, null이면 모든 게시판
+     */
+    public List<PostFilterOption> findTags(String boardSlug, long offset, int limit) {
+        return posts.findPublishedTags(boardSlug, offset, limit);
     }
 
     /**
      * 선택 카테고리 안에서 공개 글이 있는 시리즈를 조회한다.
      *
+     * @param boardSlug 게시판 주소, null이면 모든 게시판
      * @param categorySlug 선택 카테고리
      * @return 시리즈 선택지
      */
-    public List<PostSeriesOption> findSeries(String categorySlug) {
-        return posts.findPublishedSeries(categorySlug);
+    public List<PostSeriesOption> findSeries(String boardSlug, String categorySlug) {
+        return posts.findPublishedSeries(boardSlug, categorySlug);
     }
 
     /**
      * 공개 글이 있는 선택 시리즈 소개 정보를 조회한다.
      *
+     * @param boardSlug 게시판 주소, null이면 모든 게시판
      * @param categorySlug 선택 카테고리
      * @param seriesSlug 선택 시리즈
      * @return 시리즈 소개 정보
      */
-    public Optional<PostSeriesOption> findSeries(String categorySlug, String seriesSlug) {
-        return posts.findPublishedSeries(categorySlug, seriesSlug);
+    public Optional<PostSeriesOption> findSeries(String boardSlug, String categorySlug, String seriesSlug) {
+        return posts.findPublishedSeries(boardSlug, categorySlug, seriesSlug);
     }
 
     /**
@@ -209,7 +221,8 @@ public class PostService {
                 renderHtml(content),
                 row.representativeImageName() == null ? null
                         : "/media/posts/" + row.id() + "/" + row.representativeImageName(),
-                row.categoryName(), row.seriesSlug(), row.seriesName(), row.seriesOrder()
+                row.categoryName(), row.seriesSlug(), row.seriesName(), row.seriesOrder(),
+                row.boardSlug(), row.boardName()
         );
     }
 

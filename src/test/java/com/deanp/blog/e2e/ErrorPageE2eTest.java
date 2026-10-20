@@ -14,7 +14,7 @@ class ErrorPageE2eTest extends E2eTestSupport {
         expect(page.locator("h1")).hasText("페이지를 찾을 수 없습니다");
         expect(page.locator(".site-header")).isVisible();
         page.locator(".error-links a", new Page.LocatorOptions().setHasText("글 목록")).click();
-        waitForUrl(".*/posts$");
+        waitForUrl(".*/dev$");
 
         assertNoMobileOverflow("/no-such-page", "/posts/no-such-post");
         assertNoConsoleErrors("status of 404");

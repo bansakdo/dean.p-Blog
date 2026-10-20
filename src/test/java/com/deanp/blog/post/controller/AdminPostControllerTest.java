@@ -25,6 +25,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import com.deanp.blog.post.service.BoardService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -67,6 +68,9 @@ class AdminPostControllerTest {
 
     @MockitoBean
     private PostEditorService postEditor;
+
+    @MockitoBean
+    private BoardService boardService;
 
     @MockitoBean
     private PostImageService postImages;
@@ -447,7 +451,7 @@ class AdminPostControllerTest {
     /** 발행 시각 입력은 한국 시간으로 해석해 서비스에 넘기고, 예약 글은 예약 배지와 취소 버튼을 보여 준다. */
     @Test
     void passesPublishTimeAndRendersScheduledPost() throws Exception {
-        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(new PostEditView(POST_ID, "slug", "제목", null, "본문",
+        when(postEditor.findForEdit(POST_ID)).thenReturn(Optional.of(new PostEditView(POST_ID, null, "slug", "제목", null, "본문",
                 null, "", null, true, false, false, true, java.time.LocalDateTime.of(2026, 10, 20, 9, 0))));
 
         mockMvc.perform(post("/admin/posts/{id}", POST_ID).with(writer()).with(csrf())
@@ -471,7 +475,7 @@ class AdminPostControllerTest {
 
     /** @param deleted 삭제 여부 @return 수정 화면에 쓰는 글 값 */
     private static PostEditView editView(boolean deleted) {
-        return new PostEditView(POST_ID, "slug", "제목", null, "본문", null, "", null, false, deleted, false, false, null);
+        return new PostEditView(POST_ID, null, "slug", "제목", null, "본문", null, "", null, false, deleted, false, false, null);
     }
 
     /** @return 글 관리 권한을 가진 로그인 사용자 */

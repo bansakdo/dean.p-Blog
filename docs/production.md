@@ -89,6 +89,7 @@ src/main/resources/db/migration/V1__create_blog_schema.sql
 - V9 적용 전 운영 백업을 확보하고 Flyway validation을 통과시켜야 합니다. V6 checksum repair는 별도 운영 절차이며 애플리케이션이나 migration에서 validation을 자동 우회하지 않습니다.
 - V10은 상위 게시판 `post`를 제거합니다. 적용 전 스키마 백업과 카테고리·시리즈 slug 중복 여부를 확인해야 하며, 중복 시 데이터 변경 없이 중단합니다. `post_detail`·카테고리·시리즈·태그·방문 이력은 보존합니다. 기존 애플리케이션은 V10 스키마와 호환되지 않으므로 적용과 코드 교체를 함께 계획해야 합니다.
 - V11은 `post_detail_slug_key` 고유 제약을 `status <> 'DELETED'`인 행에만 거는 부분 고유 인덱스 `ux_post_detail_slug_active`로 바꿉니다. 데이터는 바꾸지 않습니다. 되돌릴 때는 삭제한 글끼리 slug가 겹치지 않는지 먼저 확인해야 원래 제약을 다시 만들 수 있습니다.
+- V12는 게시판 테이블 `board`(개발 `dev`, 노트 `notes`)를 만들고 `post_category`·`post_detail`에 `board_id`(기본값 개발 게시판, 외래키)를 추가합니다. 기존 글·카테고리는 모두 개발 게시판이 되며, 카테고리·시리즈가 없는 운영 글 두 편(`AWS-Summit-Seoul-2026-후기-2일차`, `PLEX-파일-볼륨-변경시-DB-수정-방법`)만 노트로 옮깁니다. 글 주소(`/posts/{slug}`)는 바뀌지 않고 목록 주소는 `/posts`에서 `/dev`·`/notes`로 바뀝니다(`/posts`는 301 이동). 적용 전 운영 DB를 백업해야 합니다. 새 칼럼에는 기본값(개발 게시판)을 두어 V12 이전 애플리케이션이 넣는 행도 들어가게 했지만, 그 버전에서는 노트 구분이 화면에 나타나지 않습니다.
 
 ## 관리자 계정
 
