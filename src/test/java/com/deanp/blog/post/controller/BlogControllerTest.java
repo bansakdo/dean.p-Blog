@@ -120,7 +120,7 @@ class BlogControllerTest {
     void filteredListsAndSearchAreNotIndexed() throws Exception {
         mockMvc.perform(get("/posts"))
                 .andExpect(content().string(containsString("<link rel=\"canonical\" href=\"http://localhost/posts\">")))
-                .andExpect(content().string(containsString("<meta name=\"description\" content=\"개발하며 배운 것들, 만들어 가는 이야기.\">")))
+                .andExpect(content().string(containsString("<meta name=\"description\" content=\"개발 공부를 하며 배운 것과 나만의 이야기를 기록하는 dean.p의 개인 공간입니다.\">")))
                 .andExpect(content().string(not(containsString("name=\"robots\""))));
         mockMvc.perform(get("/posts").param("category", "dev"))
                 .andExpect(content().string(containsString("<meta name=\"robots\" content=\"noindex, follow\">")))
@@ -505,6 +505,9 @@ class BlogControllerTest {
 
             var result = mockMvc.perform(get("/"))
                     .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("<h1>개발하고,<br class=\"hero-mobile-break\"> 정보를 나누고,<br><em>생각</em>을 정리하는&nbsp;곳.</h1>")))
+                    .andExpect(content().string(containsString(
+                            "<meta name=\"description\" content=\"개발 공부를 하며 배운 것과 나만의 이야기를 기록하는 dean.p의 개인 공간입니다.\">")))
                     .andExpect(model()
                             .attribute("featuredPosts", posts.stream().limit(6).toList()))
                     .andExpect(model()
