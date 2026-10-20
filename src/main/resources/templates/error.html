@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:with="notFound=${status == 404}, forbidden=${status == 403},
+               heading=${notFound ? '페이지를 찾을 수 없습니다' : (forbidden ? '볼 수 없는 페이지입니다' : '잠시 문제가 생겼습니다')}">
+<head th:replace="~{fragments/site :: head(|${heading} — dean.p|)}"></head>
+<body>
+<header th:replace="~{fragments/site :: header}"></header>
+<main class="shell page-space">
+  <section class="about-layout error-layout">
+    <div><p class="eyebrow" th:text="${status} ?: 'ERROR'">404</p><h1 th:text="${heading}">페이지를 찾을 수 없습니다</h1></div>
+    <div class="about-copy">
+      <p th:if="${notFound}">주소가 바뀌었거나 삭제된 글일 수 있습니다. 글 목록이나 검색에서 찾아보세요.</p>
+      <p th:if="${forbidden}">이 페이지를 볼 권한이 없습니다.</p>
+      <p th:unless="${notFound or forbidden}">요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.</p>
+      <nav class="error-links" aria-label="다른 곳으로 이동">
+        <a class="text-link" th:href="@{/}">홈으로 →</a>
+        <a class="text-link" th:href="@{/posts}">글 목록 →</a>
+        <a class="text-link" th:href="@{/search}">검색 →</a>
+      </nav>
+    </div>
+  </section>
+</main>
+<footer th:replace="~{fragments/site :: footer}"></footer>
+</body>
+</html>
