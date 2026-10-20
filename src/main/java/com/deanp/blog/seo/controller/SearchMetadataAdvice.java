@@ -16,7 +16,7 @@ import java.util.Set;
 public class SearchMetadataAdvice {
 
     /** 사이트 전체 설명이다. 요약이 없는 글과 목록·소개 화면에 쓴다. */
-    public static final String SITE_DESCRIPTION = "개발하며 배운 것들, 만들어 가는 이야기.";
+    public static final String SITE_DESCRIPTION = "개발 공부를 하며 배운 것과 나만의 이야기를 기록하는 dean.p의 개인 공간입니다.";
     /** 검색 결과에 나오면 안 되는 화면 경로다. */
     private static final Set<String> NOINDEX_PATHS = Set.of("/login", "/search", "/error");
 

@@ -85,7 +85,9 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .eyebrow { margin: 0 0 16px; color: var(--accent); font-size: .72rem; font-weight: 800; letter-spacing: .18em; }
 .hero h1 { max-width: 900px; margin: 0; font-size: clamp(3rem, 7.4vw, 6.8rem); line-height: .98; letter-spacing: -.07em; word-break: keep-all; }
 .hero h1 em { color: var(--accent); font-style: normal; }
-.hero-copy { max-width: 580px; margin: 36px 0 24px; color: var(--muted); font-size: 1.12rem; }
+.hero-copy { max-width: 580px; margin: 36px 0 24px; color: var(--muted); font-size: 1.12rem; word-break: keep-all; }
+/* 메인 제목은 PC에서 두 줄, 좁은 화면에서는 구절마다 세 줄로 끊는다. */
+.hero-mobile-break { display: none; }
 .text-link { display: inline-block; font-weight: 750; border-bottom: 1px solid currentColor; }
 .featured, .latest { padding: 100px 0; border-top: 1px solid var(--line); }
 .section-heading h2, .page-intro h1 { margin: 0 0 30px; font-size: clamp(2.2rem, 4vw, 4rem); letter-spacing: -.055em; }
@@ -182,6 +184,7 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 }
 
 @media (max-width: 720px) {
+  .hero-mobile-break { display: inline; }
   .feature-card .post-thumbnail, .latest .post-thumbnail { height: 100px; }
   :root { --site-header-height: 72px; }
   .site-header nav { gap: 16px; }
