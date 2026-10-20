@@ -24,6 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("dev")
 @Transactional
 class PostFilterQueryTest {
+    /** V12가 만든 노트 게시판 식별자 */
+    private static final UUID NOTES_BOARD = UUID.fromString("00000000-0000-4000-8000-000000000002");
+
     private static final TestPostgresql DB = new TestPostgresql();
 
     @Autowired
@@ -72,6 +75,25 @@ class PostFilterQueryTest {
         link(14, 8);
     }
 
+    /** 게시판을 지정하면 그 게시판의 글·카테고리·태그만 조회하고, 지정하지 않으면 모든 게시판을 조회한다. */
+    @Test
+    void filtersByBoard() {
+        jdbc.update("UPDATE blog.post_detail SET board_id = ?, category_id = NULL, series_id = NULL, series_order = NULL WHERE id = ?",
+                NOTES_BOARD, id(11));
+
+        assertThat(posts.findPublishedPage("notes", null, null, java.util.List.of(), null, 0, 10).rows())
+                .extracting(PublicPostRow::slug).containsOnly("life-post");
+        assertThat(posts.findPublishedPage("dev", null, null, java.util.List.of(), null, 0, 10).rows())
+                .extracting(PublicPostRow::slug).contains("dev-post", "untagged-post").doesNotContain("life-post");
+        assertThat(posts.findPublishedPage(null, null, null, java.util.List.of(), null, 0, 10).rows())
+                .extracting(PublicPostRow::slug).contains("dev-post", "life-post");
+        assertThat(posts.countPublishedPosts("notes")).isEqualTo(1);
+        assertThat(posts.findPublishedTags("notes")).extracting(PostFilterOption::slug).containsOnly("java");
+        assertThat(posts.findPublishedCategories("notes")).isEmpty();
+        assertThat(posts.findPublishedRowsBySlug("life-post")).first()
+                .extracting(PublicPostRow::boardSlug, PublicPostRow::boardName).containsExactly("notes", "노트");
+    }
+
     /** 사이트맵 주소는 공개 화면과 같은 기준으로 발행된 글만 포함한다. */
     @Test
     void publishedPostLinksExcludeDraftsAndUndatedPosts() {
@@ -110,48 +132,48 @@ class PostFilterQueryTest {
     /** 태그 조인 행이 아닌 글 단위로 페이지를 나누고 필터 결과 총수를 계산한다. */
     @Test
     void pagesPublishedPostsWithoutSplittingTags() {
-        var first = posts.findPublishedPage(null, null, java.util.List.of(), null, 0, 1);
+        var first = posts.findPublishedPage(null, null, null, java.util.List.of(), null, 0, 1);
         assertThat(first.total()).isEqualTo(3);
         assertThat(first.rows()).extracting(PublicPostRow::slug).containsOnly("dev-post");
         assertThat(first.rows()).extracting(PublicPostRow::tagName).containsExactly("Java", "Spring");
-        assertThat(posts.findPublishedPage(null, null, java.util.List.of(), null, 1, 1).rows())
+        assertThat(posts.findPublishedPage(null, null, null, java.util.List.of(), null, 1, 1).rows())
                 .extracting(PublicPostRow::slug).containsExactly("life-post");
-        assertThat(posts.findPublishedPage(null, null, java.util.List.of(), null, 3, 1).rows()).isEmpty();
+        assertThat(posts.findPublishedPage(null, null, null, java.util.List.of(), null, 3, 1).rows()).isEmpty();
 
-        var filtered = posts.findPublishedPage("dev", "boot-camp", java.util.List.of("spring", "java"), null, 0, 1);
+        var filtered = posts.findPublishedPage(null, "dev", "boot-camp", java.util.List.of("spring", "java"), null, 0, 1);
         assertThat(filtered.total()).isEqualTo(1);
         assertThat(filtered.rows()).extracting(PublicPostRow::tagName).containsExactly("Java", "Spring");
-        assertThat(posts.findPublishedPage("life", "boot-camp", java.util.List.of(), null, 0, 10).total()).isZero();
-        assertThat(posts.findPublishedPage(null, null, java.util.List.of("spring"), "life-post", 0, 10).total()).isZero();
-        assertThat(posts.findPublishedPage(null, null, java.util.List.of("java"), "life-post", 0, 10).rows())
+        assertThat(posts.findPublishedPage(null, "life", "boot-camp", java.util.List.of(), null, 0, 10).total()).isZero();
+        assertThat(posts.findPublishedPage(null, null, null, java.util.List.of("spring"), "life-post", 0, 10).total()).isZero();
+        assertThat(posts.findPublishedPage(null, null, null, java.util.List.of("java"), "life-post", 0, 10).rows())
                 .extracting(PublicPostRow::slug).containsExactly("life-post");
     }
 
     /** 시리즈 페이징은 발행일이 아닌 연재 순서를 보존한다. */
     @Test
     void pagesSeriesInSeriesOrder() {
-        var first = posts.findPublishedPage("dev", "boot-camp", java.util.List.of(), null, 0, 1);
+        var first = posts.findPublishedPage(null, "dev", "boot-camp", java.util.List.of(), null, 0, 1);
         assertThat(first.total()).isEqualTo(2);
         assertThat(first.rows()).extracting(PublicPostRow::slug).containsExactly("untagged-post");
-        assertThat(posts.findPublishedPage("dev", "boot-camp", java.util.List.of(), null, 1, 1).rows())
+        assertThat(posts.findPublishedPage(null, "dev", "boot-camp", java.util.List.of(), null, 1, 1).rows())
                 .extracting(PublicPostRow::slug).containsOnly("dev-post");
     }
 
     /** 공개 글에 사용된 분류만 중복 없이 선택지로 노출한다. */
     @Test
     void optionsExcludeDraftAndUnpublishedMetadata() {
-        assertThat(posts.findPublishedCategories()).extracting(PostFilterOption::slug)
+        assertThat(posts.findPublishedCategories(null)).extracting(PostFilterOption::slug)
                 .containsExactly("dev", "life");
-        assertThat(posts.findPublishedTags()).extracting(PostFilterOption::slug)
+        assertThat(posts.findPublishedTags(null)).extracting(PostFilterOption::slug)
                 .containsExactly("java", "spring");
     }
 
     /** 공개 글 태그는 이름순으로 중복 없이 구간 조회하며 비공개 태그는 제외한다. */
     @Test
     void pagesPublishedTags() {
-        assertThat(posts.findPublishedTags(0, 1)).extracting(PostFilterOption::slug).containsExactly("java");
-        assertThat(posts.findPublishedTags(1, 1)).extracting(PostFilterOption::slug).containsExactly("spring");
-        assertThat(posts.findPublishedTags(2, 1)).isEmpty();
+        assertThat(posts.findPublishedTags(null, 0, 1)).extracting(PostFilterOption::slug).containsExactly("java");
+        assertThat(posts.findPublishedTags(null, 1, 1)).extracting(PostFilterOption::slug).containsExactly("spring");
+        assertThat(posts.findPublishedTags(null, 2, 1)).isEmpty();
     }
 
     /** 공백 조건은 전체 조회이며 존재하지 않는 조건은 빈 결과다. */
@@ -187,13 +209,13 @@ class PostFilterQueryTest {
     /** 공개 글이 있는 시리즈만 선택지와 소개로 노출한다. */
     @Test
     void seriesOptionsExcludeDraftOnlySeries() {
-        assertThat(posts.findPublishedSeries("dev")).extracting(PostSeriesOption::slug)
+        assertThat(posts.findPublishedSeries(null, "dev")).extracting(PostSeriesOption::slug)
                 .containsExactly("boot-camp");
-        assertThat(posts.findPublishedSeries(null)).extracting(PostSeriesOption::slug)
+        assertThat(posts.findPublishedSeries(null, null)).extracting(PostSeriesOption::slug)
                 .containsExactly("boot-camp", "life-log");
-        assertThat(posts.findPublishedSeries("dev", "boot-camp"))
+        assertThat(posts.findPublishedSeries(null, "dev", "boot-camp"))
                 .hasValueSatisfying(option -> assertThat(option.description()).isEqualTo("기초부터 순서대로"));
-        assertThat(posts.findPublishedSeries("life", "boot-camp")).isEmpty();
+        assertThat(posts.findPublishedSeries(null, "life", "boot-camp")).isEmpty();
     }
 
     /** 편수는 태그 중복·초안·예약 글을 제외하고, 완결 상태와 원래 연재 번호를 보존한다. */
@@ -204,13 +226,13 @@ class PostFilterQueryTest {
                 java.sql.Timestamp.from(java.time.Instant.now().plus(10, java.time.temporal.ChronoUnit.DAYS)), id(15));
         assignSeries(15, 22, 2);
         jdbc.update("UPDATE blog.post_series SET status = 'COMPLETED' WHERE id = ?", id(20));
-        assertThat(posts.countPublishedPosts()).isEqualTo(3);
-        assertThat(posts.findPublishedCategories()).extracting(PostFilterOption::postCount).containsExactly(2L, 1L);
-        assertThat(posts.findPublishedSeries("dev", "boot-camp")).hasValueSatisfying(option -> {
+        assertThat(posts.countPublishedPosts(null)).isEqualTo(3);
+        assertThat(posts.findPublishedCategories(null)).extracting(PostFilterOption::postCount).containsExactly(2L, 1L);
+        assertThat(posts.findPublishedSeries(null, "dev", "boot-camp")).hasValueSatisfying(option -> {
             assertThat(option.postCount()).isEqualTo(2);
             assertThat(option.statusLabel()).isEqualTo("완결");
         });
-        assertThat(posts.findPublishedSeries(null)).extracting(PostSeriesOption::slug).doesNotContain("draft-only");
+        assertThat(posts.findPublishedSeries(null, null)).extracting(PostSeriesOption::slug).doesNotContain("draft-only");
         assertThat(posts.findPublishedRows("dev", "boot-camp", "java", null)).allSatisfy(row -> {
             assertThat(row.seriesOrder()).isEqualTo(2);
             assertThat(row.seriesName()).isEqualTo("부트 캠프");
@@ -218,14 +240,14 @@ class PostFilterQueryTest {
             assertThat(row.categoryName()).isEqualTo("개발");
         });
         assertThat(posts.findPublishedRowsBySlug("future-post")).isEmpty();
-        assertThat(posts.findPublishedTags()).extracting(PostFilterOption::slug).doesNotContain("private-tag");
+        assertThat(posts.findPublishedTags(null)).extracting(PostFilterOption::slug).doesNotContain("private-tag");
     }
 
     /** 비공개 시리즈의 제목·링크·선택지는 공개 글에서도 노출하지 않는다. */
     @Test
     void doesNotExposeInactiveSeriesMetadata() {
         jdbc.update("UPDATE blog.post_series SET status = 'INACTIVE' WHERE id = ?", id(20));
-        assertThat(posts.findPublishedSeries("dev")).isEmpty();
+        assertThat(posts.findPublishedSeries(null, "dev")).isEmpty();
         assertThat(posts.findPublishedRows("dev", "boot-camp", null, null)).isEmpty();
         assertThat(posts.findPublishedRows("dev", null, null, null)).isNotEmpty().allSatisfy(row -> {
             assertThat(row.seriesSlug()).isNull();

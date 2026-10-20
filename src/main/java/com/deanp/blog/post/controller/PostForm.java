@@ -28,6 +28,8 @@ public class PostForm {
     @NotBlank(message = "본문은 필수입니다.")
     private String content;
 
+    private UUID boardId;
+
     private UUID categoryId;
 
     private String tags;

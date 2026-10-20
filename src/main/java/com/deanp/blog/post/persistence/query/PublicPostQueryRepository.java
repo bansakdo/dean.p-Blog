@@ -50,6 +50,7 @@ public interface PublicPostQueryRepository {
 
     /**
      * 글 식별자를 페이지 단위로 조회한 뒤 해당 글의 전체 태그 행을 반환한다.
+     * @param boardSlug 게시판 주소, null이면 모든 게시판
      * @param categorySlug 선택 카테고리
      * @param seriesSlug 선택 시리즈
      * @param tagSlugs OR 조건 태그 목록
@@ -58,42 +59,45 @@ public interface PublicPostQueryRepository {
      * @param limit 페이지당 글 수
      * @return 태그를 보존한 페이지 행과 필터 결과 총 글 수
      */
-    PublishedPage findPublishedPage(String categorySlug, String seriesSlug, List<String> tagSlugs,
+    PublishedPage findPublishedPage(String boardSlug, String categorySlug, String seriesSlug, List<String> tagSlugs,
                                     String search, long offset, int limit);
 
-    /** @return 미분류 글까지 포함한 전체 공개 글 수 */
-    long countPublishedPosts();
+    /** @return 미분류 글까지 포함한 전체 공개 글 수 @param boardSlug 게시판 주소, null이면 모든 게시판 */
+    long countPublishedPosts(String boardSlug);
 
-    /** @return 공개 글에 사용된 카테고리 선택지, 관리 화면의 정렬 순서대로 */
-    List<PostFilterOption> findPublishedCategories();
+    /** @return 공개 글에 사용된 카테고리 선택지, 관리 화면의 정렬 순서대로 @param boardSlug 게시판 주소, null이면 모든 게시판 */
+    List<PostFilterOption> findPublishedCategories(String boardSlug);
 
-    /** @return 공개 글에 사용된 태그 선택지 */
-    List<PostFilterOption> findPublishedTags();
+    /** @return 공개 글에 사용된 태그 선택지 @param boardSlug 게시판 주소, null이면 모든 게시판 */
+    List<PostFilterOption> findPublishedTags(String boardSlug);
 
     /**
      * 공개 글 태그를 이름순으로 나누어 조회한다.
+     * @param boardSlug 게시판 주소, null이면 모든 게시판
      * @param offset 건너뛸 태그 수
      * @param limit 조회할 최대 태그 수
      * @return 요청 구간의 태그 선택지
      */
-    List<PostFilterOption> findPublishedTags(long offset, int limit);
+    List<PostFilterOption> findPublishedTags(String boardSlug, long offset, int limit);
 
     /**
      * 공개 글이 있는 시리즈 선택지를 조회한다.
      *
+     * @param boardSlug 게시판 주소, null이면 모든 게시판
      * @param categorySlug 선택 카테고리
      * @return 시리즈 선택지
      */
-    List<PostSeriesOption> findPublishedSeries(String categorySlug);
+    List<PostSeriesOption> findPublishedSeries(String boardSlug, String categorySlug);
 
     /**
      * 공개 글이 있는 시리즈 소개 정보를 조회한다.
      *
+     * @param boardSlug 게시판 주소, null이면 모든 게시판
      * @param categorySlug 선택 카테고리
      * @param seriesSlug 선택 시리즈
      * @return 일치하는 공개 시리즈
      */
-    java.util.Optional<PostSeriesOption> findPublishedSeries(String categorySlug, String seriesSlug);
+    java.util.Optional<PostSeriesOption> findPublishedSeries(String boardSlug, String categorySlug, String seriesSlug);
 
     /**
      * 단일 슬러그에 해당하는 공개 게시글 행을 조회한다.

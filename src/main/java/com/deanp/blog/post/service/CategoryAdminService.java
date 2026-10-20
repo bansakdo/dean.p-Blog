@@ -30,6 +30,7 @@ public class CategoryAdminService {
     private final PostCategoryRepository categories;
     private final PostDetailRepository posts;
     private final PostSeriesRepository series;
+    private final BoardService boards;
 
     /**
      * @return 모든 카테고리와 각 카테고리를 쓰는 삭제하지 않은 글·시리즈 수, 정렬 순서와 이름순
@@ -43,7 +44,7 @@ public class CategoryAdminService {
         return categories.findAllByOrderBySortOrderAscNameAsc().stream()
                 .map(category -> new CategoryRow(category.getId(), category.getName(), category.getSlug(),
                         category.getSortOrder(), postCounts.getOrDefault(category.getId(), 0L),
-                        seriesCounts.getOrDefault(category.getId(), 0L)))
+                        seriesCounts.getOrDefault(category.getId(), 0L), category.getBoardId()))
                 .toList();
     }
 
@@ -63,7 +64,8 @@ public class CategoryAdminService {
         if (categories.existsBySlug(slug)) {
             throw new IllegalArgumentException("이미 사용 중인 카테고리 주소(slug)입니다.");
         }
-        return categories.save(PostCategory.create(name, slug, input.sortOrder())).getId();
+        UUID boardId = input.boardId() == null ? defaultBoardId() : requireBoard(input.boardId());
+        return categories.save(PostCategory.create(boardId, name, slug, input.sortOrder())).getId();
     }
 
     /**
@@ -79,6 +81,13 @@ public class CategoryAdminService {
         String slug = Slugs.of(input.slug(), name, MAX_SLUG_LENGTH);
         requireUnique(name, slug, id);
         category.update(name, slug, input.sortOrder());
+
+        // 게시판을 바꾸면 이 카테고리의 글(시리즈 글 포함)도 함께 옮겨 글과 카테고리의 게시판이 어긋나지 않게 한다.
+        if (input.boardId() != null && !input.boardId().equals(category.getBoardId())) {
+            UUID boardId = requireBoard(input.boardId());
+            category.changeBoard(boardId);
+            posts.findByCategoryId(id).forEach(post -> post.changeBoard(boardId));
+        }
     }
 
     /**
@@ -129,13 +138,44 @@ public class CategoryAdminService {
     }
 
     /**
+     * @param boardId 게시판 식별자
+     * @return 활성 게시판이면 같은 식별자
+     */
+    private UUID requireBoard(UUID boardId) {
+        if (boards.findActive().stream().noneMatch(board -> board.id().equals(boardId))) {
+            throw new IllegalArgumentException("존재하지 않는 게시판입니다.");
+        }
+        return boardId;
+    }
+
+    /**
+     * @return 정렬 순서가 가장 앞선 활성 게시판(기본 게시판)의 식별자
+     */
+    private UUID defaultBoardId() {
+        return boards.findActive().stream().findFirst()
+                .orElseThrow(() -> new IllegalStateException("활성 게시판이 없습니다.")).id();
+    }
+
+    /**
      * 카테고리 생성·수정 입력 값이다.
      *
      * @param name 표시 이름
      * @param slug URL 식별자, 비어 있으면 이름으로 만든다
      * @param sortOrder 목록 정렬 순서, 작을수록 앞
+     * @param boardId 속한 게시판 식별자. null이면 생성은 기본 게시판, 수정은 지금 게시판 유지
      */
-    public record CategoryInput(String name, String slug, int sortOrder) {
+    public record CategoryInput(String name, String slug, int sortOrder, UUID boardId) {
+
+        /**
+         * 게시판을 지정하지 않는 입력을 만든다. 새 카테고리는 기본 게시판에 두고, 수정은 지금 게시판을 유지한다.
+         *
+         * @param name 표시 이름
+         * @param slug URL 식별자
+         * @param sortOrder 정렬 순서
+         */
+        public CategoryInput(String name, String slug, int sortOrder) {
+            this(name, slug, sortOrder, null);
+        }
     }
 
     /**
@@ -147,7 +187,23 @@ public class CategoryAdminService {
      * @param sortOrder 정렬 순서
      * @param postCount 이 카테고리를 쓰는 삭제하지 않은 글 수
      * @param seriesCount 이 카테고리를 대표 카테고리로 쓰는 시리즈 수
+     * @param boardId 속한 게시판 식별자
      */
-    public record CategoryRow(UUID id, String name, String slug, int sortOrder, long postCount, long seriesCount) {
+    public record CategoryRow(UUID id, String name, String slug, int sortOrder, long postCount, long seriesCount,
+                              UUID boardId) {
+
+        /**
+         * 게시판 정보 없이 만든다.
+         *
+         * @param id 카테고리 식별자
+         * @param name 표시 이름
+         * @param slug URL 식별자
+         * @param sortOrder 정렬 순서
+         * @param postCount 삭제하지 않은 글 수
+         * @param seriesCount 시리즈 수
+         */
+        public CategoryRow(UUID id, String name, String slug, int sortOrder, long postCount, long seriesCount) {
+            this(id, name, slug, sortOrder, postCount, seriesCount, null);
+        }
     }
 }

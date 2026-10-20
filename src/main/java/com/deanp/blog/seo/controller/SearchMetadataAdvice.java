@@ -32,7 +32,8 @@ public class SearchMetadataAdvice {
     }
 
     /**
-     * 색인하지 않을 화면을 고른다. 관리·로그인·검색·오류 화면과, 필터나 페이지 조건이 붙은 글 목록이 해당한다.
+     * 색인하지 않을 화면을 고른다. 관리·로그인·검색·오류 화면이 해당한다.
+     * 필터나 페이지 조건이 붙은 게시판 목록은 목록 컨트롤러가 같은 이름으로 덮어써 표시한다.
      *
      * @param request 현재 요청
      * @return 검색 결과에서 빼야 하면 true
@@ -40,8 +41,7 @@ public class SearchMetadataAdvice {
     @ModelAttribute("noindex")
     public boolean noindex(HttpServletRequest request) {
         String path = request.getRequestURI();
-        boolean filteredList = path.equals("/posts") && !request.getParameterMap().isEmpty();
-        return !indexable || path.startsWith("/admin") || NOINDEX_PATHS.contains(path) || filteredList;
+        return !indexable || path.startsWith("/admin") || NOINDEX_PATHS.contains(path);
     }
 
     /**

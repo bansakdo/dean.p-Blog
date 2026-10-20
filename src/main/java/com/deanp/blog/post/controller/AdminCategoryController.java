@@ -1,6 +1,7 @@
 package com.deanp.blog.post.controller;
 
 import com.deanp.blog.post.service.CategoryAdminService;
+import com.deanp.blog.post.service.BoardService;
 import com.deanp.blog.post.service.CategoryAdminService.CategoryInput;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class AdminCategoryController {
     private static final String LIST = "redirect:/admin/categories";
 
     private final CategoryAdminService categoryAdmin;
+    private final BoardService boardService;
 
     /**
      * 관리 화면 응답은 브라우저 캐시에 남기지 않는다.
@@ -59,6 +61,7 @@ public class AdminCategoryController {
     @GetMapping
     public String list(Model model) {
         model.addAttribute("categoryRows", categoryAdmin.findAll());
+        model.addAttribute("boardChoices", boardService.findActive());
         model.addAttribute("pageTitle", "카테고리 관리 — dean.p");
         return "admin/categories";
     }
@@ -69,18 +72,20 @@ public class AdminCategoryController {
      * @param name 이름
      * @param slug 주소, 비우면 이름으로 만든다
      * @param sortOrder 정렬 순서
+     * @param boardId 속한 게시판 식별자, 없으면 생성은 기본 게시판·수정은 유지
      * @param redirect 리다이렉트 후 보여 줄 값
      * @return 목록으로의 리다이렉트
      */
     @PostMapping
     public String create(@RequestParam String name, @RequestParam(defaultValue = "") String slug,
-                         @RequestParam(defaultValue = "0") int sortOrder, RedirectAttributes redirect) {
+                         @RequestParam(defaultValue = "0") int sortOrder, @RequestParam(required = false) UUID boardId,
+                         RedirectAttributes redirect) {
         try {
-            categoryAdmin.create(new CategoryInput(name, slug, sortOrder));
+            categoryAdmin.create(new CategoryInput(name, slug, sortOrder, boardId));
             return LIST + "?saved";
         } catch (IllegalArgumentException exception) {
             redirect.addFlashAttribute("error", exception.getMessage());
-            redirect.addFlashAttribute("draft", new CategoryInput(name, slug, sortOrder));
+            redirect.addFlashAttribute("draft", new CategoryInput(name, slug, sortOrder, boardId));
             return LIST;
         }
     }
@@ -92,14 +97,16 @@ public class AdminCategoryController {
      * @param name 이름
      * @param slug 주소, 비우면 이름으로 만든다
      * @param sortOrder 정렬 순서
+     * @param boardId 속한 게시판 식별자, 없으면 생성은 기본 게시판·수정은 유지
      * @param redirect 리다이렉트 후 보여 줄 값
      * @return 목록으로의 리다이렉트
      */
     @PostMapping("/{id}")
     public String update(@PathVariable UUID id, @RequestParam String name, @RequestParam(defaultValue = "") String slug,
-                         @RequestParam(defaultValue = "0") int sortOrder, RedirectAttributes redirect) {
+                         @RequestParam(defaultValue = "0") int sortOrder, @RequestParam(required = false) UUID boardId,
+                         RedirectAttributes redirect) {
         try {
-            categoryAdmin.update(id, new CategoryInput(name, slug, sortOrder));
+            categoryAdmin.update(id, new CategoryInput(name, slug, sortOrder, boardId));
             return LIST + "?saved";
         } catch (IllegalArgumentException exception) {
             redirect.addFlashAttribute("error", exception.getMessage());

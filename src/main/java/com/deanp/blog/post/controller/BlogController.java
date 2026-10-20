@@ -3,6 +3,8 @@ package com.deanp.blog.post.controller;
 import com.deanp.blog.media.service.PostFileService;
 import com.deanp.blog.post.PostView;
 import com.deanp.blog.post.PostFilterOption;
+import com.deanp.blog.post.service.BoardService;
+import com.deanp.blog.post.service.BoardService.BoardView;
 import com.deanp.blog.post.service.PostService;
 import com.deanp.blog.visitor.controller.VisitorCookieIdentifier;
 import com.deanp.blog.visitor.service.VisitorPostViewTrackingService;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,6 +43,7 @@ public class BlogController {
     private static final List<Integer> PAGE_SIZES = List.of(10, 20, 50);
 
     private final PostService postService;
+    private final BoardService boardService;
     private final SidebarFilterModel sidebarFilters;
     private final PostFileService postFiles;
     private final VisitorCookieIdentifier visitorCookieIdentifier;
@@ -68,8 +72,25 @@ public class BlogController {
     }
 
     /**
-     * 공개 글 목록 화면을 선택된 카테고리 조건으로 렌더링한다.
+     * 게시판이 생기기 전의 글 목록 주소(/posts)를 기본 게시판 목록으로 영구 이동시킨다. 필터 쿼리는 그대로 넘긴다.
      *
+     * @param request 현재 요청
+     * @return 기본 게시판 목록으로의 301 리다이렉트
+     */
+    @GetMapping("/posts")
+    public RedirectView legacyPostList(HttpServletRequest request) {
+        String query = request.getQueryString();
+        RedirectView redirect = new RedirectView(sidebarFilters.defaultBoard().path() + (query == null ? "" : "?" + query));
+        redirect.setStatusCode(HttpStatus.MOVED_PERMANENTLY);
+        redirect.setExposeModelAttributes(false);
+        return redirect;
+    }
+
+    /**
+     * 게시판(/dev, /notes 등)의 공개 글 목록을 선택된 필터 조건으로 렌더링한다.
+     * 주소는 점이 없는 한 단어만 받아 정적 파일(예: /google….html)과 겹치지 않게 한다.
+     *
+     * @param boardSlug 게시판 주소, 활성 게시판이 아니면 404
      * @param category 선택된 카테고리 슬러그, 없으면 전체 글
      * @param series 선택된 시리즈 슬러그, 없으면 시리즈 조건 생략
      * @param search 검색어, 없으면 검색 조건 생략
@@ -77,15 +98,19 @@ public class BlogController {
      * @param page 1부터 시작하는 페이지 번호
      * @param size 페이지당 글 수(10, 20, 50)
      * @param model Thymeleaf 렌더링에 사용할 모델
+     * @param request 조건(쿼리)이 붙었는지 볼 현재 요청
      * @return 글 목록 템플릿 이름
      */
-    @GetMapping("/posts")
-    public String posts(@RequestParam(required = false) String category,
+    @GetMapping("/{boardSlug:[a-z0-9-]+}")
+    public String posts(@PathVariable String boardSlug,
+                        @RequestParam(required = false) String category,
                         @RequestParam(required = false) String series,
                         @RequestParam(required = false, name = "q") String search,
                         @RequestParam(required = false) String tag,
                         @RequestParam(defaultValue = "1") int page,
-                        @RequestParam(defaultValue = "20") int size, Model model) {
+                        @RequestParam(defaultValue = "20") int size, Model model, HttpServletRequest request) {
+        BoardView board = boardService.findActive(boardSlug)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         if (page < 1 || !PAGE_SIZES.contains(size)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
@@ -94,7 +119,7 @@ public class BlogController {
         series = normalize(series);
         var selectedTags = selectedTags(tag);
         search = normalize(search);
-        var postPage = postService.findPage(category, series, selectedTags, search, page, size);
+        var postPage = postService.findPage(board.slug(), category, series, selectedTags, search, page, size);
         int totalPages = Math.max(1, postPage.getTotalPages());
         if (page > totalPages) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
@@ -106,8 +131,8 @@ public class BlogController {
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("pageNumbers", IntStream.rangeClosed(1, totalPages).boxed().toList());
-        sidebarFilters.add(model.asMap(), category, series, selectedTags, search, size);
-        model.addAttribute("selectedSeriesInfo", postService.findSeries(category, series).orElse(null));
+        sidebarFilters.add(model.asMap(), board, category, series, selectedTags, search, size);
+        model.addAttribute("selectedSeriesInfo", postService.findSeries(board.slug(), category, series).orElse(null));
         model.addAttribute("hasFilters", category != null || series != null || !selectedTags.isEmpty() || search != null);
 
         // 글 상세 링크에는 선택된 필터만 붙여 상세 화면의 사이드바가 같은 선택을 이어받게 한다.
@@ -117,7 +142,14 @@ public class BlogController {
                 .queryParamIfPresent("tag", Optional.ofNullable(selectedTags.isEmpty() ? null : String.join(",", selectedTags)))
                 .queryParamIfPresent("q", Optional.ofNullable(search))
                 .build().encode().toUriString());
-        model.addAttribute("pageTitle", "글 — dean.p");
+        model.addAttribute("board", board);
+        model.addAttribute("postsMenuOpen", true);
+        model.addAttribute("pageTitle", board.name() + " — dean.p");
+
+        // 필터·페이지 조건이 붙은 목록은 같은 글을 다른 주소로 반복하므로 검색 결과에서 뺀다.
+        if (!request.getParameterMap().isEmpty()) {
+            model.addAttribute("noindex", true);
+        }
 
         return "posts";
     }
@@ -134,17 +166,18 @@ public class BlogController {
     }
 
     /**
-     * 추가 공개 태그를 스무 개씩 응답한다.
+     * 게시판의 추가 공개 태그를 스무 개씩 응답한다.
+     * @param board 게시판 주소, 없으면 모든 게시판
      * @param offset 이미 표시한 태그 수
      * @return 다음 태그 구간과 뒤에 남은 태그 여부
      */
     @GetMapping("/posts/tags/more")
     @ResponseBody
-    public TagPage moreTags(@RequestParam(defaultValue = "20") int offset) {
+    public TagPage moreTags(@RequestParam(required = false) String board, @RequestParam(defaultValue = "20") int offset) {
         if (offset < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
-        var tags = postService.findTags(offset, SidebarFilterModel.TAG_BATCH_SIZE + 1);
+        var tags = postService.findTags(normalize(board), offset, SidebarFilterModel.TAG_BATCH_SIZE + 1);
         return new TagPage(tags.stream().limit(SidebarFilterModel.TAG_BATCH_SIZE).toList(), tags.size() > SidebarFilterModel.TAG_BATCH_SIZE);
     }
 
@@ -222,7 +255,9 @@ public class BlogController {
         // 상세 템플릿이 표시할 글과 첨부 파일, 사이드바 필터 상태, 브라우저 제목을 모델에 담는다.
         model.addAttribute("post", post);
         model.addAttribute("attachments", postFiles.findByPost(post.id()));
-        sidebarFilters.add(model.asMap(), normalize(category), normalize(series), selectedTags(tag), normalize(search), SidebarFilterModel.DEFAULT_PAGE_SIZE);
+        BoardView board = post.boardSlug() == null ? sidebarFilters.defaultBoard()
+                : boardService.findActive(post.boardSlug()).orElseGet(sidebarFilters::defaultBoard);
+        sidebarFilters.add(model.asMap(), board, normalize(category), normalize(series), selectedTags(tag), normalize(search), SidebarFilterModel.DEFAULT_PAGE_SIZE);
         model.addAttribute("pageTitle", post.title() + " — dean.p");
 
         // 검색 결과와 공유 미리보기에 글 요약과 대표 이미지를 쓴다. 요약이 없으면 사이트 기본 설명을 유지한다.

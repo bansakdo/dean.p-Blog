@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import com.deanp.blog.post.service.BoardService;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -24,6 +25,9 @@ class NonIndexableSearchEngineControllerTest {
 
     @MockitoBean
     private PostDetailRepository posts;
+
+    @MockitoBean
+    private BoardService boardService;
 
     /** robots.txt는 모든 경로를 막고, sitemap.xml은 404다. */
     @Test

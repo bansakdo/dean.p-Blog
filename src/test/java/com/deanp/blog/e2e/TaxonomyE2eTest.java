@@ -57,7 +57,7 @@ class TaxonomyE2eTest extends E2eTestSupport {
         expect(page.locator(".admin-heading .admin-badge")).hasText("공개");
         String postId = idFromUrl();
         Page publicPage = context.newPage();
-        publicPage.navigate("/posts");
+        publicPage.navigate("/dev");
         expect(publicPage.locator("a[href*='category=']:not([href*='series='])").first()).containsText(categoryName);
         publicPage.close();
 

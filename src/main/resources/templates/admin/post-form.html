@@ -38,12 +38,21 @@
     <label for="post-summary">요약</label>
     <textarea id="post-summary" th:field="*{summary}" rows="2"></textarea>
 
+    <label for="post-board">게시판</label>
+    <select id="post-board" th:field="*{boardId}" th:disabled="${post != null and post.inSeries}" aria-describedby="post-board-help">
+      <option th:each="board : ${boardChoices}" th:value="${board.id}" th:text="${board.name}">게시판</option>
+    </select>
+    <p class="admin-help" id="post-board-help" th:text="${post != null and post.inSeries} ? '시리즈에 속한 글은 시리즈 카테고리의 게시판을 따릅니다.' : '글 목록이 나뉘는 단위입니다. 글 주소는 게시판과 관계없이 그대로입니다.'">글 목록이 나뉘는 단위입니다.</p>
+
     <label for="post-category">카테고리</label>
     <select id="post-category" th:field="*{categoryId}" th:disabled="${post != null and post.inSeries}" aria-describedby="post-category-help">
       <option value="">없음</option>
-      <option th:each="category : ${categoryChoices}" th:value="${category.id}" th:text="${category.name}">카테고리</option>
+      <optgroup th:each="board : ${boardChoices}" th:label="${board.name}">
+        <option th:each="category : ${categoryChoices}" th:if="${category.boardId == board.id}"
+                th:value="${category.id}" th:text="${category.name}">카테고리</option>
+      </optgroup>
     </select>
-    <p class="admin-help" id="post-category-help" th:text="${post != null and post.inSeries} ? '시리즈에 속한 글은 시리즈의 카테고리를 따릅니다.' : '글 목록의 분류에 쓰입니다.'">글 목록의 분류에 쓰입니다.</p>
+    <p class="admin-help" id="post-category-help" th:text="${post != null and post.inSeries} ? '시리즈에 속한 글은 시리즈의 카테고리를 따릅니다.' : '고른 게시판에 속한 카테고리만 지정할 수 있습니다.'">글 목록의 분류에 쓰입니다.</p>
 
     <label for="post-tags">태그</label>
     <input id="post-tags" type="text" th:field="*{tags}" aria-describedby="post-tags-help">

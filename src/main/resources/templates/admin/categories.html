@@ -14,7 +14,11 @@
 
   <ul class="admin-terms" th:unless="${categoryRows.isEmpty()}">
     <li class="admin-term" th:each="category : ${categoryRows}">
-      <form class="admin-term-form" method="post" th:action="@{/admin/categories/{id}(id=${category.id})}">
+      <form class="admin-term-form has-board" method="post" th:action="@{/admin/categories/{id}(id=${category.id})}">
+        <label><span>게시판</span><select name="boardId">
+          <option th:each="board : ${boardChoices}" th:value="${board.id}" th:text="${board.name}"
+                  th:selected="${board.id == category.boardId}">게시판</option>
+        </select></label>
         <label><span>이름</span><input type="text" name="name" th:value="${category.name}" maxlength="100" required></label>
         <label><span>주소(slug)</span><input type="text" name="slug" th:value="${category.slug}" maxlength="150"></label>
         <label class="admin-term-order"><span>순서</span><input type="number" name="sortOrder" th:value="${category.sortOrder}" required></label>
@@ -33,13 +37,17 @@
 
   <section class="admin-images" aria-labelledby="new-category-title">
     <h2 id="new-category-title">새 카테고리</h2>
-    <form class="admin-term-form" method="post" th:action="@{/admin/categories}">
+    <form class="admin-term-form has-board" method="post" th:action="@{/admin/categories}">
+      <label><span>게시판</span><select name="boardId">
+        <option th:each="board : ${boardChoices}" th:value="${board.id}" th:text="${board.name}"
+                th:selected="${draft != null and board.id == draft.boardId}">게시판</option>
+      </select></label>
       <label><span>이름</span><input type="text" name="name" th:value="${draft?.name}" maxlength="100" required></label>
       <label><span>주소(slug)</span><input type="text" name="slug" th:value="${draft?.slug}" maxlength="150" placeholder="비우면 이름으로 만듭니다"></label>
       <label class="admin-term-order"><span>순서</span><input type="number" name="sortOrder" th:value="${draft?.sortOrder} ?: 0" required></label>
       <button class="admin-button primary" type="submit">추가</button>
     </form>
-    <p class="admin-help">주소를 바꾸면 기존 카테고리 링크가 끊깁니다. 쓰고 있는 글이나 시리즈가 있으면 삭제할 수 없습니다.</p>
+    <p class="admin-help">주소를 바꾸면 기존 카테고리 링크가 끊깁니다. 게시판을 바꾸면 이 카테고리의 글과 시리즈 글도 함께 옮겨집니다. 쓰고 있는 글이나 시리즈가 있으면 삭제할 수 없습니다.</p>
   </section>
 </main>
 <footer th:replace="~{fragments/site :: footer}"></footer>

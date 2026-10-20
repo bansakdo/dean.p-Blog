@@ -27,6 +27,9 @@ public class PostDetail {
     @Column(name = "id")
     private UUID id;
 
+    @Column(name = "board_id")
+    private UUID boardId;
+
     @Column(name = "category_id")
     private UUID categoryId;
 
@@ -68,6 +71,10 @@ public class PostDetail {
 
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "board_id", insertable = false, updatable = false)
+    private Board board;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", insertable = false, updatable = false)
@@ -121,6 +128,7 @@ public class PostDetail {
      * 아직 공개되지 않은 Markdown 초안을 만든다.
      *
      * @param authorId 작성자 식별자
+     * @param boardId 게시판 식별자
      * @param categoryId 카테고리 식별자 또는 null
      * @param slug URL 식별자
      * @param title 제목
@@ -128,12 +136,13 @@ public class PostDetail {
      * @param content Markdown 본문
      * @return 저장할 초안 게시글
      */
-    public static PostDetail createDraft(UUID authorId, UUID categoryId, String slug, String title,
+    public static PostDetail createDraft(UUID authorId, UUID boardId, UUID categoryId, String slug, String title,
                                          String summary, String content) {
         PostDetail post = new PostDetail();
         Instant now = Instant.now();
         post.id = UUID.randomUUID();
         post.authorId = authorId;
+        post.boardId = boardId;
         post.categoryId = categoryId;
         post.slug = slug;
         post.title = title;
@@ -221,6 +230,16 @@ public class PostDetail {
      */
     public void restore() {
         this.status = "DRAFT";
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * 글을 다른 게시판으로 옮긴다. 카테고리와 시리즈가 같은 게시판에 속한다는 규칙은 호출하는 서비스가 지킨다.
+     *
+     * @param boardId 새 게시판 식별자
+     */
+    public void changeBoard(UUID boardId) {
+        this.boardId = boardId;
         this.updatedAt = Instant.now();
     }
 }

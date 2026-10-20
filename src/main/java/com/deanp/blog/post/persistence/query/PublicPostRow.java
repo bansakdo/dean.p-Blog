@@ -18,6 +18,8 @@ import java.util.UUID;
  * @param categoryName 카테고리 표시명
  * @param seriesSlug 공개 시리즈 URL 값
  * @param seriesName 공개 시리즈 표시명
+ * @param boardSlug 게시판 주소
+ * @param boardName 게시판 이름
  */
 public record PublicPostRow(
         UUID id,
@@ -29,8 +31,16 @@ public record PublicPostRow(
         String tagName,
         Integer seriesOrder,
         String representativeImageName,
-        String categoryName, String seriesSlug, String seriesName
+        String categoryName, String seriesSlug, String seriesName,
+        String boardSlug, String boardName
 ) {
+    public PublicPostRow(UUID id, String slug, String title, String summary, String content,
+                         Instant publishedAt, String tagName, Integer seriesOrder, String representativeImageName,
+                         String categoryName, String seriesSlug, String seriesName) {
+        this(id, slug, title, summary, content, publishedAt, tagName, seriesOrder, representativeImageName,
+                categoryName, seriesSlug, seriesName, null, null);
+    }
+
     public PublicPostRow(UUID id, String slug, String title, String summary, String content,
                          Instant publishedAt, String tagName, Integer seriesOrder, String representativeImageName) {
         this(id, slug, title, summary, content, publishedAt, tagName, seriesOrder,

@@ -18,7 +18,7 @@
           <h2><a th:href="@{/posts/{slug}(slug=${post.slug})}"><span th:text="${post.title}">글 제목</span></a></h2>
           <p class="post-summary" th:text="${post.summary}">요약</p>
           <ul class="tag-list"><li th:each="tag : ${post.tags}" th:text="|# ${tag}|">태그</li></ul>
-          <a class="post-series-link" th:if="${post.seriesSlug != null}" th:href="@{/posts(series=${post.seriesSlug})}" th:text="|▤ ${post.seriesName} · ${post.seriesOrder}편 →|">시리즈 바로가기</a>
+          <a class="post-series-link" th:if="${post.seriesSlug != null}" th:href="@{${post.boardPath()}(series=${post.seriesSlug})}" th:text="|▤ ${post.seriesName} · ${post.seriesOrder}편 →|">시리즈 바로가기</a>
         </article>
       </div>
     <p class="empty-state" th:if="${posts.isEmpty()}">검색어에 맞는 글이 없습니다.</p>
