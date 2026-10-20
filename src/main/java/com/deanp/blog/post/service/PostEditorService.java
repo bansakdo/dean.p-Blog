@@ -5,6 +5,7 @@ import com.deanp.blog.media.persistence.entity.PostAttachedFileId;
 import com.deanp.blog.media.persistence.repository.PostAttachedFileRepository;
 import com.deanp.blog.post.PostView;
 import com.deanp.blog.post.persistence.entity.PostDetail;
+import com.deanp.blog.post.persistence.repository.BoardRepository;
 import com.deanp.blog.post.persistence.repository.PostCategoryRepository;
 import com.deanp.blog.post.persistence.repository.PostDetailRepository;
 import com.deanp.blog.post.persistence.repository.PostDetailRepository.StatusCount;
@@ -51,6 +52,7 @@ public class PostEditorService {
 
     private final PostDetailRepository posts;
     private final PostCategoryRepository categories;
+    private final BoardRepository boards;
     private final TagRepository tags;
     private final PostTagRepository postTags;
     private final PostAttachedFileRepository postAttachedFiles;
@@ -100,12 +102,12 @@ public class PostEditorService {
     }
 
     /**
-     * @return 글에 지정할 수 있는 활성 카테고리 목록
+     * @return 글에 지정할 수 있는 활성 카테고리 목록. 화면은 게시판별로 묶어 보여 준다
      */
     @Transactional(readOnly = true)
     public List<CategoryChoice> findCategoryChoices() {
         return categories.findByStatusOrderBySortOrderAscNameAsc(ACTIVE).stream()
-                .map(category -> new CategoryChoice(category.getId(), category.getName()))
+                .map(category -> new CategoryChoice(category.getId(), category.getName(), category.getBoardId()))
                 .toList();
     }
 
@@ -119,6 +121,7 @@ public class PostEditorService {
     public Optional<PostEditView> findForEdit(UUID id) {
         return posts.findById(id).map(post -> new PostEditView(
                 post.getId(),
+                post.getBoardId(),
                 post.getSlug(),
                 post.getTitle(),
                 post.getSummary(),
@@ -157,16 +160,17 @@ public class PostEditorService {
     public UUID create(PostEditCommand command, String authorLoginId) {
         PostEditCommand normalized = command.normalized();
 
-        // 작성자와 카테고리, 주소 중복을 확인한다.
+        // 작성자와 게시판, 그 게시판의 카테고리, 주소 중복을 확인한다. 게시판을 고르지 않으면 기본 게시판에 둔다.
         UUID authorId = users.findByLoginId(authorLoginId)
                 .orElseThrow(() -> new IllegalStateException("로그인한 사용자를 찾을 수 없습니다.")).getId();
-        requireCategory(normalized.categoryId());
+        UUID boardId = normalized.boardId() == null ? defaultBoardId() : requireBoard(normalized.boardId());
+        requireCategory(normalized.categoryId(), boardId);
         if (posts.existsBySlugAndStatusNot(normalized.slug(), DELETED)) {
             throw new IllegalArgumentException("이미 사용 중인 주소(slug)입니다.");
         }
 
         // 초안으로 저장한 뒤 태그와 공개 상태를 반영한다. 새 글에는 아직 첨부 이미지가 없다.
-        PostDetail post = posts.save(PostDetail.createDraft(authorId, normalized.categoryId(), normalized.slug(),
+        PostDetail post = posts.save(PostDetail.createDraft(authorId, boardId, normalized.categoryId(), normalized.slug(),
                 normalized.title(), normalized.summary(), normalized.content()));
         replaceTags(post.getId(), normalized.tagNames());
         if (normalized.action() == PublishAction.PUBLISH) {
@@ -200,9 +204,14 @@ public class PostEditorService {
         revisions.recordBaselineIfMissing(post);
         post.edit(normalized.slug(), normalized.title(), normalized.summary(), normalized.content());
 
-        // 시리즈에 속한 글의 카테고리는 시리즈 대표 카테고리를 따르므로 여기서 바꾸지 않는다.
+        // 시리즈에 속한 글의 게시판·카테고리는 시리즈 대표 카테고리를 따르므로 여기서 바꾸지 않는다.
+        // 그 밖의 글은 게시판을 고르지 않았으면 지금 게시판을 유지하고, 카테고리는 그 게시판에 속해야 한다.
         if (post.getSeriesId() == null) {
-            requireCategory(normalized.categoryId());
+            UUID boardId = normalized.boardId() == null ? post.getBoardId() : requireBoard(normalized.boardId());
+            requireCategory(normalized.categoryId(), boardId);
+            if (!boardId.equals(post.getBoardId())) {
+                post.changeBoard(boardId);
+            }
             post.changeCategory(normalized.categoryId());
         }
 
@@ -305,7 +314,9 @@ public class PostEditorService {
     private static AdminPostRow row(PostDetail post) {
         return new AdminPostRow(post.getId(), post.getSlug(), post.getTitle(),
                 PUBLISHED.equals(post.getStatus()), DELETED.equals(post.getStatus()), scheduled(post),
-                displayTime(post.getPublishedAt()), displayTime(post.getUpdatedAt()));
+                displayTime(post.getPublishedAt()), displayTime(post.getUpdatedAt()),
+                post.getBoard() == null ? null : post.getBoard().getName(),
+                post.getBoard() == null ? null : post.getBoard().getSlug());
     }
 
     /**
@@ -326,14 +337,39 @@ public class PostEditorService {
     }
 
     /**
-     * 카테고리를 지정했다면 실제로 있는지 확인한다.
+     * 카테고리를 지정했다면 실제로 있고 글과 같은 게시판에 속하는지 확인한다.
      *
      * @param categoryId 카테고리 식별자 또는 null
+     * @param boardId 글이 속할 게시판 식별자
      */
-    private void requireCategory(UUID categoryId) {
-        if (categoryId != null && !categories.existsById(categoryId)) {
-            throw new IllegalArgumentException("존재하지 않는 카테고리입니다.");
+    private void requireCategory(UUID categoryId, UUID boardId) {
+        if (categoryId == null) {
+            return;
         }
+        UUID categoryBoardId = categories.findById(categoryId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다.")).getBoardId();
+        if (!boardId.equals(categoryBoardId)) {
+            throw new IllegalArgumentException("고른 게시판에 속한 카테고리만 지정할 수 있습니다.");
+        }
+    }
+
+    /**
+     * @param boardId 게시판 식별자
+     * @return 활성 게시판이면 같은 식별자
+     */
+    private UUID requireBoard(UUID boardId) {
+        if (!boards.existsByIdAndStatus(boardId, ACTIVE)) {
+            throw new IllegalArgumentException("존재하지 않는 게시판입니다.");
+        }
+        return boardId;
+    }
+
+    /**
+     * @return 정렬 순서가 가장 앞선 활성 게시판(기본 게시판)의 식별자
+     */
+    private UUID defaultBoardId() {
+        return boards.findByStatusOrderBySortOrderAscNameAsc(ACTIVE).stream().findFirst()
+                .orElseThrow(() -> new IllegalStateException("활성 게시판이 없습니다.")).getId();
     }
 
     /**
@@ -415,9 +451,29 @@ public class PostEditorService {
      * @param scheduled 발행 시각이 아직 오지 않은 예약 글인지 여부
      * @param publishedAt 화면 표시 시간대로 바꾼 발행 시각 또는 null
      * @param updatedAt 화면 표시 시간대로 바꾼 마지막 수정 시각
+     * @param boardName 게시판 이름
+     * @param boardSlug 게시판 주소
      */
     public record AdminPostRow(UUID id, String slug, String title, boolean published, boolean deleted,
-                               boolean scheduled, LocalDateTime publishedAt, LocalDateTime updatedAt) {
+                               boolean scheduled, LocalDateTime publishedAt, LocalDateTime updatedAt,
+                               String boardName, String boardSlug) {
+
+        /**
+         * 게시판 정보 없이 만든다.
+         *
+         * @param id 게시글 식별자
+         * @param slug URL 식별자
+         * @param title 제목
+         * @param published 공개 여부
+         * @param deleted 삭제 여부
+         * @param scheduled 예약 글인지 여부
+         * @param publishedAt 발행 시각 또는 null
+         * @param updatedAt 마지막 수정 시각
+         */
+        public AdminPostRow(UUID id, String slug, String title, boolean published, boolean deleted,
+                            boolean scheduled, LocalDateTime publishedAt, LocalDateTime updatedAt) {
+            this(id, slug, title, published, deleted, scheduled, publishedAt, updatedAt, null, null);
+        }
     }
 
     /**
@@ -425,14 +481,16 @@ public class PostEditorService {
      *
      * @param id 카테고리 식별자
      * @param name 표시 이름
+     * @param boardId 속한 게시판 식별자
      */
-    public record CategoryChoice(UUID id, String name) {
+    public record CategoryChoice(UUID id, String name, UUID boardId) {
     }
 
     /**
      * 수정 화면에 채울 글의 현재 값이다.
      *
      * @param id 게시글 식별자
+     * @param boardId 게시판 식별자
      * @param slug URL 식별자
      * @param title 제목
      * @param summary 요약
@@ -442,11 +500,11 @@ public class PostEditorService {
      * @param representativeImageId 대표 이미지 파일 식별자 또는 null
      * @param published 공개 여부
      * @param deleted 삭제 여부
-     * @param inSeries 시리즈에 속해 카테고리를 바꿀 수 없는지 여부
+     * @param inSeries 시리즈에 속해 게시판·카테고리를 바꿀 수 없는지 여부
      * @param scheduled 발행 시각이 아직 오지 않은 예약 글인지 여부
      * @param publishedAt 화면 표시 시간대로 바꾼 발행 시각 또는 null
      */
-    public record PostEditView(UUID id, String slug, String title, String summary, String content,
+    public record PostEditView(UUID id, UUID boardId, String slug, String title, String summary, String content,
                                UUID categoryId, String tags, UUID representativeImageId,
                                boolean published, boolean deleted, boolean inSeries,
                                boolean scheduled, LocalDateTime publishedAt) {

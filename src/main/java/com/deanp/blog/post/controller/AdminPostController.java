@@ -11,6 +11,7 @@ import com.deanp.blog.post.service.AdminPostFilter;
 import com.deanp.blog.post.service.PostEditCommand;
 import com.deanp.blog.post.service.PostEditCommand.PublishAction;
 import com.deanp.blog.post.service.PostEditorService;
+import com.deanp.blog.post.service.BoardService;
 import com.deanp.blog.post.service.PostEditorService.PostEditView;
 import com.deanp.blog.post.service.PostEditorService.SlugConflictException;
 import com.deanp.blog.post.service.PostService;
@@ -54,6 +55,7 @@ public class AdminPostController {
     private static final ZoneId DISPLAY_ZONE = ZoneId.of("Asia/Seoul");
 
     private final PostEditorService postEditor;
+    private final BoardService boardService;
     private final PostImageService postImages;
     private final PostDiagramService postDiagrams;
     private final PostFileService postFiles;
@@ -151,6 +153,7 @@ public class AdminPostController {
         form.setSlug(post.slug());
         form.setSummary(post.summary());
         form.setContent(post.content());
+        form.setBoardId(post.boardId());
         form.setCategoryId(post.categoryId());
         form.setTags(post.tags());
         form.setRepresentativeImageId(post.representativeImageId());
@@ -380,6 +383,7 @@ public class AdminPostController {
      * @return 글 작성·수정 템플릿 이름
      */
     private String form(Model model, PostEditView post) {
+        model.addAttribute("boardChoices", boardService.findActive());
         model.addAttribute("categoryChoices", postEditor.findCategoryChoices());
         model.addAttribute("post", post);
         model.addAttribute("images", post == null ? List.of() : postImages.findByPost(post.id()));
@@ -416,6 +420,7 @@ public class AdminPostController {
         List<String> tagNames = form.getTags() == null ? List.of() : Arrays.asList(form.getTags().split(","));
         Instant publishAt = form.getPublishedAt() == null ? null : form.getPublishedAt().atZone(DISPLAY_ZONE).toInstant();
         return new PostEditCommand(form.getTitle(), form.getSlug(), form.getSummary(), form.getContent(),
-                form.getCategoryId(), tagNames, form.getRepresentativeImageId(), publishAction, publishAt);
+                form.getCategoryId(), tagNames, form.getRepresentativeImageId(), publishAction, publishAt,
+                form.getBoardId());
     }
 }

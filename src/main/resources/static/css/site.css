@@ -507,10 +507,12 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .admin-terms { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
 .admin-term { padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 8px; }
 .admin-term-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 96px auto; align-items: end; gap: 10px; }
+/* 카테고리는 앞에 게시판 선택칸이 하나 더 있다. */
+.admin-term-form.has-board { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) 96px auto; }
 .admin-term-form label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; font-weight: 650; }
-.admin-term-form input, .admin-order-input { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 15px; }
+.admin-term-form input, .admin-term-form select, .admin-order-input { width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 15px; }
 .admin-order-input { width: 96px; }
-.admin-term-form input:focus-visible, .admin-order-input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.admin-term-form input:focus-visible, .admin-term-form select:focus-visible, .admin-order-input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .admin-member-form { grid-template-columns: 96px minmax(0, 1fr) auto auto; align-items: center; }
 .admin-member-form .admin-term-order { align-self: end; }
 .admin-member-title { font-weight: 650; overflow-wrap: anywhere; }

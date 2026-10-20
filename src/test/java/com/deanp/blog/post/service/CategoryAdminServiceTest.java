@@ -26,6 +26,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ActiveProfiles("dev")
 @Transactional
 class CategoryAdminServiceTest {
+    /** V12가 만든 개발·노트 게시판 식별자 */
+    private static final UUID DEV_BOARD = UUID.fromString("00000000-0000-4000-8000-000000000001");
+    private static final UUID NOTES_BOARD = UUID.fromString("00000000-0000-4000-8000-000000000002");
 
     private static final TestPostgresql DB = new TestPostgresql();
 
@@ -56,6 +59,28 @@ class CategoryAdminServiceTest {
         jdbc.update("INSERT INTO blog.app_user (id, login_id, password_hash, name) VALUES (?, 'category-user', 'hash', '작성자')", id(1));
     }
 
+    /** 카테고리를 다른 게시판으로 옮기면 그 카테고리의 글도 함께 옮겨진다. 게시판을 고르지 않은 수정은 게시판을 유지한다. */
+    @Test
+    void movesPostsWithCategoryBoard() {
+        UUID category = service.create(new CategoryInput("옮길 분류", "move-me", 0));
+        entityManager.flush();
+        post(40, category, "PUBLISHED");
+        service.update(category, new CategoryInput("옮길 분류", "move-me", 1));
+        entityManager.flush();
+        assertThat(boardOf("post_category", category)).isEqualTo(DEV_BOARD);
+
+        service.update(category, new CategoryInput("옮길 분류", "move-me", 1, NOTES_BOARD));
+        entityManager.flush();
+
+        assertThat(boardOf("post_category", category)).isEqualTo(NOTES_BOARD);
+        assertThat(boardOf("post_detail", id(40))).isEqualTo(NOTES_BOARD);
+    }
+
+    /** @param table 테이블 이름 @param rowId 행 식별자 @return 게시판 식별자 */
+    private UUID boardOf(String table, UUID rowId) {
+        return jdbc.queryForObject("SELECT board_id FROM blog." + table + " WHERE id = ?", UUID.class, rowId);
+    }
+
     /** 주소를 비우면 이름으로 만들고, 목록은 정렬 순서와 이름순이며 공개 카테고리 목록도 같은 순서를 따른다. */
     @Test
     void createsAndOrdersCategories() {
@@ -69,11 +94,11 @@ class CategoryAdminServiceTest {
 
         assertThat(service.findAll()).extracting(CategoryRow::slug).containsExactly("dev-notes", "일상-기록");
         assertThat(service.findAll()).extracting(CategoryRow::postCount).containsExactly(1L, 1L);
-        assertThat(posts.findPublishedCategories()).extracting(option -> option.slug()).containsExactly("dev-notes", "일상-기록");
+        assertThat(posts.findPublishedCategories(null)).extracting(option -> option.slug()).containsExactly("dev-notes", "일상-기록");
 
         service.update(life, new CategoryInput("일상 기록", "life", 0));
         entityManager.flush();
-        assertThat(posts.findPublishedCategories()).extracting(option -> option.slug()).containsExactly("life", "dev-notes");
+        assertThat(posts.findPublishedCategories(null)).extracting(option -> option.slug()).containsExactly("life", "dev-notes");
     }
 
     /** 이름은 대소문자와 관계없이, 주소는 그대로 겹치면 거부하고 금지 문자가 든 주소도 거부한다. */

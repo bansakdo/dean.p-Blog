@@ -62,13 +62,14 @@ com.deanp.blog.<feature>
 
 ## 현재 구현
 
-- `post.controller.BlogController`: 홈, 글 목록, 글 본문, 소개 라우팅
+- `post.controller.BlogController`: 홈, 게시판 목록(`/dev`, `/notes`), 글 본문, 소개 라우팅. 예전 `/posts`는 기본 게시판 목록으로 301 이동
+- `post.service.BoardService`: 활성 게시판(개발·노트)을 화면용 값으로 조회
 - `post.service.PostService`: 공개 발행 게시글을 화면용 데이터로 변환하고 Markdown을 HTML로 렌더링
 - `PostView`: 템플릿에 노출하는 게시글 표시용 projection
 - `post.persistence.repository.PostDetailRepository`: 단순 CRUD와 공개 게시글 Custom Querydsl 조회 경계
 - `post.service.PostSeriesService`: 시리즈 생성·수정과 게시글 배치를 조합하며, 시리즈 대표 카테고리를 연결 게시글 카테고리에 동기화
 - `post.persistence.query.PublicPostQueryRepository`: `PUBLISHED` 상태와 `published_at IS NOT NULL` 조건, 최신순 목록, slug 조회, 카테고리·시리즈·태그·검색 필터와 태그 조인 결과를 제공
-- 게시판 상위 테이블 없이 `post_detail`을 실제 글로 사용하는 기능별 JPA Entity와 Spring Data Repository
+- `post_detail`을 실제 글로 사용하고, V12의 `board`(개발·노트)가 글과 카테고리를 묶는 기능별 JPA Entity와 Spring Data Repository
 - Thymeleaf: 서버 렌더링 HTML
 - `media.controller.PublicMediaConfiguration`: 외부 저장소의 `posts/` 파일만 `/media/posts/**`로 공개
 - `media.controller.DiagramController`: Archify 다이어그램 HTML을 격리 헤더(CSP sandbox)와 함께 `/media/diagrams/{id}`로 제공

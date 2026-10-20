@@ -1,5 +1,6 @@
 package com.deanp.blog.post.persistence.query;
 
+import com.deanp.blog.post.persistence.entity.QBoard;
 import com.deanp.blog.post.persistence.entity.QPostCategory;
 import com.deanp.blog.post.persistence.entity.QPostDetail;
 import com.deanp.blog.post.persistence.entity.QPostSeries;
@@ -101,9 +102,9 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
                 .toList();
     }
 
-    /** @param categorySlug 선택 카테고리 @param seriesSlug 선택 시리즈 @param tagSlugs OR 태그 목록 @param search 검색어 @param offset 건너뛸 글 수 @param limit 페이지 크기 @return 글 단위 페이지와 전체 건수 */
+    /** @param boardSlug 게시판 주소, null이면 모든 게시판 @param categorySlug 선택 카테고리 @param seriesSlug 선택 시리즈 @param tagSlugs OR 태그 목록 @param search 검색어 @param offset 건너뛸 글 수 @param limit 페이지 크기 @return 글 단위 페이지와 전체 건수 */
     @Override
-    public PublishedPage findPublishedPage(String categorySlug, String seriesSlug, List<String> tagSlugs,
+    public PublishedPage findPublishedPage(String boardSlug, String categorySlug, String seriesSlug, List<String> tagSlugs,
                                            String search, long offset, int limit) {
         QPostDetail post = QPostDetail.postDetail;
         QPostCategory category = QPostCategory.postCategory;
@@ -113,13 +114,13 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
         long total = applyFilters(queryFactory.select(post.id.count()).from(post)
                         .leftJoin(category).on(category.id.eq(post.categoryId))
                         .leftJoin(series).on(series.id.eq(post.seriesId), series.status.in("ACTIVE", "COMPLETED"))
-                        .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now())),
+                        .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()), boardMatches(post, boardSlug)),
                 post, category, series, categorySlug, seriesSlug, tagSlugs, search).fetchOne();
         if (offset >= total) return new PublishedPage(List.of(), total);
         JPAQuery<UUID> idsQuery = applyFilters(queryFactory.select(post.id).from(post)
                         .leftJoin(category).on(category.id.eq(post.categoryId))
                         .leftJoin(series).on(series.id.eq(post.seriesId), series.status.in("ACTIVE", "COMPLETED"))
-                        .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now())),
+                        .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()), boardMatches(post, boardSlug)),
                 post, category, series, categorySlug, seriesSlug, tagSlugs, search);
         if (seriesSlug != null && !seriesSlug.isBlank()) {
             idsQuery.orderBy(post.seriesOrder.asc(), post.publishedAt.desc(), post.id.asc());
@@ -168,53 +169,53 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
         return query.where(categorySlugMatches(category, categorySlug), seriesFilter, tagFilter, searchMatches(post, search));
     }
 
-    /** @return 미분류 글까지 포함하며 태그 조인에 중복되지 않는 공개 글 수 */
+    /** @param boardSlug 게시판 주소, null이면 모든 게시판 @return 미분류 글까지 포함하며 태그 조인에 중복되지 않는 공개 글 수 */
     @Override
-    public long countPublishedPosts() {
+    public long countPublishedPosts(String boardSlug) {
         QPostDetail post = QPostDetail.postDetail;
         return queryFactory.select(post.id.count()).from(post)
-                .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now())).fetchOne();
+                .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()), boardMatches(post, boardSlug)).fetchOne();
     }
 
-    /** @return 공개 글에서 사용하는 카테고리만 관리 화면의 정렬 순서, 이름순으로 반환한다. */
+    /** @param boardSlug 게시판 주소, null이면 모든 게시판 @return 공개 글에서 사용하는 카테고리만 관리 화면의 정렬 순서, 이름순으로 반환한다. */
     @Override
-    public List<PostFilterOption> findPublishedCategories() {
+    public List<PostFilterOption> findPublishedCategories(String boardSlug) {
         QPostDetail post = QPostDetail.postDetail;
         QPostCategory category = QPostCategory.postCategory;
         return queryFactory.select(Projections.constructor(PostFilterOption.class, category.slug, category.name, post.id.countDistinct()))
                 .from(post).join(category).on(category.id.eq(post.categoryId))
-                .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()))
+                .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()), boardMatches(post, boardSlug))
                 .groupBy(category.slug, category.name, category.sortOrder)
                 .orderBy(category.sortOrder.asc(), category.name.asc(), category.slug.asc()).fetch();
     }
 
-    /** @return 공개 글에서 사용하는 태그만 이름순으로 반환한다. */
+    /** @param boardSlug 게시판 주소, null이면 모든 게시판 @return 공개 글에서 사용하는 태그만 이름순으로 반환한다. */
     @Override
-    public List<PostFilterOption> findPublishedTags() {
-        return publishedTagsQuery().fetch();
+    public List<PostFilterOption> findPublishedTags(String boardSlug) {
+        return publishedTagsQuery(boardSlug).fetch();
     }
 
-    /** @param offset 건너뛸 태그 수 @param limit 조회할 최대 태그 수 @return 공개 글 태그 구간 */
+    /** @param boardSlug 게시판 주소, null이면 모든 게시판 @param offset 건너뛸 태그 수 @param limit 조회할 최대 태그 수 @return 공개 글 태그 구간 */
     @Override
-    public List<PostFilterOption> findPublishedTags(long offset, int limit) {
-        return publishedTagsQuery().offset(offset).limit(limit).fetch();
+    public List<PostFilterOption> findPublishedTags(String boardSlug, long offset, int limit) {
+        return publishedTagsQuery(boardSlug).offset(offset).limit(limit).fetch();
     }
 
-    /** @return 공개 글에서 사용하는 태그만 이름·슬러그 순으로 정렬한 조회 */
-    private JPAQuery<PostFilterOption> publishedTagsQuery() {
+    /** @param boardSlug 게시판 주소, null이면 모든 게시판 @return 공개 글에서 사용하는 태그만 이름·슬러그 순으로 정렬한 조회 */
+    private JPAQuery<PostFilterOption> publishedTagsQuery(String boardSlug) {
         QPostDetail post = QPostDetail.postDetail;
         QPostTag postTag = QPostTag.postTag;
         QTag tag = QTag.tag;
         return queryFactory.select(Projections.constructor(PostFilterOption.class, tag.slug, tag.name))
                 .distinct().from(post).join(postTag).on(postTag.id.postDetailId.eq(post.id))
                 .join(tag).on(tag.id.eq(postTag.id.tagId))
-                .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()))
+                .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()), boardMatches(post, boardSlug))
                 .orderBy(tag.name.asc(), tag.slug.asc());
     }
 
-    /** 공개 글이 있는 시리즈만 선택지로 반환한다. */
+    /** 공개 글이 있는 시리즈만 선택지로 반환한다. @param boardSlug 게시판 주소, null이면 모든 게시판 @param categorySlug 선택 카테고리 @return 시리즈 선택지 */
     @Override
-    public List<PostSeriesOption> findPublishedSeries(String categorySlug) {
+    public List<PostSeriesOption> findPublishedSeries(String boardSlug, String categorySlug) {
         QPostDetail post = QPostDetail.postDetail;
         QPostSeries series = QPostSeries.postSeries;
         QPostCategory category = QPostCategory.postCategory;
@@ -225,7 +226,8 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
                 .from(post)
                 .join(series).on(series.id.eq(post.seriesId))
                 .join(category).on(category.id.eq(series.categoryId))
-                .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()), series.status.in("ACTIVE", "COMPLETED"));
+                .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()), series.status.in("ACTIVE", "COMPLETED"),
+                        boardMatches(post, boardSlug));
 
         BooleanExpression categoryFilter = categorySlugMatches(category, categorySlug);
         if (categoryFilter != null) {
@@ -236,14 +238,14 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
                 .orderBy(series.sortOrder.min().asc(), series.name.asc(), series.slug.asc()).fetch();
     }
 
-    /** 공개 글이 있는 단일 시리즈 소개 정보를 반환한다. */
+    /** 공개 글이 있는 단일 시리즈 소개 정보를 반환한다. @param boardSlug 게시판 주소, null이면 모든 게시판 @param categorySlug 선택 카테고리 @param seriesSlug 선택 시리즈 @return 일치하는 공개 시리즈 */
     @Override
-    public Optional<PostSeriesOption> findPublishedSeries(String categorySlug, String seriesSlug) {
+    public Optional<PostSeriesOption> findPublishedSeries(String boardSlug, String categorySlug, String seriesSlug) {
         if (seriesSlug == null || seriesSlug.isBlank()) {
             return Optional.empty();
         }
 
-        return findPublishedSeries(categorySlug).stream()
+        return findPublishedSeries(boardSlug, categorySlug).stream()
                 .filter(option -> option.slug().equals(seriesSlug)).findFirst();
     }
 
@@ -292,8 +294,10 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
         return queryFactory
                 .select(postDetail.id, postDetail.slug, postDetail.title, postDetail.summary,
                         postDetail.content, postDetail.publishedAt, tag.name, postDetail.seriesOrder,
-                        QAttachedFile.attachedFile.storedName, category.name, series.slug, series.name)
+                        QAttachedFile.attachedFile.storedName, category.name, series.slug, series.name,
+                        QBoard.board.slug, QBoard.board.name)
                 .from(postDetail)
+                .leftJoin(QBoard.board).on(QBoard.board.id.eq(postDetail.boardId))
                 .leftJoin(QAttachedFile.attachedFile).on(QAttachedFile.attachedFile.id.eq(postDetail.representativeImageId))
                 .leftJoin(category).on(category.id.eq(postDetail.categoryId))
                 .leftJoin(series).on(series.id.eq(postDetail.seriesId),
@@ -301,6 +305,22 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
                 .leftJoin(postTag).on(postTag.id.postDetailId.eq(postDetail.id))
                 .leftJoin(tag).on(tag.id.eq(postTag.id.tagId))
                 .where(postDetail.status.eq(PUBLISHED), postDetail.publishedAt.loe(java.time.Instant.now()));
+    }
+
+    /**
+     * 게시판 주소가 있을 때만 그 게시판의 글로 좁히는 조건식을 만든다.
+     *
+     * @param post 글 Q 타입
+     * @param boardSlug 게시판 주소, null이면 모든 게시판
+     * @return 적용할 조건식 또는 조건을 생략하기 위한 null
+     */
+    private BooleanExpression boardMatches(QPostDetail post, String boardSlug) {
+        if (boardSlug == null || boardSlug.isBlank()) {
+            return null;
+        }
+        QBoard board = new QBoard("filterBoard");
+        return JPAExpressions.selectOne().from(board)
+                .where(board.id.eq(post.boardId), board.slug.eq(boardSlug)).exists();
     }
 
     /**
@@ -354,7 +374,8 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
                 row.get(postDetail.seriesOrder),
                 row.get(QAttachedFile.attachedFile.storedName),
                 row.get(QPostCategory.postCategory.name),
-                row.get(QPostSeries.postSeries.slug), row.get(QPostSeries.postSeries.name)
+                row.get(QPostSeries.postSeries.slug), row.get(QPostSeries.postSeries.name),
+                row.get(QBoard.board.slug), row.get(QBoard.board.name)
         );
     }
 

@@ -7,11 +7,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import com.deanp.blog.post.service.BoardService;
+import com.deanp.blog.post.service.BoardService.BoardView;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -31,6 +34,9 @@ class SearchEngineControllerTest {
 
     @MockitoBean
     private PostDetailRepository posts;
+
+    @MockitoBean
+    private BoardService boardService;
 
     /** Google Search Console 소유권 확인 파일이 사이트 최상위 주소에서 원본 내용 그대로 열린다. 지우면 인증이 풀린다. */
     @Test
@@ -54,6 +60,8 @@ class SearchEngineControllerTest {
     /** 고정 화면과 공개 글을 넣고, 한글 슬러그는 인코딩하고 XML 특수문자는 이스케이프한다. */
     @Test
     void sitemapListsFixedPagesAndPublishedPosts() throws Exception {
+        when(boardService.findActive()).thenReturn(List.of(
+                new BoardView(new UUID(0, 1), "dev", "개발", null), new BoardView(new UUID(0, 2), "notes", "노트", null)));
         when(posts.findPublishedPostLinks()).thenReturn(List.of(
                 new PublishedPostLink("한글 글&1", Instant.parse("2026-10-19T16:30:00Z")),
                 new PublishedPostLink("no-date", null)));
@@ -62,7 +70,8 @@ class SearchEngineControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", containsString("application/xml")))
                 .andExpect(content().string(containsString("<url><loc>http://localhost/</loc></url>")))
-                .andExpect(content().string(containsString("<url><loc>http://localhost/posts</loc></url>")))
+                .andExpect(content().string(containsString("<url><loc>http://localhost/dev</loc></url>")))
+                .andExpect(content().string(containsString("<url><loc>http://localhost/notes</loc></url>")))
                 .andExpect(content().string(containsString("<url><loc>http://localhost/about</loc></url>")))
                 .andExpect(content().string(containsString(
                         "<url><loc>http://localhost/posts/%ED%95%9C%EA%B8%80%20%EA%B8%80&amp;1</loc><lastmod>2026-10-19</lastmod></url>")))

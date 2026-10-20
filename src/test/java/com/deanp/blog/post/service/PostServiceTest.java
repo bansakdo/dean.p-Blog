@@ -140,17 +140,17 @@ class PostServiceTest {
     @Test
     void mapsPublishedPostPageWithoutCountingTagsAsPosts() {
         UUID id = UUID.randomUUID();
-        when(repository.findPublishedPage("dev", null, List.of("java", "spring"), "query", 20, 20))
+        when(repository.findPublishedPage(null, "dev", null, List.of("java", "spring"), "query", 20, 20))
                 .thenReturn(new PublishedPage(List.of(
                         row(id, "page-post", "Page Post", "요약", "본문", Instant.parse("2026-08-31T00:00:00Z"), "Java"),
                         row(id, "page-post", "Page Post", "요약", "본문", Instant.parse("2026-08-31T00:00:00Z"), "Spring")), 21));
 
-        var page = service.findPage("dev", null, List.of("java", "spring"), "query", 2, 20);
+        var page = service.findPage(null, "dev", null, List.of("java", "spring"), "query", 2, 20);
         assertThat(page.getTotalElements()).isEqualTo(21);
         assertThat(page.getTotalPages()).isEqualTo(2);
         assertThat(page.getContent()).hasSize(1);
         assertThat(page.getContent().getFirst().tags()).containsExactly("Java", "Spring");
-        verify(repository).findPublishedPage("dev", null, List.of("java", "spring"), "query", 20, 20);
+        verify(repository).findPublishedPage(null, "dev", null, List.of("java", "spring"), "query", 20, 20);
     }
 
     /** 태그 병합 후에도 실제 시리즈명과 저장된 연재 번호가 화면에 전달된다. */
