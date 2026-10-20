@@ -18,7 +18,9 @@
     background.forEach(element => { element.inert = open && mobile.matches; });
     if (focus) (open && mobile.matches ? sidebar.querySelector('.sidebar-nav a') : toggle).focus();
   };
-  toggle.addEventListener('click', () => setOpen(!open, true));
+  // 키보드(Enter·Space)로 열고 닫을 때만 포커스를 메뉴 안팎으로 옮긴다. 터치·마우스로 누르면 detail이 1 이상이라
+  // 포커스를 옮기지 않아, 모바일에서 메뉴를 열 때 첫 메뉴(소개)에 포커스 테두리가 생기지 않는다.
+  toggle.addEventListener('click', event => setOpen(!open, event.detail === 0));
   backdrop.addEventListener('click', () => setOpen(false, true));
   document.addEventListener('keydown', event => {
     if (!open) return;
