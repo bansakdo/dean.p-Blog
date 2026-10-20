@@ -154,6 +154,9 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outlin
 .about-layout h1 { margin: 0; font-size: clamp(3.5rem, 8vw, 7rem); letter-spacing: -.07em; }
 .about-copy { max-width: 600px; font-size: 1.3rem; }
 .about-copy p { margin-top: 0; margin-bottom: 28px; }
+.error-layout h1 { font-size: clamp(2.2rem, 5vw, 4rem); line-height: 1.15; letter-spacing: -.05em; word-break: keep-all; }
+.error-layout .about-copy { word-break: keep-all; }
+.error-links { display: flex; flex-wrap: wrap; gap: 12px 28px; }
 .site-footer { width: min(1240px, calc(100% - 40px)); margin-inline: auto; padding: 36px 0 50px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; color: var(--muted); font-size: .84rem; }
 
 .home-more { display: none; }
