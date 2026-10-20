@@ -357,4 +357,23 @@ public class PublicPostQueryRepositoryImpl implements PublicPostQueryRepository 
                 row.get(QPostSeries.postSeries.slug), row.get(QPostSeries.postSeries.name)
         );
     }
+
+    /**
+     * 사이트맵에 넣을 공개 글 주소를 최신 발행순으로 조회한다.
+     *
+     * @return 공개 글의 슬러그와 마지막 수정 시각
+     */
+    @Override
+    public List<PublishedPostLink> findPublishedPostLinks() {
+        QPostDetail post = QPostDetail.postDetail;
+        return queryFactory
+                .select(post.slug, post.updatedAt)
+                .from(post)
+                .where(post.status.eq(PUBLISHED), post.publishedAt.loe(java.time.Instant.now()))
+                .orderBy(post.publishedAt.desc())
+                .fetch()
+                .stream()
+                .map(row -> new PublishedPostLink(row.get(post.slug), row.get(post.updatedAt)))
+                .toList();
+    }
 }

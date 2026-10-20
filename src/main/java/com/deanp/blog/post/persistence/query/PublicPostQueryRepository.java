@@ -102,4 +102,11 @@ public interface PublicPostQueryRepository {
      * @return 같은 게시글의 태그별 조회 행 목록
      */
     List<PublicPostRow> findPublishedRowsBySlug(String slug);
+
+    /**
+     * 공개 화면과 같은 기준(발행 상태이고 발행 시각이 지난 글)으로 모든 공개 글의 주소를 최신 발행순으로 조회한다.
+     *
+     * @return 공개 글의 슬러그와 마지막 수정 시각
+     */
+    List<PublishedPostLink> findPublishedPostLinks();
 }

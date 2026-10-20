@@ -225,6 +225,13 @@ public class BlogController {
         sidebarFilters.add(model.asMap(), normalize(category), normalize(series), selectedTags(tag), normalize(search), SidebarFilterModel.DEFAULT_PAGE_SIZE);
         model.addAttribute("pageTitle", post.title() + " — dean.p");
 
+        // 검색 결과와 공유 미리보기에 글 요약과 대표 이미지를 쓴다. 요약이 없으면 사이트 기본 설명을 유지한다.
+        if (post.summary() != null && !post.summary().isBlank()) {
+            model.addAttribute("metaDescription", post.summary().strip());
+        }
+        model.addAttribute("ogType", "article");
+        model.addAttribute("ogImage", post.representativeImageUrl());
+
         return "post";
     }
 

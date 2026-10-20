@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title th:text="${title}">dean.p</title>
+  <meta name="description" th:if="${metaDescription != null}" th:content="${metaDescription}">
+  <meta name="robots" th:if="${noindex}" content="noindex, follow">
+  <link rel="canonical" th:if="${canonicalUrl != null and noindex != true}" th:href="${canonicalUrl}">
+  <meta property="og:site_name" content="dean.p">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:type" th:content="${ogType ?: 'website'}">
+  <meta property="og:title" th:content="${title}">
+  <meta property="og:description" th:if="${metaDescription != null}" th:content="${metaDescription}">
+  <meta property="og:url" th:if="${canonicalUrl != null}" th:content="${canonicalUrl}">
+  <meta property="og:image" th:if="${ogImage != null}" th:content="${siteUrl + ogImage}">
+  <meta name="twitter:card" th:content="${ogImage != null} ? 'summary_large_image' : 'summary'">
   <script>
     (() => {
       const saved = localStorage.getItem('deanp-theme');

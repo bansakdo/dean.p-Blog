@@ -72,6 +72,15 @@ class PostFilterQueryTest {
         link(14, 8);
     }
 
+    /** 사이트맵 주소는 공개 화면과 같은 기준으로 발행된 글만 포함한다. */
+    @Test
+    void publishedPostLinksExcludeDraftsAndUndatedPosts() {
+        assertThat(posts.findPublishedPostLinks())
+                .extracting(PublishedPostLink::slug)
+                .contains("dev-post", "life-post", "untagged-post")
+                .doesNotContain("draft-post", "unpublished-post");
+    }
+
     /** 태그를 선택해도 일치한 글의 다른 태그가 사라지지 않는다. */
     @Test
     void combinesFiltersAndPreservesAllTags() {
