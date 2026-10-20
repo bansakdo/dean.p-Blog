@@ -40,6 +40,12 @@
       menu.hidden = !expanded;
     });
   });
+  // 모바일에서 메뉴의 링크를 누르면 메뉴를 접어 본문이 보이게 한다. 펼침 버튼은 링크가 아니라 그대로 둔다.
+  sidebar.addEventListener('click', event => {
+    if (mobile.matches && event.target.closest('a[href]')) setOpen(false);
+  });
+  // PC는 열어 둔 메뉴를 다음 화면에서도 유지하고, 모바일은 화면을 새로 열면 항상 접힌 채로 시작한다.
+  // 화면을 열 때는 포커스를 옮기지 않아 첫 메뉴(소개)에 포커스 표시가 생기지 않게 한다.
   const savedOpen = sessionStorage.getItem('deanp-sidebar-open') === 'true';
-  setOpen(savedOpen, savedOpen && mobile.matches);
+  setOpen(savedOpen && !mobile.matches);
 })();
