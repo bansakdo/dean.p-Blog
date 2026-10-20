@@ -73,6 +73,7 @@ com.deanp.blog.<feature>
 - `media.controller.PublicMediaConfiguration`: 외부 저장소의 `posts/` 파일만 `/media/posts/**`로 공개
 - `media.controller.DiagramController`: Archify 다이어그램 HTML을 격리 헤더(CSP sandbox)와 함께 `/media/diagrams/{id}`로 제공
 - `media.controller.FileController`: 첨부 파일을 `/media/files/{id}`에서 다운로드로만 제공. 공개 글이 아니면 로그인한 작성자에게만 주고 그 밖에는 404
+- `seo.controller.SearchEngineController`·`SearchMetadataAdvice`: 검색엔진용 robots.txt·sitemap.xml과 공통 head의 대표 주소·설명·공유 미리보기·색인 제외 표시. dev 프로필은 전체 색인 제외
 - `post.controller.AdminDashboardController`: 로그인 후 첫 화면(`/admin`)으로 글 현황과 `visitor.service.VisitorStatsService`의 조회 통계(기본 최근 30일, 기간 선택 가능)를 보여 줌
 - Vanilla JavaScript: 라이트/다크 테마 전환
 - PostgreSQL: Flyway가 `blog` 스키마 evolution을 소유하고 Hibernate는 `validate`로 매핑 호환성만 확인

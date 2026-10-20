@@ -57,7 +57,9 @@ class ErrorPageTest {
             assertThat(response.body())
                     .contains("<title>페이지를 찾을 수 없습니다 — dean.p</title>")
                     .contains("class=\"site-header\"", "id=\"site-sidebar\"", "href=\"/posts\"", "</html>")
-                    .doesNotContain("Whitelabel");
+                    // 오류 화면은 검색 결과에 나오지 않도록 색인 제외로 표시하고 대표 주소를 내지 않는다.
+                    .contains("<meta name=\"robots\" content=\"noindex, follow\">")
+                    .doesNotContain("Whitelabel", "rel=\"canonical\"");
         }
     }
 

@@ -219,6 +219,15 @@ Markdown/Git 발행과 콘텐츠 이력을 담당합니다.
 
 제목·상태·카테고리·태그·발행일을 조합한 검색은 Querydsl을 기본으로 사용합니다. 검색 조건이 PostgreSQL 전문 검색으로 확장되면 Querydsl BooleanExpression과 PostgreSQL 전용 표현식의 책임을 `search.persistence`에 둡니다.
 
+## 검색엔진 노출 모듈
+
+### `com.deanp.blog.seo`
+
+- `seo.controller.SearchEngineController`: `/robots.txt`와 `/sitemap.xml`을 응답합니다. robots.txt는 `/admin`·`/login`·`/search`만 막고 사이트맵 위치를 알립니다. 사이트맵에는 홈·글 목록·소개와, 공개 화면과 같은 기준(`PUBLISHED`이고 `published_at <= now()`)의 글 주소(`PostDetailRepository.findPublishedPostLinks`)를 수정일과 함께 넣습니다.
+- `seo.controller.SearchMetadataAdvice`: 공통 head가 쓰는 대표 주소(쿼리를 뺀 경로), 기본 설명, 공유 미리보기 종류, 색인 제외 여부를 모든 화면 모델에 담습니다. 관리·로그인·검색·오류 화면과 조건이 붙은 `/posts` 목록은 `noindex, follow`로 표시합니다. 글 상세는 `BlogController`가 글 요약·`article`·대표 이미지로 덮어씁니다.
+- 사이트 주소는 설정하지 않고 요청에서 만듭니다(`server.forward-headers-strategy: native`로 프록시의 호스트·https를 반영).
+- `app.seo.indexable=false`(dev 프로필)이면 robots.txt가 전체를 막고 모든 화면을 `noindex`로 표시하며 사이트맵은 404입니다. 개발 서버가 검색 결과에 나오지 않게 하기 위함입니다.
+
 ## 테이블-패키지 매핑 요약
 
 | 테이블 | 주 소유 패키지 | 함께 조회하는 패키지 |

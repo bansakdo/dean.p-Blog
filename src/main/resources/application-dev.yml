@@ -23,6 +23,9 @@ spring:
     baseline-on-migrate: true
 
 app:
+  # 개발 서버(blog-dev)가 검색 결과에 나오지 않도록 모든 화면을 색인 제외하고 사이트맵을 내지 않는다.
+  seo:
+    indexable: false
   media:
     storage-root: ${APP_MEDIA_STORAGE_ROOT:../dean-p-blog-media}
   visitor:

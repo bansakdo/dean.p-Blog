@@ -98,6 +98,37 @@ class BlogControllerTest {
     @MockitoBean
     private VisitorPostViewTrackingService visitorPostViewTrackingService;
 
+    /** 글 상세는 쿼리 없는 대표 주소, 글 요약 설명, 대표 이미지 공유 정보를 head에 넣는다. */
+    @Test
+    void postDetailHeadHasCanonicalDescriptionAndShareImage() throws Exception {
+        PostView post = new PostView(new UUID(0, 77), "seo-post", "검색 글", "검색 결과에 보일 요약",
+                LocalDate.of(2026, 10, 1), 1, List.of(), "<p>본문</p>", "/media/posts/a/cover.png");
+        when(postService.findBySlug("seo-post")).thenReturn(Optional.of(post));
+
+        mockMvc.perform(get("/posts/seo-post").param("category", "dev"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<link rel=\"canonical\" href=\"http://localhost/posts/seo-post\">")))
+                .andExpect(content().string(containsString("<meta name=\"description\" content=\"검색 결과에 보일 요약\">")))
+                .andExpect(content().string(containsString("<meta property=\"og:type\" content=\"article\">")))
+                .andExpect(content().string(containsString("<meta property=\"og:image\" content=\"http://localhost/media/posts/a/cover.png\">")))
+                .andExpect(content().string(containsString("<meta name=\"twitter:card\" content=\"summary_large_image\">")))
+                .andExpect(content().string(not(containsString("name=\"robots\""))));
+    }
+
+    /** 조건 없는 글 목록은 색인하고, 필터·페이지 조건이 붙은 목록과 검색 화면은 색인에서 뺀다. */
+    @Test
+    void filteredListsAndSearchAreNotIndexed() throws Exception {
+        mockMvc.perform(get("/posts"))
+                .andExpect(content().string(containsString("<link rel=\"canonical\" href=\"http://localhost/posts\">")))
+                .andExpect(content().string(containsString("<meta name=\"description\" content=\"개발하며 배운 것들, 만들어 가는 이야기.\">")))
+                .andExpect(content().string(not(containsString("name=\"robots\""))));
+        mockMvc.perform(get("/posts").param("category", "dev"))
+                .andExpect(content().string(containsString("<meta name=\"robots\" content=\"noindex, follow\">")))
+                .andExpect(content().string(not(containsString("rel=\"canonical\""))));
+        mockMvc.perform(get("/search").param("q", "spring"))
+                .andExpect(content().string(containsString("<meta name=\"robots\" content=\"noindex, follow\">")));
+    }
+
     /** 빈 검색은 전체 조회 없이 안내 화면을 표시한다. */
     @Test
     void blankSearchShowsGuidance() throws Exception {
