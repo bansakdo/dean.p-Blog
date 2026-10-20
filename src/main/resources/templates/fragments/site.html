@@ -63,26 +63,42 @@
   <div class="sidebar-scroll">
     <nav class="sidebar-nav" aria-label="주요 메뉴">
       <a class="sidebar-leaf" th:href="@{/about}">소개</a>
-      <!--/* 게시판마다 항목을 두고, 카테고리·시리즈·태그 필터는 지금 보는 게시판(그 밖의 화면은 기본 게시판) 아래에만 둔다. */-->
-      <th:block th:if="${boards != null}" th:each="board : ${boards}">
-        <div class="sidebar-group" th:if="${filterBoard != null and board.id == filterBoard.id and categories != null}">
+      <!--/* 게시판마다 카테고리 하위 메뉴를 어느 화면에서든 펼칠 수 있게 두고, 시리즈·태그 같은 상세 조회 조건은
+             게시판 목록·글 상세에서 그 게시판 아래에만 붙인다. 지금 게시판은 그 화면에서 펼친 채로 그린다. */-->
+      <th:block th:if="${boardMenus != null}" th:each="menu : ${boardMenus}"
+                th:with="board=${menu.board()}, current=${filterBoard != null and menu.board().id() == filterBoard.id()}, open=${current and postsMenuOpen}">
+        <div class="sidebar-group">
           <div class="sidebar-group-head">
-            <button class="sidebar-group-toggle" type="button" aria-controls="sidebar-posts-menu"
-                    th:attr="aria-expanded=${postsMenuOpen},aria-label=${postsMenuOpen} ? |${board.name} 메뉴 접기| : |${board.name} 메뉴 펼치기|,data-group-name=${board.name}"
-                    data-group-toggle>
+            <button class="sidebar-group-toggle" type="button" data-group-toggle
+                    th:attr="aria-controls=|sidebar-board-${board.slug()}-menu|,aria-expanded=${open},aria-label=${open} ? |${board.name()} 메뉴 접기| : |${board.name()} 메뉴 펼치기|,data-group-name=${board.name()}">
               <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
-            <a id="sidebar-posts-title" th:href="@{${board.path()}}" th:text="${board.name}">개발</a>
+            <a th:id="|sidebar-board-${board.slug()}-title|" th:href="@{${board.path()}}" th:text="${board.name()}">개발</a>
           </div>
-          <div id="sidebar-posts-menu" class="sidebar-subnav" role="group" aria-labelledby="sidebar-posts-title"
-               th:hidden="${!postsMenuOpen}">
-            <div th:replace="~{fragments/filters :: filters}"></div>
-          </div>
-        </div>
-        <div class="sidebar-group" th:unless="${filterBoard != null and board.id == filterBoard.id and categories != null}">
-          <div class="sidebar-group-head">
-            <span class="sidebar-group-spacer" aria-hidden="true"></span>
-            <a th:href="@{${board.path()}}" th:text="${board.name}">노트</a>
+          <div th:id="|sidebar-board-${board.slug()}-menu|" class="sidebar-subnav" role="group"
+               th:attr="aria-labelledby=|sidebar-board-${board.slug()}-title|" th:hidden="${!open}">
+            <div class="sidebar-filters">
+              <section class="filter-block" th:attr="aria-labelledby=|category-filter-title-${board.slug()}|">
+                <h2 th:id="|category-filter-title-${board.slug()}|">카테고리</h2>
+                <nav class="filter-links category-links" th:attr="aria-label=|${board.name()} 카테고리|">
+                  <a th:classappend="${current and selectedCategory == null} ? 'is-active'"
+                     th:attr="aria-current=${current and selectedCategory == null ? 'true' : null}"
+                     th:href="${current} ? @{${board.path()}(tag=${selectedTag}, q=${search}, size=${pageSize})} : @{${board.path()}}">
+                    <span>전체 글</span><span class="filter-count" th:text="${menu.totalPosts()}">0</span>
+                  </a>
+                  <a th:each="category : ${menu.categories()}"
+                     th:classappend="${current and category.slug == selectedCategory} ? 'is-active'"
+                     th:attr="aria-current=${current and category.slug == selectedCategory ? 'true' : null}"
+                     th:href="${current} ? @{${board.path()}(category=${category.slug}, tag=${selectedTag}, q=${search}, size=${pageSize})} : @{${board.path()}(category=${category.slug})}">
+                    <span th:text="${category.name}">카테고리</span>
+                    <span class="filter-count" th:text="${category.postCount}">0</span>
+                  </a>
+                </nav>
+              </section>
+              <th:block th:if="${current and showBoardFilters == true}">
+                <th:block th:replace="~{fragments/filters :: details}"></th:block>
+              </th:block>
+            </div>
           </div>
         </div>
       </th:block>

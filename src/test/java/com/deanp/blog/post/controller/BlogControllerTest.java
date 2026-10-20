@@ -214,8 +214,9 @@ class BlogControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("<h1>노트</h1>")))
                 .andExpect(content().string(containsString("개발 밖의 정보와 생각을 나눕니다.")))
-                .andExpect(content().string(containsString("<a id=\"sidebar-posts-title\" href=\"/notes\">노트</a>")))
-                .andExpect(content().string(containsString("<a href=\"/dev\">개발</a>")))
+                .andExpect(content().string(containsString("aria-expanded=\"true\" aria-label=\"노트 메뉴 접기\"")))
+                .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"개발 메뉴 펼치기\"")))
+                .andExpect(content().string(containsString("태그로 좁혀보기")))
                 .andExpect(content().string(containsString("href=\"/notes?tag=&amp;q=&amp;size=20\"")))
                 .andExpect(content().string(containsString("<link rel=\"canonical\" href=\"http://localhost/notes\">")));
         verify(postService).findPage("notes", null, null, List.of(), null, 1, 20);
@@ -242,18 +243,29 @@ class BlogControllerTest {
         mockMvc.perform(get("/posts/note-post"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("<a class=\"back-link\" href=\"/notes\">← 노트</a>")))
-                .andExpect(content().string(containsString("<a id=\"sidebar-posts-title\" href=\"/notes\">노트</a>")));
+                .andExpect(content().string(containsString("aria-expanded=\"true\" aria-label=\"노트 메뉴 접기\"")))
+                .andExpect(content().string(containsString("태그로 좁혀보기")));
         verify(postService).findCategories("notes");
     }
 
-    /** 검색 페이지에서도 기본 게시판(개발) 아래에 분류 필터를 두되, 게시판 화면이 아니므로 접어 둔다. */
+    /** 게시판이 아닌 화면에서도 모든 게시판의 카테고리 하위 메뉴를 접힌 채로 두고, 시리즈·태그 같은 상세 조건은 두지 않는다. */
     @Test
-    void searchSidebarKeepsPostFiltersCollapsed() throws Exception {
+    void searchSidebarKeepsBoardMenusCollapsed() throws Exception {
+        when(postService.findCategories("dev")).thenReturn(List.of(new com.deanp.blog.post.PostFilterOption("algorithm", "알고리즘", 3)));
+        when(postService.findCategories("notes")).thenReturn(List.of(new com.deanp.blog.post.PostFilterOption("conference", "컨퍼런스", 1)));
+        when(postService.countPublishedPosts("notes")).thenReturn(2L);
+
         mockMvc.perform(get("/search"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("class=\"sidebar-filters\"")))
                 .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"개발 메뉴 펼치기\"")))
-                .andExpect(content().string(matchesPattern("(?s).*id=\"sidebar-posts-menu\"[^>]*hidden.*")))
+                .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"노트 메뉴 펼치기\"")))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"sidebar-board-dev-menu\"[^>]*hidden.*")))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"sidebar-board-notes-menu\"[^>]*hidden.*")))
+                .andExpect(content().string(containsString("href=\"/dev?category=algorithm\"")))
+                .andExpect(content().string(containsString("href=\"/notes?category=conference\"")))
+                .andExpect(content().string(matchesPattern("(?s).*href=\"/notes\">\\s*<span>전체 글</span><span class=\"filter-count\">2</span>.*")))
+                .andExpect(content().string(not(containsString("태그로 좁혀보기"))))
+                .andExpect(content().string(not(containsString("series-filter-title"))))
                 .andExpect(content().string(containsString("id=\"site-sidebar\"")))
                 .andExpect(content().string(containsString("aria-controls=\"site-sidebar\"")));
     }
@@ -319,9 +331,11 @@ class BlogControllerTest {
     void sidebarNavigationAndThemeAreRendered() throws Exception {
         mockMvc.perform(get("/dev"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(matchesPattern("(?s).*class=\"sidebar-nav\"[^>]*>\\s*<a class=\"sidebar-leaf\" href=\"/about\">소개</a>\\s*<div class=\"sidebar-group\">.*<a id=\"sidebar-posts-title\" href=\"/dev\">개발</a>.*<a href=\"/notes\">노트</a>.*</nav>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*class=\"sidebar-nav\"[^>]*>\\s*<a class=\"sidebar-leaf\" href=\"/about\">소개</a>\\s*<div class=\"sidebar-group\">.*<a id=\"sidebar-board-dev-title\" href=\"/dev\">개발</a>.*<a id=\"sidebar-board-notes-title\" href=\"/notes\">노트</a>.*</nav>.*")))
                 .andExpect(content().string(containsString("aria-expanded=\"true\" aria-label=\"개발 메뉴 접기\"")))
-                .andExpect(content().string(not(matchesPattern("(?s).*id=\"sidebar-posts-menu\"[^>]*hidden.*"))))
+                .andExpect(content().string(containsString("aria-expanded=\"false\" aria-label=\"노트 메뉴 펼치기\"")))
+                .andExpect(content().string(not(matchesPattern("(?s).*id=\"sidebar-board-dev-menu\"[^>]*hidden.*"))))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"sidebar-board-notes-menu\"[^>]*hidden.*")))
                 .andExpect(content().string(not(containsString(">검색</a>"))))
                 .andExpect(content().string(not(containsString("<strong>메뉴</strong>"))))
                 .andExpect(content().string(not(containsString("<span>테마</span>"))))

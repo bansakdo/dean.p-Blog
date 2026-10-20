@@ -1,21 +1,4 @@
-<div xmlns:th="http://www.thymeleaf.org" th:fragment="filters" class="sidebar-filters">
-        <section class="filter-block" aria-labelledby="category-filter-title">
-          <h2 id="category-filter-title">카테고리</h2>
-          <nav class="filter-links category-links" aria-label="카테고리">
-            <a th:classappend="${selectedCategory == null} ? 'is-active'"
-               th:attr="aria-current=${selectedCategory == null ? 'true' : null}"
-               th:href="@{${filterBoard.path()}(tag=${selectedTag}, q=${search}, size=${pageSize})}">
-              <span>전체 글</span><span class="filter-count" th:text="${totalPosts}">0</span>
-            </a>
-            <a th:each="category : ${categories}"
-               th:classappend="${category.slug == selectedCategory} ? 'is-active'"
-               th:attr="aria-current=${category.slug == selectedCategory ? 'true' : null}"
-               th:href="@{${filterBoard.path()}(category=${category.slug}, tag=${selectedTag}, q=${search}, size=${pageSize})}">
-              <span th:text="${category.name}">카테고리</span>
-              <span class="filter-count" th:text="${category.postCount}">0</span>
-            </a>
-          </nav>
-        </section>
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="details">
         <section class="filter-block" aria-labelledby="series-filter-title">
           <h2 id="series-filter-title"><span th:text="${selectedCategoryName != null ? selectedCategoryName + '의 시리즈' : '시리즈'}">시리즈</span><span th:text="${seriesOptions.size()}">0</span></h2>
           <nav class="filter-links series-links" aria-label="시리즈">
@@ -45,4 +28,4 @@
           <p class="filter-help" th:if="${tags.isEmpty()}">등록된 태그가 없습니다.</p>
         </section>
         <p class="filter-help browse-hint">분류를 누르면 바로 반영됩니다.</p>
-</div>
+</th:block>
