@@ -32,6 +32,14 @@ class SearchEngineControllerTest {
     @MockitoBean
     private PostDetailRepository posts;
 
+    /** Google Search Console 소유권 확인 파일이 사이트 최상위 주소에서 원본 내용 그대로 열린다. 지우면 인증이 풀린다. */
+    @Test
+    void servesGoogleSiteVerificationFile() throws Exception {
+        mockMvc.perform(get("/google7427df080ec63bba.html"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("google-site-verification: google7427df080ec63bba.html"));
+    }
+
     /** 관리·로그인·검색 화면만 막고 요청 호스트 기준 사이트맵 주소를 알린다. */
     @Test
     void robotsAllowsPublicPagesAndPointsToSitemap() throws Exception {
