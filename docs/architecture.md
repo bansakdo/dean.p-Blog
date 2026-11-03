@@ -105,5 +105,4 @@ com.deanp.blog.<feature>
 
 - Markdown front matter의 최종 형식
 - Git push 이후 발행 방식
-- 관리자 인증 및 권한 모델
 - 검색 품질이 부족할 때 외부 검색 엔진을 도입할지 여부

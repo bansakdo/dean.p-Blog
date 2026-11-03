@@ -134,14 +134,16 @@
 
 ### 5단계 — 관리자 통계 조회
 
+상태: 완료
+
 목표: 관리자만 방문 통계를 조회할 수 있게 한다.
 
 작업:
 
-- 게시글별 조회수·고유 방문자 수 조회
-- 기간별 통계 조회
-- 관리자 권한 검증
-- 통계 화면과 API 테스트
+- 게시글별 조회수·고유 방문자 수 조회 완료(대시보드 ‘많이 본 글’)
+- 기간별 통계 조회 완료(최근 7일·30일·90일·6개월·1년과 직접 고른 기간, 기본 최근 30일)
+- `/admin/**`의 `POST_WRITE` 권한 검증 적용 완료
+- 통계 화면 테스트 완료(`AdminDashboardControllerTest`). 별도 통계 API는 두지 않고 대시보드 화면(`/admin`, `post.controller.AdminDashboardController`·`visitor.service.VisitorStatsService`)으로 제공
 
 완료 기준:
 
